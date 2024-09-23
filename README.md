@@ -31,3 +31,6 @@ uartprogram -w src/build/hello-world_crc.bin
 tio -b 115200 /dev/ttyUSB0
 ```
 
+## Links
+
+https://github.com/jobroe/cmake-arm-embedded
