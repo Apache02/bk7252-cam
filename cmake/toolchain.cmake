@@ -11,8 +11,8 @@ set(CMAKE_ASM_COMPILER ${TOOLCHAIN}-as)
 
 set(CPU_OPTIONS "-mcpu=arm968e-s -mthumb-interwork")
 
-set(CMAKE_C_FLAGS "${CPU_OPTIONS} -mthumb -O2 -nostdlib")
-set(CMAKE_CXX_FLAGS "${CPU_OPTIONS} -mthumb -O2 -nostdlib")
+set(CMAKE_C_FLAGS "${CPU_OPTIONS} -mthumb -O2 -nostdlib -fno-exceptions")
+set(CMAKE_CXX_FLAGS "${CPU_OPTIONS} -mthumb -O2 -nostdlib -fno-exceptions")
 set(CMAKE_ASM_FLAGS "${CPU_OPTIONS}")
 
 #set(CMAKE_CROSSCOMPILING TRUE)
