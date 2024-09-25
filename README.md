@@ -33,4 +33,4 @@ tio -b 115200 /dev/ttyUSB0
 
 ## Links
 
-https://github.com/jobroe/cmake-arm-embedded
+...

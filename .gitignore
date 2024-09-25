@@ -1,6 +1,9 @@
 .idea
+.fleet
+.cache
 
 build
+backups
 cmake-build-default
 cmake-build-debug
 cmake-build-release

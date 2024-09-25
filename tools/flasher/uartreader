@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import time
+import argparse
+import textwrap
+from bkutils import UartFlashReader
+
+segments = [
+    {"name": "bootloader", "startaddr": 0x00000000, "length": 0x10000},
+    {"name": "app", "startaddr": 0x11000, "length": 0x119000},
+]
+
+
+def find_segment(segment_name):
+    for segment in segments:
+        if segment['name'] == segment_name:
+            return segment['startaddr'], segment['length'], True
+    return None, None, False
+
+
+# parse commandline arguments
+def parse_args():
+    cmd = sys.argv[0]
+
+    description = '''Uart dumper utility.'''
+    parser = argparse.ArgumentParser(
+        description=description,
+        epilog=textwrap.dedent(f"""
+        Examples:
+          python {cmd} --port /dev/ttyUSB0 --startaddr 0x11000 --length 0x119000 --output result.bin
+          python {cmd} --segment app
+          python {cmd} --segment app -o dumps/
+        """),
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+
+    parser.add_argument('-p', '--port',
+                        default='/dev/ttyUSB0',
+                        help="UART port (e.g., COM3 or /dev/ttyUSB0)"
+                        )
+    parser.add_argument('-b', '--baudrate', type=int, default=921600, help="Baud rate (default: 921600)")
+
+    parser.add_argument('-s', '--startaddr',
+                        default=0x11000,
+                        type=lambda x: int(x, 0),
+                        help="Start address (default 0x11000)"
+                        )
+    parser.add_argument('-l', '--length',
+                        default=0x119000,
+                        type=lambda x: int(x, 0),
+                        help="Length (default 0x119000)"
+                        )
+
+    parser.add_argument('--segment',
+                        type=str,
+                        choices=[segment['name'] for segment in segments],
+                        default=None,
+                        help="Segment name"
+                        )
+
+    parser.add_argument('-o', '--output', help="Output file, will be generated if empty")
+
+    args = parser.parse_args()
+
+    if args.segment is not None:
+        # find segment by table
+        args.startaddr, args.length, found = find_segment(args.segment)
+        if not found:
+            parser.error("segment not found")
+            sys.exit(-1)
+
+    if args.startaddr is not None and args.length is None:
+        parser.error("--length is required when --startaddr is specified")
+
+    if args.startaddr & 0x0fff != 0:
+        parser.error("startaddr must align to 4k")
+
+    if args.output is None:
+        args.output = generate_output_filename(args.segment or hex(args.startaddr))
+    elif args.output.endswith('/'):
+        args.output += generate_output_filename(args.segment or hex(args.startaddr))
+
+    return args
+
+
+def generate_output_filename(prefix):
+    return "%s_%s.bin" % (prefix, time.strftime('%Y-%m-%d_%H%M%S'))
+
+
+def main():
+    args = parse_args()
+
+    if not os.path.exists(args.port):
+        print(f"Device {args.port} doesn't exist")
+        sys.exit(-1)
+
+    filename = args.output
+
+    if os.path.exists(filename):
+        ans = input(f"File {filename} already exist, overwrite? [Y/n] ")
+        if ans == 'n' or ans == 'N':
+            sys.exit(0)
+
+    downloader = UartFlashReader(args.port, args.baudrate)
+    buffer = downloader.readflash(args.startaddr, args.length)
+
+    if len(buffer) > 0:
+        f = open(filename, "wb")
+        f.write(buffer)
+        f.close()
+        print("Wrote %d bytes to %s" % (len(buffer), filename))
+    else:
+        print("Nothing to write")
+
+
+if __name__ == "__main__":
+    main()
