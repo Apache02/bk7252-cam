@@ -41,9 +41,6 @@
 #define UART1_BASE_ADDR                        (0x0802100)
 #define UART2_BASE_ADDR                        (0x0802200)
 
-#define UART1_BASE_ADDR                        (0x0802100)
-#define UART2_BASE_ADDR                        (0x0802200)
-
 #define REG_UART1_CONFIG                     (UART1_BASE_ADDR + 4 * 0)
 #define REG_UART2_CONFIG                     (UART2_BASE_ADDR + 4 * 0)
 
