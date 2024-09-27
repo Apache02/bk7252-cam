@@ -2,18 +2,6 @@
 #include "drivers/uart.h"
 #include "drivers/wdt.h"
 
-void kprint(const char *message) {
-    while (*message != '\0') {
-        uart_write_byte(UART2_PORT, *message++);
-    }
-}
-
-void kprint_uart(int uport, const char *message) {
-    while (*message != '\0') {
-        uart_write_byte(uport, *message++);
-    }
-}
-
 static inline void busy_wait_at_least_cycles(uint32_t minimum_cycles) {
     __asm volatile(
     ".syntax unified\n"
@@ -46,13 +34,13 @@ int main() {
     uart_hw_init(UART2_PORT);
 
     for (int i = 0; i < 100; i++) {
-        printf("hello printf %d\r\n", i);
+        printf("blink %d\r\n", i);
 
         sleep(1);
         wdt_ping();
     }
 
-    kprint("\r\nreboot system\r\n");
+    printf("\r\nreboot system\r\n");
     msleep(100);
     wdt_reboot();
 
