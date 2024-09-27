@@ -23,12 +23,12 @@ target_link_options(
 )
 
 # libs
-add_subdirectory(src/entry)
-add_subdirectory(src/drivers)
+add_subdirectory(src/platform)
 target_link_libraries(
         ${PROJECT_NAME}
         platform_entry
-        drivers
+        platform_drivers
+        platform_stdio
 )
 
 # Remove execute flag

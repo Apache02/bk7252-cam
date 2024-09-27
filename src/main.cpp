@@ -1,4 +1,4 @@
-#include <stdint.h>
+#include <stdio.h>
 #include "drivers/uart.h"
 #include "drivers/wdt.h"
 
@@ -24,7 +24,7 @@ static inline void busy_wait_at_least_cycles(uint32_t minimum_cycles) {
 }
 
 void usleep(unsigned int us) {
-    busy_wait_at_least_cycles(us * (60'000'000 / 1'000'000));
+    busy_wait_at_least_cycles(us * (180'000'000 / 1'000'000));
 }
 
 void msleep(unsigned int ms) {
@@ -45,11 +45,11 @@ int main() {
     uart_hw_init(UART1_PORT);
     uart_hw_init(UART2_PORT);
 
-    for (int i = 0; i < 10; i++) {
-        kprint_uart(UART1_PORT, "Hello UART1\r\n");
-        kprint_uart(UART2_PORT, "Hello UART2\r\n");
+    for (int i = 0; i < 100; i++) {
+        printf("hello printf %d\r\n", i);
 
         sleep(1);
+        wdt_ping();
     }
 
     kprint("\r\nreboot system\r\n");
