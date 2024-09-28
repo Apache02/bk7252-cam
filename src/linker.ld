@@ -47,6 +47,7 @@ SECTIONS
     } > FLASH
 
 
+    __exidx_start = .;
     .rwdata ALIGN(8) :
     {
         /* globals.for example: int ram_data[3]={4,5,6}; VMA in RAM, but keep LMA in flash */
