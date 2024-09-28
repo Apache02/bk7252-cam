@@ -1,21 +1,34 @@
-#include <stdio.h>
 #include "drivers/uart.h"
 
 
-#define PRINTF_UART1    0
-#define PRINTF_UART2    1
+#define STDIO_UART_PORT     UART2_PORT
+
 
 int _write(int file, char *ptr, int len) {
-    int i;
-    for (i = 0; i < len; i++) {
-#if PRINTF_UART1 == 1
-        uart_write_byte(UART1_PORT, *ptr);
-#endif
-#if PRINTF_UART2 == 1
-        uart_write_byte(UART2_PORT, *ptr);
-#endif
+//    // stdout only
+//    if (file != 0) {
+//        return -1;
+//    }
+
+    for (int i = 0; i < len; i++) {
+        uart_write_byte(STDIO_UART_PORT, *ptr);
         ptr++;
     }
     return len;
 }
 
+int _read(int file, char *ptr, int len) {
+    // stdin only
+    if (file != 0) {
+        return -1;
+    }
+
+    for (int i = 0; i < len; i++) {
+        int c = uart_read_byte(STDIO_UART_PORT);
+        if (c == -1) {
+            return i == 0 ? -1 : i;
+        }
+        *ptr++ = c;
+    }
+    return len;
+}
