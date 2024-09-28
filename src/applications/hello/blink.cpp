@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "drivers/uart.h"
-#include "drivers/wdt.h"
+#include "drivers/gpio.h"
+
 
 static inline void busy_wait_at_least_cycles(uint32_t minimum_cycles) {
     __asm volatile(
@@ -23,26 +24,50 @@ void sleep(unsigned int sec) {
     usleep(sec * 1000000);
 }
 
-void wdt_reboot(void) {
-    wdt_set(10);
-    wdt_up();
-    while (1);
-}
+#define LED_PIN         26
+#define KEY_PWR_PIN     2       // pull up
+#define KEY_MODE_PIN    7       // pull up
 
 int main() {
     uart_hw_init(UART1_PORT);
     uart_hw_init(UART2_PORT);
 
-    for (int i = 0; i < 100; i++) {
-        printf("blink %d\r\n", i);
+    gpio_config(LED_PIN, GMODE_OUTPUT);
+    gpio_config(KEY_PWR_PIN, GMODE_INPUT_PULLUP);
+    gpio_config(KEY_MODE_PIN, GMODE_INPUT_PULLUP);
 
-        sleep(1);
-        wdt_ping();
+    struct {
+        bool pwr;
+        bool mode;
+    } keys = {false, false};
+
+    for (;;) {
+        bool pressed;
+
+        pressed = gpio_input(KEY_PWR_PIN) == 0;
+        if (keys.pwr != pressed) {
+            keys.pwr = pressed;
+            if (pressed) {
+                printf("PWR pressed\r\n");
+            } else {
+                printf("PWR released\r\n");
+            }
+        }
+
+        pressed = gpio_input(KEY_MODE_PIN) == 0;
+        if (keys.mode != pressed) {
+            keys.mode = pressed;
+            if (pressed) {
+                printf("MODE pressed\r\n");
+            } else {
+                printf("MODE released\r\n");
+            }
+        }
+
+        gpio_output(LED_PIN, keys.pwr || keys.mode);
+
+        usleep(100);
     }
-
-    printf("\r\nreboot system\r\n");
-    msleep(100);
-    wdt_reboot();
 
     return 0;
 }

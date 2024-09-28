@@ -11,5 +11,6 @@ target_sources(
         platform_drivers INTERFACE
         wdt.c
         uart.c
+        gpio.c
 )
 
