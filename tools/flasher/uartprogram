@@ -83,10 +83,12 @@ def main():
 
     if not os.path.exists(filename):
         print(f"File '{filename}' not found.", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(-1)
 
     downloader = UartDownloader(args.port, args.baudrate, False)
-    downloader.programm(filename, args.startaddr)
+    success = downloader.programm(filename, args.startaddr)
+    if not success:
+        sys.exit(-1)
 
 
 if __name__ == "__main__":

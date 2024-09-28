@@ -80,7 +80,7 @@ class UartDownloader(object):
             if timeout.expired():
                 self.log('Cannot get bus.')
                 self.pbar.close()
-                return
+                return False
             count += 1
             if count > 20:
                 # Send reboot via bkreg
@@ -110,7 +110,7 @@ class UartDownloader(object):
             if not self.bootItf.SetBR(self.target_baudrate, 20):
                 self.log("Set baudrate failed")
                 self.pbar.close()
-                return
+                return False
             self.log("Set baudrate successful")
 
         if self.unprotect:
@@ -119,7 +119,7 @@ class UartDownloader(object):
             # print("\n\n mid: {:x}\n\n".format(mid))
             if self._Do_Boot_ProtectFlash(mid, True) != 1:
                 self.log("Unprotect Failed")
-                return
+                return False
             # unprotect flash first
 
         # Step4: erase
@@ -140,7 +140,7 @@ class UartDownloader(object):
             if not self.bootItf.WriteSector(s0, buf):
                 self.log("WriteSector Failed")
                 self.pbar.close()
-                return
+                return False
             filOLen -= fl
             filSPtr = fl
             s0 += 0x1000
@@ -148,7 +148,7 @@ class UartDownloader(object):
 
             if filOLen <= 0:
                 # TODO: goto crc check
-                return
+                return False
 
 
         # Step4.2: handle the last 4K
@@ -176,7 +176,7 @@ class UartDownloader(object):
             if not self.bootItf.WriteSector(s1&0xfffff000, buf):
                 self.log("WriteSector Failed")
                 self.pbar.close()
-                return
+                return False
             # print(time.time())
 
             filEPtr = filEPtr - (s1&0xfff)
@@ -223,7 +223,7 @@ class UartDownloader(object):
             else:
                 self.log("WriteSector 1 Failed")
                 self.pbar.close()
-                return
+                return False
             i += 0x1000
 
 
@@ -240,11 +240,11 @@ class UartDownloader(object):
         if not ret:
             self.log("Read CRC Failed")
             self.pbar.close()
-            return
+            return False
         if crc != fileCrc:
             self.log("CRC not equal")
             self.pbar.close()
-            return
+            return False
 
         if self.unprotect:
             self._Do_Boot_ProtectFlash(mid, False)
@@ -256,6 +256,7 @@ class UartDownloader(object):
             self.bootItf.SendReboot()
 
         self.pbar.close()
+        return True
 
     def _Do_Boot_ProtectFlash(self, mid:int, unprotect:bool):
         # 1. find flash info
