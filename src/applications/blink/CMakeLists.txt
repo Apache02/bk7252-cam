@@ -1,11 +1,12 @@
 add_executable(
-        hello
-        main.cpp
+        blink
+        blink.cpp
 )
 
-bk_firmware(hello)
+bk_firmware(blink)
 
 target_link_libraries(
-        hello PRIVATE
+        blink PRIVATE
         platform_stdio
+        utils
 )
