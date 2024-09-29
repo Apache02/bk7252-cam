@@ -16,7 +16,17 @@
 | empty                 |
 +-----------------------+
 | 0x00400000            |
-|     Interrupt vector  |
+|     RAM               |
+|     {                 |
+|       hook_IRQ        |
+|       hook_FIQ        |
+|       hook_SWI        |
+|       hook_undefined  |
+|       hook_pabort     |
+|       hook_dabort     |
+|       hook_reserved   |
+|       nothing         |
+|     }                 |
 | 0x00400020            |
 |     RAM               |
 | 0x00440000 - 1        |

@@ -8,7 +8,7 @@ import textwrap
 from bkutils import UartFlashReader
 
 segments = [
-    {"name": "bootloader", "startaddr": 0x00000000, "length": 0x10000},
+    {"name": "bootloader", "startaddr": 0x00000000, "length": 0xf000},
     {"name": "app", "startaddr": 0x11000, "length": 0x119000},
 ]
 
