@@ -41,6 +41,10 @@ static const ConsoleHandler handlers[] = {
                 "dump32",
                 command_dump32,
         },
+        {
+                "partitions",
+                command_partitions,
+        },
 };
 
 static const int handler_count = sizeof(handlers) / sizeof(handlers[0]);
