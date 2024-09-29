@@ -25,6 +25,18 @@ static const ConsoleHandler handlers[] = {
                 "echo",
                 command_echo,
         },
+        {
+                "reboot",
+                command_reboot,
+        },
+        {
+                "dump",
+                command_dump,
+        },
+        {
+                "dump32",
+                command_dump32,
+        },
 };
 
 static const int handler_count = sizeof(handlers) / sizeof(handlers[0]);
@@ -40,8 +52,6 @@ void Console::reset() {}
 void Console::dump(const void *buf, size_t length) {
     const uint8_t *ptr = static_cast<const uint8_t *>(buf);
     size_t i;
-
-    printf("0x%08lX\r\n", (uint32_t) buf);
 
     for (i = 0; i < length; i++) {
         printf("%02X ", ptr[i]);

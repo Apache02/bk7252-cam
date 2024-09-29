@@ -4,3 +4,9 @@
 
 void command_echo(Console &c);
 
+void command_reboot(Console &c);
+
+void command_dump(Console &c);
+
+void command_dump32(Console &c);
+
