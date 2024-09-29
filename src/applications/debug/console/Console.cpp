@@ -30,6 +30,10 @@ static const ConsoleHandler handlers[] = {
                 command_reboot,
         },
         {
+                "chip_id",
+                command_chip_id,
+        },
+        {
                 "dump",
                 command_dump,
         },

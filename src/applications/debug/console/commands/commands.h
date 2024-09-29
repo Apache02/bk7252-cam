@@ -10,3 +10,5 @@ void command_dump(Console &c);
 
 void command_dump32(Console &c);
 
+void command_chip_id(Console &c);
+

@@ -3,6 +3,7 @@
 
 #include "utils/sleep.h"
 #include "drivers/wdt.h"
+#include "drivers/chip_id.h"
 #include "../colors.h"
 
 
@@ -69,3 +70,9 @@ void command_dump32(Console &c) {
         }
     }
 }
+
+void command_chip_id(Console &c) {
+    printf("chip id: 0x%lx\r\n", chip_id());
+    printf(" dev id: 0x%lx\r\n", device_id());
+}
+

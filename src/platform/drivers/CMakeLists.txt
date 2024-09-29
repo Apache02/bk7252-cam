@@ -9,6 +9,7 @@ target_include_directories(
 
 target_sources(
         platform_drivers INTERFACE
+        chip_id.c
         wdt.c
         uart.c
         gpio.c
