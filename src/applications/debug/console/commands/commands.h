@@ -25,3 +25,5 @@ void command_sys_clk_source(Console &c);
 void command_sys_clk_div(Console &c);
 
 void comand_sys_ctl_print(Console &c);
+
+void comand_sys_ctl_test(Console &c);

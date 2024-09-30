@@ -69,6 +69,10 @@ static const ConsoleHandler handlers[] = {
                 "sys_ctl_print",
                 comand_sys_ctl_print,
         },
+        {
+                "sys_ctl_test",
+                comand_sys_ctl_test,
+        },
 };
 
 static const int handler_count = sizeof(handlers) / sizeof(handlers[0]);
