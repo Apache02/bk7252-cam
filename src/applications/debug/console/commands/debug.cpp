@@ -4,10 +4,7 @@
 #include "utils/sleep.h"
 #include "drivers/wdt.h"
 #include "drivers/chip_id.h"
-#include "../colors.h"
-
-
-#define DUMP_DEFAULT_ADDRESS        0x00000000
+#include "utils/console_colors.h"
 
 
 void command_reboot(Console &c) {
@@ -34,6 +31,8 @@ void command_reboot(Console &c) {
 
     while (1);
 }
+
+#define DUMP_DEFAULT_ADDRESS        0x00000000
 
 void command_dump(Console &c) {
     auto addr = c.packet.take_int().ok_or(DUMP_DEFAULT_ADDRESS);
@@ -63,7 +62,7 @@ void command_dump32(Console &c) {
     }
 
     for (size_t i = 0; i < (16 * 16);) {
-        printf("%08x ", (*((volatile uint32_t *) (addr + i))));
+        printf("%08lx ", (*((volatile uint32_t *) (addr + i))));
         i += sizeof(uint32_t);
         if (i % 16 == 0) {
             printf("\r\n");
@@ -77,7 +76,7 @@ void command_chip_id(Console &c) {
 }
 
 #define FAL_PART_MAGIC_WROD         0x45503130
-#define FAL_DEV_NAME_MAX 24
+#define FAL_DEV_NAME_MAX            24
 
 struct fal_partition {
     uint32_t magic_word;
