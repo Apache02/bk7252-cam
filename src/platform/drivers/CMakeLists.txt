@@ -13,5 +13,6 @@ target_sources(
         wdt.c
         uart.c
         gpio.c
+        time.c
 )
 
