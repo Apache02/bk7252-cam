@@ -42,8 +42,32 @@ static const ConsoleHandler handlers[] = {
                 command_dump32,
         },
         {
+                "watch_reg",
+                command_watch_reg,
+        },
+        {
                 "partitions",
                 command_partitions,
+        },
+        {
+                "timer",
+                command_timer,
+        },
+        {
+                "cpu_speed",
+                command_cpu_speed,
+        },
+        {
+                "sys_clk_source",
+                command_sys_clk_source,
+        },
+        {
+                "sys_clk_div",
+                command_sys_clk_div,
+        },
+        {
+                "sys_ctl_print",
+                comand_sys_ctl_print,
         },
 };
 

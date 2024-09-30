@@ -2,8 +2,8 @@
 #include "drivers/uart.h"
 #include "drivers/gpio.h"
 #include "utils/sleep.h"
+#include "utils/console_colors.h"
 #include "console/Console.h"
-#include "console/colors.h"
 
 
 #define LED_PIN         26
