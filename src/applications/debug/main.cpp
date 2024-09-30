@@ -50,7 +50,16 @@ int main() {
                 rx[count++] = c;
             }
 
-            console->update(rx, count);
+            if (count > 0) {
+                for (int i = 0; i < count; i++) {
+                    int c = rx[i] ;
+                    if (c == '\x1B') {
+                        c = console->resolve_key(&rx[i], count);
+                        i = count;
+                    }
+                    console->update(c);
+                }
+            }
 
             usleep(1000);
         }

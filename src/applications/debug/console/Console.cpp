@@ -85,7 +85,7 @@ Console::~Console() {}
 
 void Console::reset() {}
 
-void Console::dump(const void *buf, size_t length) {
+__unused void Console::dump(const void *buf, size_t length) {
     const uint8_t *ptr = static_cast<const uint8_t *>(buf);
     size_t i;
 
@@ -104,6 +104,10 @@ void Console::dump(const void *buf, size_t length) {
 
 void Console::start() {
     printf("%s ", ">");
+}
+
+void Console::eol() {
+    printf("\r\n");
 }
 
 void Console::print_help() {
@@ -127,26 +131,41 @@ bool Console::dispatch_command() {
 
 //------------------------------------------------------------------------------
 
-void Console::update(char *input, unsigned int count) {
-    if (!count) return;
-
-    if (input[0] == '\t') {
-        input[0] = ' ';
+void Console::update(int c) {
+    if (c == '\t') {
+        // TODO: autocomplete
+        c = ' ';
     }
 
-    if (input[0] == 0x7F /*backspace*/) {
+    if (c == '\r') c = '\n';
+
+    if (c == '\x7F') {
+        // backspace
         if (packet.cursor2 > packet.buf) {
             printf("\b \b");
             packet.cursor2--;
             packet.size--;
             *packet.cursor2 = 0;
         }
-    } else if (input[0] == '\n' || input[0] == '\r') {
+
+        return;
+    }
+
+    if (c == '\x03' || c == '\x04') {
+        // Ctrl + C | Ctrl + D
+        this->eol();
+
+        packet.clear();
+        this->start();
+
+        return;
+    }
+
+    if (c == '\n') {
         packet.buf[packet.size] = 0;
         packet.cursor2 = packet.buf;
 
-        putchar('\r');
-        putchar('\n');
+        this->eol();
 
         if (packet.buf[0] != '\0') {
 //            absolute_time_t time_before = get_absolute_time();
@@ -163,40 +182,58 @@ void Console::update(char *input, unsigned int count) {
 
         packet.clear();
         this->start();
-    } else if (count > 1) {
-        bool process_putchar = false;
-        if (count == 3 && input[0] == '\x1B' && input[1] == '\x5B') {
-            switch (input[2]) {
-                case '\x41':        // arrow up
-                case '\x42':        // arrow down
-                    break;
-                case '\x43':        // arrow right
-                    if (*packet.cursor2 != '\0') {
-                        packet.cursor2++;
-                        process_putchar = true;
-                    }
-                    break;
-                case '\x44':        // arrow left
-                    if (packet.cursor2 > packet.buf) {
-                        packet.cursor2--;
-                        process_putchar = true;
-                    }
-                    break;
-                default:
-                    // unknown key
-                    break;
-            }
+
+        return;
+    }
+
+    if (c > 0xFF) {
+        switch (c) {
+            case ARROW_RIGHT:
+                if (*packet.cursor2 != '\0') {
+                    packet.cursor2++;
+                    printf("\x1B\x5B\x43");
+                }
+                break;
+            case ARROW_LEFT:
+                if (packet.cursor2 > packet.buf) {
+                    packet.cursor2--;
+                    printf("\x1B\x5B\x44");
+                }
+                break;
         }
 
-        if (process_putchar) {
-            for (auto i = 0; i < count; i++) {
-                putchar(input[i]);
-            }
-        }
-    } else {
-        putchar(input[0]);
-        packet.put(input[0]);
+        return;
     }
+
+    putchar(c);
+    packet.put(c);
 }
+
+int Console::resolve_key(char *in, __unused int count) {
+    if (in[0] == '\x1B') {
+        if (in[1] == '\x5B' && in[2] == '\x41') {
+            return Console::ARROW_UP;
+        } else if (in[1] == '\x5B' && in[2] == '\x42') {
+            return Console::ARROW_DOWN;
+        } else if (in[1] == '\x5B' && in[2] == '\x43') {
+            return Console::ARROW_RIGHT;
+        } else if (in[1] == '\x5B' && in[2] == '\x44') {
+            return Console::ARROW_LEFT;
+        } else if (in[1] == '\x5B' && in[2] == '\x46') {
+            return Console::END;
+        } else if (in[1] == '\x5B' && in[2] == '\x48') {
+            return Console::HOME;
+        } else if (in[1] == '\x5B' && in[2] == '\x33' && in[3] == '\x7E') {
+            return Console::DELETE;
+        } else if (in[1] == '\x5B' && in[2] == '\x35' && in[3] == '\x7E') {
+            return Console::PAGE_UP;
+        } else if (in[1] == '\x5B' && in[2] == '\x36' && in[3] == '\x7E') {
+            return Console::PAGE_DOWN;
+        }
+    }
+
+    return UNKNOWN;
+}
+
 
 //------------------------------------------------------------------------------
