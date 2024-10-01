@@ -60,27 +60,29 @@ class UartFlashReader(object):
             if r:
                 break
             if timeout.expired():
-                self.log('Cannot get bus.')
                 self.pbar.close()
+                self.log('Cannot get bus.')
                 return b''
+
             count += 1
-            if count > 20:
+            if count > 0 and count % 100 == 0:
                 # Send reboot via bkreg
                 self.bootItf.SendBkRegReboot()
 
-                if self.bootItf.ser.baudrate == 115200:
+                if (count // 100) & 1:
                     self.bootItf.ser.baudrate = 921600
-                elif self.bootItf.ser.baudrate == 921600:
+                    self.log("try 921600")
+                else:
                     self.bootItf.ser.baudrate = 115200
+                    self.log("try 115200")
 
                 # Send reboot via command line
-                self.bootItf.Start_Cmd(b"reboot\r\n")
+                self.bootItf.Start_Cmd(b"\n")
+                self.bootItf.Start_Cmd(b"reboot\n")
 
                 # reset to bootrom baudrate
                 if self.bootItf.ser.baudrate != 115200:
                     self.bootItf.ser.baudrate = 115200
-                count = 0
-            # time.sleep(0.01)
 
         self.log("Gotten Bus...")
         time.sleep(0.01)

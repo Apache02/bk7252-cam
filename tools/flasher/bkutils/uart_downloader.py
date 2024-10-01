@@ -9,6 +9,7 @@
 
 import time
 from .boot_intf import CBootIntf
+
 try:
     from serial import Timeout
 except ImportError:
@@ -19,6 +20,7 @@ from .flash_list import *
 from .crc32v2 import *
 
 debug = False
+
 
 class UartDownloader(object):
     def __init__(self, port='/dev/ttyUSB0', baudrate=115200, unprotect=False):
@@ -51,7 +53,7 @@ class UartDownloader(object):
         fileLen = filOLen = len(pfile)
         padding_len = 0x100 - (fileLen & 0xff)
         if padding_len:
-            pfile += b'\xff'*padding_len
+            pfile += b'\xff' * padding_len
             fileLen += padding_len
             filOLen += padding_len
             # print("fileLen{}, padding_len {}".format(fileLen, padding_len))
@@ -59,13 +61,12 @@ class UartDownloader(object):
         fileCrc = crc32_ver2(0xffffffff, pfile)
         total_num = filOLen // 0x1000
 
-
         self.do_reset_signal()
         # reboot = "reboot"
         # self.bootItf.Start_Cmd(reboot)
         # time.sleep(0.1)
         self.pbar = tqdm(total=total_num, ascii=True, ncols=80, unit_scale=True,
-                unit='k', bar_format='{desc}|{bar}|[{rate_fmt:>8}]')
+                         unit='k', bar_format='{desc}|{bar}|[{rate_fmt:>8}]')
         self.log("Getting Bus...")
         timeout = Timeout(10)
 
@@ -78,28 +79,29 @@ class UartDownloader(object):
             if r:
                 break
             if timeout.expired():
-                self.log('Cannot get bus.')
                 self.pbar.close()
+                self.log('Cannot get bus.')
                 return False
+
             count += 1
-            if count > 20:
+            if count > 0 and count % 100 == 0:
                 # Send reboot via bkreg
                 self.bootItf.SendBkRegReboot()
 
-                if self.bootItf.ser.baudrate == 115200:
+                if (count // 100) & 1:
                     self.bootItf.ser.baudrate = 921600
-                elif self.bootItf.ser.baudrate == 921600:
+                    self.log("try 921600")
+                else:
                     self.bootItf.ser.baudrate = 115200
+                    self.log("try 115200")
 
                 # Send reboot via command line
-                self.bootItf.Start_Cmd(b"reboot\r\n")
+                self.bootItf.Start_Cmd(b"\n")
+                self.bootItf.Start_Cmd(b"reboot\n")
 
                 # reset to bootrom baudrate
                 if self.bootItf.ser.baudrate != 115200:
                     self.bootItf.ser.baudrate = 115200
-                count = 0
-            # time.sleep(0.01)
-
 
         self.log("Gotten Bus...")
         time.sleep(0.01)
@@ -125,7 +127,7 @@ class UartDownloader(object):
         # Step4: erase
         # Step4.1: read first 4k if startAddr not aligned with 4K
         eraseAddr = startAddr
-        ss = s0 = eraseAddr & 0xfffff000     # 4K对齐的地址
+        ss = s0 = eraseAddr & 0xfffff000  # 4K对齐的地址
         filSPtr = 0
 
         if eraseAddr & 0xfff:
@@ -135,7 +137,7 @@ class UartDownloader(object):
             buf = self.bootItf.ReadSector(s0)
             l = 0x1000 - (eraseAddr & 0xfff)
             fl = l if l < fileLen else fileLen
-            buf[eraseAddr&0xfff:eraseAddr&0xfff+fl] = pfile[:fl]
+            buf[eraseAddr & 0xfff:eraseAddr & 0xfff + fl] = pfile[:fl]
             self.bootItf.EraseBlock(0x20, s0)
             if not self.bootItf.WriteSector(s0, buf):
                 self.log("WriteSector Failed")
@@ -150,7 +152,6 @@ class UartDownloader(object):
                 # TODO: goto crc check
                 return False
 
-
         # Step4.2: handle the last 4K
         # now ss is the new eraseAddr.
         # 文件结束地址
@@ -160,11 +161,11 @@ class UartDownloader(object):
         # If not 4K aligned, read the last sector, fill the data, write it back
         if s1 & 0xfff:
             # print("Handle file end...")
-            buf = bytearray(b'\xff'*4096)   # fill with 0xFF
-            buf[:s1&0xfff] = pfile[filEPtr-(s1&0xfff):]  # copy s1&0xfff len
+            buf = bytearray(b'\xff' * 4096)  # fill with 0xFF
+            buf[:s1 & 0xfff] = pfile[filEPtr - (s1 & 0xfff):]  # copy s1&0xfff len
             # print(time.time())
             for _ in range(4):
-                if self.bootItf.EraseBlock(0x20, s1&0xfffff000):
+                if self.bootItf.EraseBlock(0x20, s1 & 0xfffff000):
                     break
                 time.sleep(0.05)
             # time.sleep(0.1)
@@ -172,15 +173,15 @@ class UartDownloader(object):
             # for _ in range(10):
             #    tt = self.bootItf.Read()
             #    print(tt)
-            #print(time.time())
-            if not self.bootItf.WriteSector(s1&0xfffff000, buf):
+            # print(time.time())
+            if not self.bootItf.WriteSector(s1 & 0xfffff000, buf):
                 self.log("WriteSector Failed")
                 self.pbar.close()
                 return False
             # print(time.time())
 
-            filEPtr = filEPtr - (s1&0xfff)
-            filOLen = filOLen - (s1&0xfff)
+            filEPtr = filEPtr - (s1 & 0xfff)
+            filOLen = filOLen - (s1 & 0xfff)
             if filOLen <= 0:
                 # TODO: goto crc check
                 pass
@@ -204,20 +205,19 @@ class UartDownloader(object):
         while s0 < len1:
             self.log("Erasing")
             rmn = len1 - s0
-            if rmn > 0x10000:   # 64K erase
+            if rmn > 0x10000:  # 64K erase
                 self.bootItf.EraseBlock(0xd8, s0)
-                s0 = s0+0x10000
-            else:       # erase 4K
+                s0 = s0 + 0x10000
+            else:  # erase 4K
                 self.bootItf.EraseBlock(0x20, s0)
                 s0 = s0 + 0x1000
-
 
         # Step5: Write data
         i = 0
         while i < filOLen:
             self.log("Writing")
             for _ in range(4):
-                if self.bootItf.WriteSector(ss+i, pfile[filSPtr+i:filSPtr+i+4*1024]):
+                if self.bootItf.WriteSector(ss + i, pfile[filSPtr + i:filSPtr + i + 4 * 1024]):
                     self.pbar.update(1)
                     break
             else:
@@ -225,7 +225,6 @@ class UartDownloader(object):
                 self.pbar.close()
                 return False
             i += 0x1000
-
 
         # Step6: CRC check
         self.log("Verifing")
@@ -236,7 +235,7 @@ class UartDownloader(object):
         crcTo = fileLen * 15 / 1024 / 1024
         if crcTo < 15:
             crcTo = 15
-        ret, crc = self.bootItf.ReadCRC(startAddr, startAddr+l2-1, crcTo)
+        ret, crc = self.bootItf.ReadCRC(startAddr, startAddr + l2 - 1, crcTo)
         if not ret:
             self.log("Read CRC Failed")
             self.pbar.close()
@@ -258,7 +257,7 @@ class UartDownloader(object):
         self.pbar.close()
         return True
 
-    def _Do_Boot_ProtectFlash(self, mid:int, unprotect:bool):
+    def _Do_Boot_ProtectFlash(self, mid: int, unprotect: bool):
         # 1. find flash info
         flash_info = GetFlashInfo(mid)
         if flash_info is None:
@@ -307,7 +306,7 @@ class UartDownloader(object):
         # time.sleep(0.1)
         total_num = 100
         self.pbar = tqdm(total=total_num, ascii=True, ncols=80, unit_scale=True,
-                unit='k', bar_format='{desc}|{bar}|[{rate_fmt:>8}]')
+                         unit='k', bar_format='{desc}|{bar}|[{rate_fmt:>8}]')
         self.log("Getting Bus...")
         timeout = Timeout(10)
 
@@ -342,7 +341,6 @@ class UartDownloader(object):
                 count = 0
             # time.sleep(0.01)
 
-
         self.log("Gotten Bus...")
         time.sleep(0.01)
         self.bootItf.Drain()
@@ -369,6 +367,7 @@ class UartDownloader(object):
             self.bootItf.SendReboot()
 
         self.pbar.close()
+
 
 if __name__ == '__main__':
     downloader = UartDownloader()

@@ -43,7 +43,7 @@ int main() {
         console->start();
 
         while (is_connected()) {
-            char rx[6];
+            char rx[8];
             size_t count = 0;
 
             for (int c; count < sizeof(rx) && (c = getchar()) != -1;) {
@@ -52,7 +52,7 @@ int main() {
 
             if (count > 0) {
                 for (int i = 0; i < count; i++) {
-                    int c = rx[i] ;
+                    int c = rx[i];
                     if (c == '\x1B') {
                         c = console->resolve_key(&rx[i], count);
                         i = count;
