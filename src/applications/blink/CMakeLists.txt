@@ -8,5 +8,6 @@ bk_firmware(blink)
 target_link_libraries(
         blink PRIVATE
         platform_stdio
+        hardware_gpio
         utils
 )

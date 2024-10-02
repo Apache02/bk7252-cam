@@ -13,6 +13,7 @@ add_subdirectory(console)
 target_link_libraries(
         debug PRIVATE
         platform_stdio
+        hardware_gpio
         console
         utils
 )

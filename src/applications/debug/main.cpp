@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "drivers/uart.h"
-#include "drivers/gpio.h"
+#include "hardware/gpio.h"
 #include "utils/sleep.h"
 #include "utils/console_colors.h"
 #include "console/Console.h"
@@ -12,11 +12,12 @@
 
 
 void init_hardware() {
+    gpio_config_function(GPIO_FUNC_UART2);
     uart_hw_init(UART2_PORT);
 
-    gpio_config(LED_PIN, GMODE_OUTPUT);
-    gpio_config(KEY_PWR_PIN, GMODE_INPUT_PULLUP);
-    gpio_config(KEY_MODE_PIN, GMODE_INPUT_PULLUP);
+    gpio_config(LED_PIN, GPIO_OUT);
+    gpio_config(KEY_PWR_PIN, GPIO_IN_PULLUP);
+    gpio_config(KEY_MODE_PIN, GPIO_IN_PULLUP);
 }
 
 static void print_welcome() {
