@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "drivers/uart.h"
-//#include "drivers/gpio.h"
 #include "hardware/gpio.h"
 #include "utils/sleep.h"
 
@@ -14,9 +13,6 @@ int main() {
     uart_hw_init(UART1_PORT);
     uart_hw_init(UART2_PORT);
 
-//    gpio_config(LED_PIN, GMODE_OUTPUT);
-//    gpio_config(KEY_PWR_PIN, GMODE_INPUT_PULLUP);
-//    gpio_config(KEY_MODE_PIN, GMODE_INPUT_PULLUP);
     gpio_config(LED_PIN, GPIO_OUT);
     gpio_config(KEY_PWR_PIN, GPIO_IN);
     gpio_config(KEY_MODE_PIN, GPIO_IN);
