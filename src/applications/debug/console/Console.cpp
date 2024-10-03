@@ -1,83 +1,9 @@
 #include "Console.h"
 #include "utils/console_colors.h"
+#include "handlers.h"
 
 #include <stdio.h>
-#include <functional>
 
-#include "commands/commands.h"
-
-
-//------------------------------------------------------------------------------
-
-struct ConsoleHandler {
-    const char *name;
-    const std::function<void(Console &)> handler;
-};
-
-static const ConsoleHandler handlers[] = {
-        {
-                "help",
-                [](Console &c) {
-                    c.print_help();
-                },
-        },
-        {
-                "echo",
-                command_echo,
-        },
-        {
-                "reboot",
-                command_reboot,
-        },
-        {
-                "chip_id",
-                command_chip_id,
-        },
-        {
-                "dump",
-                command_dump,
-        },
-        {
-                "dump32",
-                command_dump32,
-        },
-        {
-                "watch_reg",
-                command_watch_reg,
-        },
-        {
-                "partitions",
-                command_partitions,
-        },
-        {
-                "timer",
-                command_timer,
-        },
-        {
-                "cpu_speed",
-                command_cpu_speed,
-        },
-        {
-                "sys_clk_source",
-                command_sys_clk_source,
-        },
-        {
-                "sys_clk_div",
-                command_sys_clk_div,
-        },
-        {
-                "sys_ctl_print",
-                comand_sys_ctl_print,
-        },
-        {
-                "sys_ctl_test",
-                comand_sys_ctl_test,
-        },
-};
-
-static const int handler_count = sizeof(handlers) / sizeof(handlers[0]);
-
-//------------------------------------------------------------------------------
 
 Console::Console() {}
 
@@ -110,15 +36,8 @@ void Console::eol() {
     printf("\r\n");
 }
 
-void Console::print_help() {
-    printf("Commands:\r\n");
-    for (int i = 0; i < handler_count; i++) {
-        printf("  %s\r\n", handlers[i].name);
-    }
-}
-
 bool Console::dispatch_command() {
-    for (int i = 0; i < handler_count; i++) {
+    for (int i = 0; i < handlers_count; i++) {
         const ConsoleHandler *h = &handlers[i];
         if (packet.match_word(h->name)) {
             h->handler(*this);

@@ -9,6 +9,7 @@ target_sources(
         console INTERFACE
         Console.cpp
         Packet.cpp
+        handlers.cpp
 
         ${COMMANDS}
 )

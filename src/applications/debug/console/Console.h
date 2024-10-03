@@ -3,6 +3,7 @@
 #include "Packet.h"
 
 struct Console {
+public:
     enum {
         UNKNOWN = 0x100,
         ARROW_LEFT,
@@ -16,6 +17,10 @@ struct Console {
         DELETE,
     } KEY;
 
+//private:
+//    const char
+
+public:
     Console();
 
     ~Console();
@@ -27,8 +32,6 @@ struct Console {
     void start();
 
     void eol();
-
-    void print_help();
 
     void update(int c);
 
