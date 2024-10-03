@@ -27,6 +27,12 @@ History::~History() {
 }
 
 void History::add(const char *token) {
+    index = -1;
+
+    if (size > 0 && strcmp(token, tokens[0]) == 0) {
+        return;
+    }
+
     if (size == depth) {
         delete tokens[size - 1];
         tokens[size - 1] = NULL;
@@ -37,7 +43,6 @@ void History::add(const char *token) {
     tokens[0] = new char[strlen(token) + 1];
     strcpy(tokens[0], token);
 
-    index = -1;
     size = MIN(size + 1, depth);
 }
 

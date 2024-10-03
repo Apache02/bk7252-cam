@@ -44,4 +44,6 @@ public:
     int resolve_key(char *in, int count);
 
     bool dispatch_command();
+
+    void autocomplete();
 };

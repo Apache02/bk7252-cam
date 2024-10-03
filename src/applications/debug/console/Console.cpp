@@ -60,8 +60,8 @@ bool Console::dispatch_command() {
 
 void Console::update(int c) {
     if (c == '\t') {
-        // TODO: autocomplete
-        c = ' ';
+        this->autocomplete();
+        return;
     }
 
     if (c == '\r') c = '\n';
@@ -182,6 +182,38 @@ void Console::replace_command(const char *command) {
         packet.set_packet(command);
     } else {
         packet.clear();
+    }
+}
+
+void Console::autocomplete() {
+    size_t length = strlen(packet.buf);
+    if (length == 0 || packet.buf[length - 1] == ' ') {
+        return;
+    }
+
+    const char *found = NULL;
+    int found_count = 0;
+    for (int i = 0; i < handlers_count; i++) {
+        if (strncmp(handlers[i].name, packet.buf, length) == 0) {
+            if (!found) found = handlers[i].name;
+            found_count++;
+        }
+    }
+
+    if (found_count == 1) {
+        int i = length;
+        if (found[i] == '\0') {
+            putchar(' ');
+            packet.put(' ');
+        } else {
+            for (;; i++) {
+                char c = found[i];
+                if (c == '\0') break;
+                putchar(c);
+                packet.put(c);
+            }
+        }
+
     }
 }
 
