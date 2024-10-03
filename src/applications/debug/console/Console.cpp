@@ -5,9 +5,16 @@
 #include <stdio.h>
 
 
-Console::Console() {}
+Console::Console() {
+    history = new History(8);
+}
 
-Console::~Console() {}
+Console::~Console() {
+    if (history) {
+        delete history;
+        history = NULL;
+    }
+}
 
 void Console::reset() {}
 
@@ -40,6 +47,7 @@ bool Console::dispatch_command() {
     for (int i = 0; i < handlers_count; i++) {
         const ConsoleHandler *h = &handlers[i];
         if (packet.match_word(h->name)) {
+            history->add(packet.buf);
             h->handler(*this);
             return true;
         }
@@ -107,6 +115,12 @@ void Console::update(int c) {
 
     if (c > 0xFF) {
         switch (c) {
+            case ARROW_UP:
+                this->replace_command(history->prev());
+                break;
+            case ARROW_DOWN:
+                this->replace_command(history->next());
+                break;
             case ARROW_RIGHT:
                 if (*packet.cursor2 != '\0') {
                     packet.cursor2++;
@@ -152,6 +166,23 @@ int Console::resolve_key(char *in, __unused int count) {
     }
 
     return UNKNOWN;
+}
+
+void Console::replace_command(const char *command) {
+    size_t length = strlen(packet.buf);
+    putchar('\r');
+    for (auto i = 0; i < length + 4; i++) {
+        putchar(' ');
+    }
+    putchar('\r');
+    this->start();
+
+    if (command) {
+        printf("%s", command);
+        packet.set_packet(command);
+    } else {
+        packet.clear();
+    }
 }
 
 

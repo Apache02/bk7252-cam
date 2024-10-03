@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Packet.h"
+#include "History.h"
+
 
 struct Console {
 public:
@@ -17,10 +19,12 @@ public:
         DELETE,
     } KEY;
 
-//private:
-//    const char
+private:
+    History *history;
 
 public:
+    Packet packet;
+
     Console();
 
     ~Console();
@@ -35,9 +39,9 @@ public:
 
     void update(int c);
 
+    void replace_command(const char * command);
+
     int resolve_key(char *in, int count);
 
     bool dispatch_command();
-
-    Packet packet;
 };

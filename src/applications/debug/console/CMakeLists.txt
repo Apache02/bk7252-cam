@@ -10,6 +10,7 @@ target_sources(
         Console.cpp
         Packet.cpp
         handlers.cpp
+        History.cpp
 
         ${COMMANDS}
 )
