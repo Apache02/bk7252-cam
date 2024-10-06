@@ -91,7 +91,7 @@ void command_pwm(Console &c) {
     portENABLE_IRQ();
 //    portENABLE_FIQ();
 
-    for (auto i = 0; i < 1000; i++) {
+    for (auto i = 0; i < 200; i++) {
         msleep(10);
         putchar('.');
     }
@@ -104,5 +104,6 @@ void command_pwm(Console &c) {
 }
 
 void command_pwm_stop(Console &c) {
+    hw_pwm->ctl.pwm0_int_enable = 0;
     hw_pwm->ctl.pwm0_enable = 0;
 }
