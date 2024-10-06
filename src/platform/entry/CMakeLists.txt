@@ -22,6 +22,11 @@ target_link_libraries(
         ${CMAKE_CURRENT_BINARY_DIR}/boot_handlers_assembly.o
 )
 
+target_include_directories(
+        platform_entry INTERFACE
+        ${CMAKE_CURRENT_LIST_DIR}/include
+)
+
 add_dependencies(
         platform_entry
         boot_handlers_assembly
