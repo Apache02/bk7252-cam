@@ -27,3 +27,7 @@ void command_sys_clk_div(Console &c);
 void comand_sys_ctl_print(Console &c);
 
 void comand_sys_ctl_test(Console &c);
+
+void command_pwm(Console &c);
+
+void command_pwm_stop(Console &c);

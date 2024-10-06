@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include "drivers/uart.h"
 #include "hardware/gpio.h"
+#include "hardware/intc.h"
 #include "utils/sleep.h"
 #include "utils/console_colors.h"
 #include "console/Console.h"
+#include "port/port.h"
 
 
 #define LED_PIN         26
@@ -11,7 +13,11 @@
 #define KEY_MODE_PIN    7       // pull up
 
 
-void init_hardware() {
+static void init_hardware() {
+    intc_init();
+//    portENABLE_IRQ();
+//    portENABLE_FIQ();
+
     gpio_config_function(GPIO_FUNC_UART2);
     uart_hw_init(UART2_PORT);
 

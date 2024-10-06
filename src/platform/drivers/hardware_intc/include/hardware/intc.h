@@ -56,6 +56,10 @@ bool intc_unregister_irq_handler(uint32_t source, interrupt_handler_cb *func);
 
 bool intc_unregister_fiq_handler(uint32_t source, interrupt_handler_cb *func);
 
+void intc_enable_irq_source(uint32_t source);
+
+void intc_disable_irq_source(uint32_t source);
+
 #ifdef __cplusplus
 }
 #endif

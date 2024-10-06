@@ -110,3 +110,33 @@ bool intc_unregister_irq_handler(uint32_t source, interrupt_handler_cb *func) {
 bool intc_unregister_fiq_handler(uint32_t source, interrupt_handler_cb *func) {
     return unregister_handler(&intc_manager.fiq, source, func);
 }
+
+static uint32_t source_to_reg(uint32_t source) {
+    volatile icu_interrupts_reg_t reg = {0};
+    if (source & IRQ_SOURCE_UART1) reg.bits.irq_uart1 = 1;
+    if (source & IRQ_SOURCE_UART2) reg.bits.irq_uart2 = 1;
+    if (source & IRQ_SOURCE_I2C1) reg.bits.irq_i2c1 = 1;
+    if (source & IRQ_SOURCE_IRDA) reg.bits.irq_irda = 1;
+    if (source & IRQ_SOURCE_I2S_PCM) reg.bits.irq_i2s_pcm = 1;
+    if (source & IRQ_SOURCE_I2C2) reg.bits.irq_i2c2 = 1;
+    if (source & IRQ_SOURCE_SPI) reg.bits.irq_spi = 1;
+    if (source & IRQ_SOURCE_GPIO) reg.bits.irq_gpio = 1;
+    if (source & IRQ_SOURCE_TL410_WATCHDOG) reg.bits.irq_tl410_watchdog = 1;
+    if (source & IRQ_SOURCE_PWM) reg.bits.irq_pwm = 1;
+    if (source & IRQ_SOURCE_AUDIO) reg.bits.irq_audio = 1;
+    if (source & IRQ_SOURCE_SARADC) reg.bits.irq_saradc = 1;
+    if (source & IRQ_SOURCE_SDIO) reg.bits.irq_sdio = 1;
+    if (source & IRQ_SOURCE_USB) reg.bits.irq_usb = 1;
+    if (source & IRQ_SOURCE_FFT) reg.bits.irq_fft = 1;
+    if (source & IRQ_SOURCE_GDMA) reg.bits.irq_gdma = 1;
+
+    return reg.reg;
+}
+
+void intc_enable_irq_source(uint32_t source) {
+    icu_interrupt_enable_reg->reg |= source_to_reg(source);
+}
+
+void intc_disable_irq_source(uint32_t source) {
+    icu_interrupt_enable_reg->reg &= ~source_to_reg(source);
+}
