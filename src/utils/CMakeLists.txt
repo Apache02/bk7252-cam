@@ -10,5 +10,6 @@ target_include_directories(
 target_sources(
         utils INTERFACE
         sleep.c
+        panic.c
 )
 

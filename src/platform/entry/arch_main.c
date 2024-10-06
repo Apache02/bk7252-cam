@@ -25,10 +25,6 @@ void bk_trap_resv() {
     while (1);
 }
 
-void intc_irq(void) {}
-
-void intc_fiq(void) {}
-
 extern void vTaskSwitchContext(void) {}
 
 

@@ -4,6 +4,7 @@ function(simple_drivers_library NAME)
 endfunction()
 
 add_subdirectory(hardware_gpio)
+add_subdirectory(hardware_intc)
 
 add_library(
         platform_drivers INTERFACE
