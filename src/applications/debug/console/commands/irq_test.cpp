@@ -81,9 +81,9 @@ static void pwm_isr(interrupt_context_t context) {
 void command_pwm(Console &c) {
     intc_enable_irq_source(IRQ_SOURCE_PWM);
 
+    hw_pwm->params[0].counter = 60'000'000;
     hw_pwm->ctl.pwm0_enable = 1;
     hw_pwm->ctl.pwm0_int_enable = 1;
-    hw_pwm->params[0].counter = 60'000'000;
 
     intc_register_irq_handler(IRQ_SOURCE_PWM, pwm_isr);
 

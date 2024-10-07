@@ -31,52 +31,56 @@
 
 
 typedef struct {
-    uint32_t mclk_source: 2;            // [0:1]
-    uint32_t hclk_div2: 2;              // [2:3]
-    uint32_t divider: 4;                // [4:7]
-    uint32_t flash_26m: 1;              // [8]
-    uint32_t ahb_div: 1;                // [9]
-    uint32_t modem_pwd: 1;              // [10]
-    uint32_t mac_pwd: 1;                // [11]
-    uint32_t mpif_clk_invert_bit: 1;    // [12]
-    uint32_t sdio_clk_invert_bit: 1;    // [13]
-    uint32_t dpll_div_reset: 1;         // [14]
-    uint32_t ble_rf_en: 1;              // [15]
-    uint32_t qspi_io_volt: 2;           // [16:17]
-    uint32_t flash_sck_io_cap: 2;       // [18:19]
-    uint32_t psram_vddpad_volt: 2;      // [20:21]
-    uint32_t flash_spi_mux_bit: 1;      // [22]
-    uint32_t efuse_vdd25_en: 1;         // [23]
-    uint32_t _pad_end: (31 - 24 + 1);       // [24:31]
-} __attribute__((packed)) hw_sys_ctrl_t;
+    union {
+        uint32_t reg;
+        struct __packed {
+            uint32_t mclk_source: 2;            // [0:1]
+            uint32_t hclk_div2: 2;              // [2:3]
+            uint32_t divider: 4;                // [4:7]
+            uint32_t flash_26m: 1;              // [8]
+            uint32_t ahb_div: 1;                // [9]
+            uint32_t modem_pwd: 1;              // [10]
+            uint32_t mac_pwd: 1;                // [11]
+            uint32_t mpif_clk_invert_bit: 1;    // [12]
+            uint32_t sdio_clk_invert_bit: 1;    // [13]
+            uint32_t dpll_div_reset: 1;         // [14]
+            uint32_t ble_rf_en: 1;              // [15]
+            uint32_t qspi_io_volt: 2;           // [16:17]
+            uint32_t flash_sck_io_cap: 2;       // [18:19]
+            uint32_t psram_vddpad_volt: 2;      // [20:21]
+            uint32_t flash_spi_mux_bit: 1;      // [22]
+            uint32_t efuse_vdd25_en: 1;         // [23]
+            uint32_t _pad_end: (32 - 24);
+        } bits;
+    };
+} hw_sys_ctrl_t;
 
-#define hw_sys_ctrl      ((hw_sys_ctrl_t *)SCTRL_CONTROL)
+#define hw_sys_ctrl      ((volatile hw_sys_ctrl_t *)SCTRL_CONTROL)
 
 void comand_sys_ctl_print(Console &c) {
-    uint32_t reg = REG_READ(SCTRL_CONTROL);
-    TRACE(reg);
-    TRACE(hw_sys_ctrl->mclk_source);
-    TRACE(hw_sys_ctrl->hclk_div2);
-    TRACE(hw_sys_ctrl->divider);
-    TRACE(hw_sys_ctrl->flash_26m);
-    TRACE(hw_sys_ctrl->ahb_div);
-    TRACE(hw_sys_ctrl->modem_pwd);
-    TRACE(hw_sys_ctrl->mac_pwd);
-    TRACE(hw_sys_ctrl->mpif_clk_invert_bit);
-    TRACE(hw_sys_ctrl->sdio_clk_invert_bit);
-    TRACE(hw_sys_ctrl->dpll_div_reset);
-    TRACE(hw_sys_ctrl->ble_rf_en);
-    TRACE(hw_sys_ctrl->qspi_io_volt);
-    TRACE(hw_sys_ctrl->flash_sck_io_cap);
-    TRACE(hw_sys_ctrl->psram_vddpad_volt);
-    TRACE(hw_sys_ctrl->flash_spi_mux_bit);
-    TRACE(hw_sys_ctrl->efuse_vdd25_en);
-    TRACE(hw_sys_ctrl->_pad_end);
+    TRACE((unsigned int) hw_sys_ctrl->reg);
+    TRACE(hw_sys_ctrl->bits.mclk_source);
+    TRACE(hw_sys_ctrl->bits.hclk_div2);
+    TRACE(hw_sys_ctrl->bits.divider);
+    TRACE(hw_sys_ctrl->bits.flash_26m);
+    TRACE(hw_sys_ctrl->bits.ahb_div);
+    TRACE(hw_sys_ctrl->bits.modem_pwd);
+    TRACE(hw_sys_ctrl->bits.mac_pwd);
+    TRACE(hw_sys_ctrl->bits.mpif_clk_invert_bit);
+    TRACE(hw_sys_ctrl->bits.sdio_clk_invert_bit);
+    TRACE(hw_sys_ctrl->bits.dpll_div_reset);
+    TRACE(hw_sys_ctrl->bits.ble_rf_en);
+    TRACE(hw_sys_ctrl->bits.qspi_io_volt);
+    TRACE(hw_sys_ctrl->bits.flash_sck_io_cap);
+    TRACE(hw_sys_ctrl->bits.psram_vddpad_volt);
+    TRACE(hw_sys_ctrl->bits.flash_spi_mux_bit);
+    TRACE(hw_sys_ctrl->bits.efuse_vdd25_en);
+    TRACE(hw_sys_ctrl->bits._pad_end);
 }
 
 void comand_sys_ctl_test(Console &c) {
     // its disable MAC and made impossible to read time
-    // hw_sys_ctrl->hclk_div2 = 0b11;
+     hw_sys_ctrl->bits.hclk_div2 = 0b11;
 }
 
 void command_sys_clk_source(Console &c) {
@@ -95,11 +99,11 @@ void command_sys_clk_source(Console &c) {
     }
 
     if (set_value != -1) {
-        TRACE_CHANGE(hw_sys_ctrl->mclk_source, set_value);
-        hw_sys_ctrl->mclk_source = set_value;
+        TRACE_CHANGE(hw_sys_ctrl->bits.mclk_source, set_value);
+        hw_sys_ctrl->bits.mclk_source = set_value;
     }
 
-    printf("hw_sys_ctrl->mclk_source = %s\r\n", sys_clk_sources_names_tbl[hw_sys_ctrl->mclk_source]);
+    printf("hw_sys_ctrl->mclk_source = %s\r\n", sys_clk_sources_names_tbl[hw_sys_ctrl->bits.mclk_source]);
 }
 
 void command_sys_clk_div(Console &c) {
@@ -111,10 +115,10 @@ void command_sys_clk_div(Console &c) {
     }
 
     if (set_value != -1) {
-        TRACE_CHANGE(hw_sys_ctrl->divider, set_value);
-        hw_sys_ctrl->divider = set_value;
+        TRACE_CHANGE(hw_sys_ctrl->bits.divider, set_value);
+        hw_sys_ctrl->bits.divider = set_value;
     }
 
-    TRACE(hw_sys_ctrl->divider);
+    TRACE(hw_sys_ctrl->bits.divider);
 }
 
