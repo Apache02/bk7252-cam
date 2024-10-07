@@ -1,4 +1,7 @@
-#include "drivers/chip_id.h"
+#include "chip_id.h"
+
+
+#define SCTRL_BASE              (0x00800000)
 
 
 struct chip_and_device_id_t {
@@ -6,7 +9,7 @@ struct chip_and_device_id_t {
     uint32_t device_id;
 };
 
-#define chip_and_device_id  ((struct chip_and_device_id_t *)0x00800000)
+#define chip_and_device_id  ((volatile struct chip_and_device_id_t *)SCTRL_BASE)
 
 uint32_t chip_id() {
     return chip_and_device_id->chip_id;

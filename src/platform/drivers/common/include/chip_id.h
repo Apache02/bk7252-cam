@@ -1,5 +1,5 @@
-#ifndef _CHIP_ID_H_
-#define _CHIP_ID_H_
+#ifndef _COMMON_CHIP_ID
+#define _COMMON_CHIP_ID
 
 #include <stdint.h>
 
@@ -16,4 +16,4 @@ uint32_t device_id();
 #endif
 
 
-#endif // _CHIP_ID_H_
+#endif // _COMMON_CHIP_ID

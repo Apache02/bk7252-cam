@@ -14,6 +14,7 @@ target_link_libraries(
         debug PRIVATE
         platform_port
         platform_stdio
+        platform_drivers
         hardware_gpio
         hardware_intc
         console
