@@ -17,23 +17,27 @@
 #define GPIO_FUNCTION_ENABLE_BIT            (1 << 6)
 #define GPIO_INPUT_MONITOR_BIT              (1 << 7)
 
-#define GPIO_MAX                            39
-#define GPIO_BANK1_START                    31
+#define GPIO_TOTAL_COUNT                    40
+#define GPIO_BANK0_COUNT                    32
+#define GPIO_BANK0_START                    0
+#define GPIO_BANK0_END                      (GPIO_BANK0_START + GPIO_BANK0_COUNT - 1)
+#define GPIO_BANK1_COUNT                    (GPIO_TOTAL_COUNT - GPIO_BANK0_COUNT)
+#define GPIO_BANK1_START                    GPIO_BANK0_COUNT
+#define GPIO_BANK1_END                      (GPIO_BANK1_START + GPIO_BANK1_COUNT - 1)
 
 // for GPIO 0-15
-#define REG_GPIO_FUNC_CFG                   (GPIO_BASE_ADDR + 32*4)
+#define REG_GPIO_FUNC_CFG_1                   (GPIO_BASE_ADDR + 32*4)
+// for GPIO 16-31
+#define REG_GPIO_FUNC_CFG_2                  (GPIO_BASE_ADDR + 46*4)
+// for GPIO 32-39
+#define REG_GPIO_FUNC_CFG_3                  (GPIO_BASE_ADDR + 47*4)
 #define PERIAL_MODE_1                       (0)
 #define PERIAL_MODE_2                       (1)
 #define PERIAL_MODE_3                       (2)
 #define PERIAL_MODE_4                       (3)
 
-// for GPIO 16-31
-#define REG_GPIO_FUNC_CFG_2                  (GPIO_BASE_ADDR + 46*4)
-// for GPIO 32-39
-#define REG_GPIO_FUNC_CFG_3                  (GPIO_BASE_ADDR + 47*4)
 
-
-typedef struct {
+volatile typedef struct {
     union {
         struct __attribute__((packed)) bits_t {
             uint32_t input: 1;
@@ -50,14 +54,14 @@ typedef struct {
     };
 } gpio_register_t;
 
-#define gpio_bank0          (gpio_register_t *)(REG_GPIO_BANK0)
-#define gpio_bank1          (gpio_register_t *)(REG_GPIO_BANK1)
+#define gpio_bank0          (volatile gpio_register_t *)REG_GPIO_BANK0
+#define gpio_bank1          (volatile gpio_register_t *)REG_GPIO_BANK1
 
-#define get_reg(gpio)       (gpio > GPIO_BANK1_START ? (gpio_bank1 + gpio - GPIO_BANK1_START) : (gpio_bank0 + gpio))
+#define get_reg(gpio)       (gpio > GPIO_BANK0_END ? (gpio_bank1 + gpio - GPIO_BANK0_COUNT) : (gpio_bank0 + gpio))
 
 
 void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
-    if (gpio > GPIO_MAX) return;
+    if (gpio > GPIO_TOTAL_COUNT - 1) return;
 
     uint32_t reg_value = 0;
 
@@ -146,17 +150,17 @@ void gpio_config_function(gpio_func_t func) {
     }
 
     static uint32_t *const func_cfg_regs[] = {
-            (uint32_t *const) REG_GPIO_FUNC_CFG,
+            (uint32_t *const) REG_GPIO_FUNC_CFG_1,
             (uint32_t *const) REG_GPIO_FUNC_CFG_2,
             (uint32_t *const) REG_GPIO_FUNC_CFG_3,
     };
 
-    for (int i = gpio_from; i <= gpio_to; i++) {
-        if (pull_up == 0) gpio_config(i, GPIO_SECOND_FUNC);
-        else gpio_config(i, GPIO_SECOND_FUNC_PULLUP);
+    for (int gpio = gpio_from; gpio <= gpio_to; gpio++) {
+        if (pull_up == 0) gpio_config(gpio, GPIO_SECOND_FUNC);
+        else gpio_config(gpio, GPIO_SECOND_FUNC_PULLUP);
 
-        uint32_t shift = ((i & 0xFF) * 2);
-        uint32_t *reg = func_cfg_regs[i >> 4];
+        uint32_t shift = ((gpio & 0xFF) * 2);
+        volatile uint32_t *reg = func_cfg_regs[gpio >> 4];
         *reg = (*reg) & (~(0x03 << shift)) | ((pmode & 0x3u) << shift);
     }
 }

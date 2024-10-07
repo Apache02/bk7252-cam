@@ -20,6 +20,7 @@ target_sources(
 target_link_libraries(
         platform_entry INTERFACE
         ${CMAKE_CURRENT_BINARY_DIR}/boot_handlers_assembly.o
+        hardware_intc
 )
 
 target_include_directories(
