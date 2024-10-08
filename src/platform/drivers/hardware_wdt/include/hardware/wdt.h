@@ -1,5 +1,6 @@
-#ifndef _WDT_H_
-#define _WDT_H_
+#ifndef _HARDWARE_WDT_H
+#define _HARDWARE_WDT_H
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,4 +20,5 @@ void wdt_down(void);
 #ifdef __cplusplus
 }
 #endif
-#endif // _WDT_H_
+
+#endif // _HARDWARE_WDT_H

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "drivers/uart.h"
-#include "drivers/wdt.h"
+#include "hardware/wdt.h"
 #include "utils/sleep.h"
 
 

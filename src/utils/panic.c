@@ -1,7 +1,7 @@
 #include "utils/panic.h"
 #include "utils/sleep.h"
 #include "drivers/uart.h"
-#include "drivers/wdt.h"
+#include "hardware/wdt.h"
 #include <stdbool.h>
 
 static inline void infinite_loop() {
@@ -20,8 +20,7 @@ void panic(const char *message) {
     panic_write("\r\n");
 
     sleep(10);
-    wdt_init();
-    wdt_set(100);
+    wdt_set(1000);
     wdt_up();
     infinite_loop();
 }

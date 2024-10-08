@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include "utils/sleep.h"
-#include "drivers/wdt.h"
+#include "hardware/wdt.h"
 #include "chip_id.h"
 #include "utils/console_colors.h"
 

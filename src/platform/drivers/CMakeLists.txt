@@ -3,9 +3,11 @@ function(simple_drivers_library NAME)
     target_include_directories(${NAME} INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
 endfunction()
 
+add_subdirectory(common)
+add_subdirectory(hardware_icu)
+add_subdirectory(hardware_wdt)
 add_subdirectory(hardware_gpio)
 add_subdirectory(hardware_intc)
-add_subdirectory(common)
 
 add_library(
         platform_drivers INTERFACE
@@ -23,7 +25,6 @@ target_link_libraries(
 
 target_sources(
         platform_drivers INTERFACE
-        wdt.c
         uart.c
         time.c
 )
