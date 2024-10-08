@@ -2,10 +2,18 @@
 
 #include "Packet.h"
 #include "History.h"
+#include "console_colors.h"
 
 
 struct Console {
 public:
+    typedef void (HandlerFunction)(Console &);
+
+    struct Handler {
+        const char *const name;
+        HandlerFunction *const handler;
+    };
+
     enum {
         UNKNOWN = 0x100,
         ARROW_LEFT,
@@ -20,12 +28,13 @@ public:
     } KEY;
 
 private:
-    History *history;
+    History *history = nullptr;
+    const Handler *handlers = nullptr;
 
 public:
     Packet packet;
 
-    Console();
+    Console(const Handler *handlers);
 
     ~Console();
 
@@ -39,7 +48,7 @@ public:
 
     void update(int c);
 
-    void replace_command(const char * command);
+    void replace_command(const char *command);
 
     int resolve_key(char *in, int count);
 

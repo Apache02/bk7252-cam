@@ -16,6 +16,7 @@ include_directories(src/include)
 # libs
 add_subdirectory(src/platform)
 add_subdirectory(src/utils)
+add_subdirectory(src/utils/shell)
 
 function(bk_firmware TARGET)
     target_link_libraries(

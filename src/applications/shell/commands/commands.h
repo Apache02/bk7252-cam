@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Console.h"
+#include "shell/Console.h"
 
 void command_echo(Console &c);
 

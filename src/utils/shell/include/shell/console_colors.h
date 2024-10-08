@@ -1,5 +1,5 @@
-#ifndef UTILS_CONSOLE_COLORS_H
-#define UTILS_CONSOLE_COLORS_H
+#ifndef UTILS_SHELL_COLORS_H
+#define UTILS_SHELL_COLORS_H
 
 #define CONSOLE_COLOR(color, text)     "\u001b[" color "m" text "\u001b[0m"
 
@@ -11,4 +11,4 @@
 #define COLOR_CYAN(text)        CONSOLE_COLOR("1;36", text)
 #define COLOR_WHITE(text)       CONSOLE_COLOR("1;37", text)
 
-#endif // UTILS_CONSOLE_COLORS_H
+#endif // UTILS_SHELL_COLORS_H

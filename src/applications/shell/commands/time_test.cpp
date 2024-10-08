@@ -1,7 +1,6 @@
 #include "commands.h"
 #include <stdio.h>
 #include "drivers/time.h"
-#include "utils/console_colors.h"
 
 
 void command_timer(Console &c) {

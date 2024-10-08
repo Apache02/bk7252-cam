@@ -1,11 +1,9 @@
-#include "Console.h"
-#include "utils/console_colors.h"
-#include "handlers.h"
-
+#include "shell/Console.h"
+#include "shell/console_colors.h"
 #include <stdio.h>
 
 
-Console::Console() {
+Console::Console(const Handler *handlers) : handlers(handlers) {
     history = new History(8);
 }
 
@@ -44,10 +42,12 @@ void Console::eol() {
 }
 
 bool Console::dispatch_command() {
-    for (int i = 0; i < handlers_count; i++) {
-        const ConsoleHandler *h = &handlers[i];
+    for (int i = 0;; i++) {
+        if (!handlers[i].name || !handlers[i].handler) break;
+
+        const Handler *h = &handlers[i];
         if (packet.match_word(h->name)) {
-            history->add(packet.buf);
+            if (history) history->add(packet.buf);
             h->handler(*this);
             return true;
         }
@@ -193,7 +193,9 @@ void Console::autocomplete() {
 
     const char *found = NULL;
     int found_count = 0;
-    for (int i = 0; i < handlers_count; i++) {
+    for (int i = 0;; i++) {
+        if (!handlers[i].name || !handlers[i].handler) break;
+
         if (strncmp(handlers[i].name, packet.buf, length) == 0) {
             if (!found) found = handlers[i].name;
             found_count++;

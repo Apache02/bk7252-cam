@@ -3,9 +3,8 @@
 #include "hardware/gpio.h"
 #include "hardware/intc.h"
 #include "utils/sleep.h"
-#include "utils/console_colors.h"
-#include "console/Console.h"
 #include "port/port.h"
+#include "handlers.h"
 
 
 #define LED_PIN         26
@@ -41,7 +40,7 @@ int main() {
 
     usleep(100'000);
 
-    Console *console = new Console();
+    Console *console = new Console(handlers);
 
     for (;;) {
         print_welcome();

@@ -5,12 +5,16 @@
 
 static void help(Console &console) {
     printf("Commands:\r\n");
-    for (int i = 0; i < handlers_count; i++) {
+    for (int i = 0;; i++) {
+        if (!handlers[i].name || !handlers[i].handler) {
+            break;
+        }
+
         printf("  %s\r\n", handlers[i].name);
     }
 }
 
-const ConsoleHandler handlers[] = {
+const Console::Handler handlers[] = {
         {"help",           help},
         {"echo",           command_echo},
         {"reboot",         command_reboot},
@@ -27,6 +31,6 @@ const ConsoleHandler handlers[] = {
         {"sys_ctl_test",   comand_sys_ctl_test},
         {"pwm",            command_pwm},
         {"pwm_stop",       command_pwm_stop},
+        // required at the end
+        {nullptr,          nullptr},
 };
-
-const size_t handlers_count = sizeof(handlers) / sizeof(handlers[0]);

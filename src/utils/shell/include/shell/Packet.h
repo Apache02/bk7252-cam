@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <ctype.h>
-#include "string.h"
+#include <string.h>
 
 bool parse_int_literal(const char *&cursor, int &out);
 

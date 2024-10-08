@@ -1,9 +1,6 @@
 #include "commands.h"
 #include <stdio.h>
 
-#include "typedef.h"
-#include "utils/console_colors.h"
-
 
 // utils
 #define TRACE(var)                          printf(#var " = 0x%x\r\n", var)
