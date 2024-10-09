@@ -31,3 +31,7 @@ void comand_sys_ctl_test(Console &c);
 void command_pwm(Console &c);
 
 void command_pwm_stop(Console &c);
+
+void command_timers(Console &c);
+
+void command_timer_test(Console &c);

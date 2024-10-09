@@ -31,7 +31,8 @@ typedef struct {
 
 typedef struct {
     union {
-        struct __packed {
+        uint32_t reg;
+        struct __attribute__((aligned(4))) __packed {
             uint32_t irq_uart1: 1;
             uint32_t irq_uart2: 1;
             uint32_t irq_i2c1: 1;
@@ -40,7 +41,7 @@ typedef struct {
             uint32_t irq_i2c2: 1;
             uint32_t irq_spi: 1;
             uint32_t irq_gpio: 1;
-            uint32_t irq_tl410_watchdog: 1;         // TODO: check IRQ_TIMER
+            uint32_t irq_timer: 1;
             uint32_t irq_pwm: 1;
             uint32_t irq_audio: 1;
             uint32_t irq_saradc: 1;
@@ -62,17 +63,16 @@ typedef struct {
             uint32_t fiq_spi_dma: 1;
             uint32_t fiq_dpll_unlock: 1;
         } bits;
-        uint32_t reg;
     };
 } icu_interrupts_reg_t;
 
 typedef struct {
     union {
-        struct __packed {
+        uint32_t reg;
+        struct __attribute__((aligned(4))) __packed {
             uint32_t irq: 1;
             uint32_t fiq: 1;
         } bits;
-        uint32_t reg;
     };
 } icu_global_interrupt_enable_reg_t;
 

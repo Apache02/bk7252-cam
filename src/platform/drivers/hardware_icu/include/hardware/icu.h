@@ -51,7 +51,7 @@ typedef struct {
     // peripheral clock select
     union {
         uint32_t reg;
-        struct __packed {
+        struct __attribute__((aligned(4))) __packed {
             peri_clk_t uart1: 1;
             peri_clk_t uart2: 1;
             peri_clk_t i2c1: 1;
@@ -78,7 +78,7 @@ typedef struct {
     // clocks power down
     union {
         uint32_t reg;
-        struct __packed {
+        struct __attribute__((aligned(4))) __packed {
             uint32_t uart1: 1;
             uint32_t uart2: 1;
             uint32_t i2c1: 1;
@@ -101,13 +101,15 @@ typedef struct {
             uint32_t fft: 1;
             uint32_t timer_26m: 1;
             uint32_t timer_32k: 1;
-        };
+            uint32_t _unk0: 1;
+            uint32_t _unk1: 1;
+        } bits;
     } peri_clk_pwd;
 
     // ?
     union {
         uint32_t reg;
-        struct __packed {
+        struct __attribute__((aligned(4))) __packed {
             uint32_t disable_icu_apb: 1;
             uint32_t disable_uart1_apb: 1;
             uint32_t disable_uart2_apb: 1;
@@ -131,7 +133,7 @@ typedef struct {
     // clocks power down 2
     union {
         uint32_t reg;
-        struct __packed {
+        struct __attribute__((aligned(4))) __packed {
             uint32_t tl410: 1;
             uint32_t ble: 1;
         };

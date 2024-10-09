@@ -26,6 +26,7 @@ target_link_libraries(
         platform_drivers
         hardware_gpio
         hardware_intc
+        hardware_timer
         utils
         utils_shell
 )

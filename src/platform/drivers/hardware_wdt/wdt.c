@@ -23,9 +23,9 @@ void wdt_set(unsigned long period) {
 }
 
 void wdt_up(void) {
-    hw_icu->peri_clk_pwd.arm_wdt = 0;
+    hw_icu->peri_clk_pwd.bits.arm_wdt = 0;
 }
 
 void wdt_down(void) {
-    hw_icu->peri_clk_pwd.arm_wdt = 1;
+    hw_icu->peri_clk_pwd.bits.arm_wdt = 1;
 }

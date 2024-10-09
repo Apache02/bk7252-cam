@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "port/port.h"
 
 
 enum {
@@ -20,7 +21,7 @@ enum {
     IRQ_SOURCE_I2C2 = (1 << 5),
     IRQ_SOURCE_SPI = (1 << 6),
     IRQ_SOURCE_GPIO = (1 << 7),
-    IRQ_SOURCE_TL410_WATCHDOG = (1 << 8), // TODO: check IRQ_TIMER
+    IRQ_SOURCE_TIMER = (1 << 8),
     IRQ_SOURCE_PWM = (1 << 9),
     IRQ_SOURCE_AUDIO = (1 << 10),
     IRQ_SOURCE_SARADC = (1 << 11),

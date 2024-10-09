@@ -8,6 +8,7 @@ add_subdirectory(hardware_icu)
 add_subdirectory(hardware_wdt)
 add_subdirectory(hardware_gpio)
 add_subdirectory(hardware_intc)
+add_subdirectory(hardware_timer)
 
 add_library(
         platform_drivers INTERFACE

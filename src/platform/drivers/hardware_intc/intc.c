@@ -57,7 +57,7 @@ void intc_irq(void) {
     if (status.bits.irq_i2c2) source |= IRQ_SOURCE_I2C2;
     if (status.bits.irq_spi) source |= IRQ_SOURCE_SPI;
     if (status.bits.irq_gpio) source |= IRQ_SOURCE_GPIO;
-    if (status.bits.irq_tl410_watchdog) source |= IRQ_SOURCE_TL410_WATCHDOG;
+    if (status.bits.irq_timer) source |= IRQ_SOURCE_TIMER;
     if (status.bits.irq_pwm) source |= IRQ_SOURCE_PWM;
     if (status.bits.irq_audio) source |= IRQ_SOURCE_AUDIO;
     if (status.bits.irq_saradc) source |= IRQ_SOURCE_SARADC;
@@ -121,7 +121,7 @@ static uint32_t source_to_reg(uint32_t source) {
     if (source & IRQ_SOURCE_I2C2) reg.bits.irq_i2c2 = 1;
     if (source & IRQ_SOURCE_SPI) reg.bits.irq_spi = 1;
     if (source & IRQ_SOURCE_GPIO) reg.bits.irq_gpio = 1;
-    if (source & IRQ_SOURCE_TL410_WATCHDOG) reg.bits.irq_tl410_watchdog = 1;
+    if (source & IRQ_SOURCE_TIMER) reg.bits.irq_timer = 1;
     if (source & IRQ_SOURCE_PWM) reg.bits.irq_pwm = 1;
     if (source & IRQ_SOURCE_AUDIO) reg.bits.irq_audio = 1;
     if (source & IRQ_SOURCE_SARADC) reg.bits.irq_saradc = 1;

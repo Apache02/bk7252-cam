@@ -2,8 +2,8 @@
 #include "drivers/uart.h"
 #include "hardware/gpio.h"
 #include "hardware/intc.h"
+#include "hardware/timer.h"
 #include "utils/sleep.h"
-#include "port/port.h"
 #include "handlers.h"
 
 
@@ -14,8 +14,9 @@
 
 static void init_hardware() {
     intc_init();
-//    portENABLE_IRQ();
+    portENABLE_IRQ();
 //    portENABLE_FIQ();
+    timer_init();
 
     gpio_config_function(GPIO_FUNC_UART2);
     uart_hw_init(UART2_PORT);
