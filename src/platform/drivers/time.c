@@ -12,7 +12,7 @@ typedef struct {
     uint32_t timerawl;
 } nxmac_timer_t;
 
-#define hw_nxmac_timer    ((nxmac_timer_t *) NXMAC_MONOTONIC_COUNTER_1_ADDR)
+#define hw_nxmac_timer    ((volatile nxmac_timer_t *) NXMAC_MONOTONIC_COUNTER_1_ADDR)
 
 
 uint32_t get_hf_counter() {
