@@ -22,7 +22,7 @@ typedef struct {
         struct __attribute__((aligned(4))) __packed {
             uint32_t enable: 3;
             uint32_t clk_divider: 4;
-            uint32_t int_status: 3;
+            uint32_t irq_status: 3;
         } bits;
     } ctl;
 

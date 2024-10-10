@@ -24,8 +24,8 @@ static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 
 
 static void timer_irq_handler(interrupt_context_t context) {
-    uint32_t status0 = hw_timer_bank0->ctl.bits.int_status;
-    uint32_t status1 = hw_timer_bank1->ctl.bits.int_status;
+    uint32_t status0 = hw_timer_bank0->ctl.bits.irq_status;
+    uint32_t status1 = hw_timer_bank1->ctl.bits.irq_status;
     uint32_t status_all = status0 | (status1 << TIMERS_IN_BANK);
 
     for (int i = 0; i < TIMERS_TOTAL; i++) {
@@ -51,13 +51,13 @@ static void timer_irq_handler(interrupt_context_t context) {
     // clear timers
     if (status0) {
         do {
-            hw_timer_bank0->ctl.bits.int_status = status0;
-        } while (hw_timer_bank0->ctl.bits.int_status & status0);
+            hw_timer_bank0->ctl.bits.irq_status = status0;
+        } while (hw_timer_bank0->ctl.bits.irq_status & status0);
     }
     if (status1) {
         do {
-            hw_timer_bank1->ctl.bits.int_status = status1;
-        } while (hw_timer_bank1->ctl.bits.int_status & status1);
+            hw_timer_bank1->ctl.bits.irq_status = status1;
+        } while (hw_timer_bank1->ctl.bits.irq_status & status1);
     }
 }
 
@@ -80,17 +80,17 @@ static void register_sys_timer(int timer_num) {
     timers_handlers[timer_num].handler = &sys_counter_tick;
 
     bank->counter[timer_num_in_bank] = timer_clock_freq;
-    bank->ctl.bits.int_status &= ~(1 << timer_num_in_bank); // start after 1 second
+    bank->ctl.bits.irq_status &= ~(1 << timer_num_in_bank); // start after 1 second
     bank->ctl.bits.enable |= (1 << timer_num_in_bank);
 }
 
 void timer_init() {
     hw_timer_bank0->ctl.bits.enable = 0;
-    hw_timer_bank0->ctl.bits.int_status = 0;
+    hw_timer_bank0->ctl.bits.irq_status = 0;
     hw_timer_bank0->ctl.bits.clk_divider = 0;
 
     hw_timer_bank1->ctl.bits.enable = 0;
-    hw_timer_bank1->ctl.bits.int_status = 0;
+    hw_timer_bank1->ctl.bits.irq_status = 0;
     hw_timer_bank1->ctl.bits.clk_divider = 0;
 
     hw_icu->peri_clk_pwd.bits.timer_26m = 0;
@@ -113,7 +113,7 @@ int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     timers_handlers[timer_num].handler = func;
 
     bank->counter[timer_num_in_bank] = count;
-    bank->ctl.bits.int_status &= ~(1 << timer_num_in_bank);
+    bank->ctl.bits.irq_status &= ~(1 << timer_num_in_bank);
 
     return timer_num;
 }
