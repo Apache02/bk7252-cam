@@ -103,6 +103,7 @@ typedef struct {
             uint32_t timer_32k: 1;
             uint32_t _unk0: 1;
             uint32_t _unk1: 1;
+            uint32_t reserved_24_31: 8;
         } bits;
     } peri_clk_pwd;
 

@@ -3,4 +3,4 @@
 #include <stdint.h>
 
 
-void sys_counter_tick(__unused int timer_num);
+void sys_counter_tick(int timer_num);

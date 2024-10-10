@@ -8,22 +8,33 @@
 #define TRACE_CHANGE(var, new_value)                printf(#var ": 0x%lx -> 0x%lx\r\n", var, new_value)
 
 
-void command_timers(Console &c) {
+static void timer_complete(int timer_num) {
+    putchar('-');
+    putchar('0' + timer_num);
+}
+
+void command_timers_test(Console &c) {
     for (int i = 0; i < 10; i++) {
-        int timer_num = timer_create(true, 26000 * i, 1, [](int t) {
-            printf("timer #%d complete\r\n", t);
-        });
+        int timer_num = timer_create(32000 * 2, timer_complete, true);
 
         if (timer_num >= 0) {
-            printf("timer #%d created\r\n", timer_num);
+            timer_start(timer_num);
+            putchar('+');
+            putchar('0' + timer_num);
         } else {
+            putchar('!');
             sleep(1);
         }
     }
+    printf("\r\n");
 }
 
-void command_timer_test(Console &c) {
-    printf("%llu\r\n", time_us_64());
+void command_timers_test2(Console &c) {
+    printf("%llu\r\n", time());
     sleep(1);
-    printf("%llu\r\n", time_us_64());
+    printf("%llu\r\n", time());
+
+    for (int i = 0; i < 6; i++) {
+        printf("timer #%d value = %d\r\n", i, timer_read(i));
+    }
 }

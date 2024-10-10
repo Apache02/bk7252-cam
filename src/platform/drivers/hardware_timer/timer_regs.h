@@ -5,13 +5,13 @@
 #include <sys/cdefs.h>
 
 
-#define PWM_NEW_BASE            (0x00802A00)
+#define PWM_NEW_BASE                (0x00802A00)
 
-#define TIMER_BANK_0            (PWM_NEW_BASE + 0x00 * 4)
-#define TIMER_BANK_1            (PWM_NEW_BASE + 0x10 * 4)
+#define TIMER_BANK_0                (PWM_NEW_BASE + 0x00 * 4)
+#define TIMER_BANK_1                (PWM_NEW_BASE + 0x10 * 4)
 
-#define TIMERS_IN_BANK          3
-#define TIMERS_TOTAL            (TIMERS_IN_BANK * 2)
+#define TIMERS_IN_BANK              3
+#define TIMERS_TOTAL                (TIMERS_IN_BANK * 2)
 
 
 typedef struct {
@@ -21,13 +21,12 @@ typedef struct {
         uint32_t reg;
         struct __attribute__((aligned(4))) __packed {
             uint32_t enable: 3;
-            uint32_t clk_divider: 3;
-            uint32_t _pad0: 1;
+            uint32_t clk_divider: 4;
             uint32_t int_status: 3;
         } bits;
     } ctl;
 
-    union read_ctl_t {
+    union {
         uint32_t reg;
         struct __attribute__((aligned(4))) __packed {
             uint32_t read_op: 1;
@@ -40,10 +39,17 @@ typedef struct {
 } hw_timer_bank_t;
 
 
-#define hw_timer_bank0          ((volatile hw_timer_bank_t *)TIMER_BANK_0)
-#define hw_timer_bank1          ((volatile hw_timer_bank_t *)TIMER_BANK_1)
+#define hw_timer_bank0              ((volatile hw_timer_bank_t *)TIMER_BANK_0)
+#define hw_timer_bank1              ((volatile hw_timer_bank_t *)TIMER_BANK_1)
 
-//static inline bool is_valid_timer_index(uint32_t index) {
-//    return index < TIMERS_TOTAL;
-//}
+static inline volatile hw_timer_bank_t *get_timer_bank_by_index(int timer_num) {
+    return (timer_num < TIMERS_IN_BANK)
+           ? hw_timer_bank0
+           : hw_timer_bank1;
+}
 
+static inline int get_timer_num_in_bank_by_index(int timer_num) {
+    return (timer_num < TIMERS_IN_BANK)
+           ? (timer_num)
+           : (timer_num - TIMERS_IN_BANK);
+}

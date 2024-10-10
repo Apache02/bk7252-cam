@@ -20,6 +20,9 @@ enum {
 static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 
 
+#define assert_timer_number(i)       assert_true((i >= 0) && (i < TIMERS_TOTAL), "Invalid timer number")
+
+
 static void timer_irq_handler(interrupt_context_t context) {
     uint32_t status0 = hw_timer_bank0->ctl.bits.int_status;
     uint32_t status1 = hw_timer_bank1->ctl.bits.int_status;
@@ -35,6 +38,11 @@ static void timer_irq_handler(interrupt_context_t context) {
         }
 
         if (timers_handlers[i].type == TYPE_ONCE) {
+            // disable hw timer
+            volatile hw_timer_bank_t *bank = get_timer_bank_by_index(i);
+            int timer_num_in_bank = get_timer_num_in_bank_by_index(i);
+            bank->ctl.bits.enable &= ~(1 << timer_num_in_bank);
+
             timers_handlers[i].handler = NULL;
             timers_handlers[i].type = TYPE_NONE;
         }
@@ -63,52 +71,87 @@ static int find_free_timer() {
     return -1;
 }
 
+static void register_sys_timer(int timer_num) {
+    const int timer_clock_freq = (timer_num < TIMERS_IN_BANK) ? 26000000 : 32000;
+    const int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
+
+    timers_handlers[timer_num].type = TYPE_PERIODIC;
+    timers_handlers[timer_num].handler = &sys_counter_tick;
+
+    bank->counter[timer_num_in_bank] = timer_clock_freq;
+    bank->ctl.bits.int_status &= ~(1 << timer_num_in_bank); // start after 1 second
+    bank->ctl.bits.enable |= (1 << timer_num_in_bank);
+}
+
 void timer_init() {
-    hw_icu->peri_clk_pwd.bits.timer_26m = 0;
-    hw_icu->peri_clk_pwd.bits.tl410_wdt = 0;
-
-    // start sys counter on timer #0
-    timers_handlers[0].type = TYPE_PERIODIC;
-    timers_handlers[0].handler = &sys_counter_tick;
-
-    hw_timer_bank0->counter[0] = 26000000;
+    hw_timer_bank0->ctl.bits.enable = 0;
+    hw_timer_bank0->ctl.bits.int_status = 0;
     hw_timer_bank0->ctl.bits.clk_divider = 0;
-    hw_timer_bank0->ctl.bits.int_status = (1 << 0);
-    hw_timer_bank0->ctl.bits.enable |= (1 << 0);
+
+    hw_timer_bank1->ctl.bits.enable = 0;
+    hw_timer_bank1->ctl.bits.int_status = 0;
+    hw_timer_bank1->ctl.bits.clk_divider = 0;
+
+    hw_icu->peri_clk_pwd.bits.timer_26m = 0;
+    hw_icu->peri_clk_pwd.bits.timer_32k = 0;
+
+    register_sys_timer(SYS_COUNTER_TIMER_NUM);
 
     intc_register_irq_handler(IRQ_SOURCE_TIMER, timer_irq_handler);
     intc_enable_irq_source(IRQ_SOURCE_TIMER);
 }
 
-int timer_create(bool once, uint32_t count, int divider, timer_alarm_handler_t *func) {
-    assert_true(divider >= 1 && divider <= 8, "Invalid divider");
-
+int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     int timer_num = find_free_timer();
     if (timer_num < 0) return -1;
+
+    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
+    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
     timers_handlers[timer_num].type = once ? TYPE_ONCE : TYPE_PERIODIC;
     timers_handlers[timer_num].handler = func;
 
-    hw_timer_bank0->counter[0] = count;
-    hw_timer_bank0->ctl.bits.clk_divider = divider - 1;
-    hw_timer_bank0->ctl.bits.int_status &= ~(1 << timer_num);
-    hw_timer_bank0->ctl.bits.enable |= (1 << timer_num);
+    bank->counter[timer_num_in_bank] = count;
+    bank->ctl.bits.int_status &= ~(1 << timer_num_in_bank);
 
     return timer_num;
 }
 
-void timer_remove(int timer_num) {
-    assert_true(timer_num >= 0 && timer_num <= (TIMERS_TOTAL-1), "Invalid timer number");
+void timer_start(int timer_num) {
+    assert_timer_number(timer_num);
+    assert_true(timers_handlers[timer_num].type != TYPE_NONE, "Timer is empty");
 
-    hw_timer_bank0->ctl.bits.enable &= ~(1 << timer_num);
+    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
+    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+
+    bank->ctl.bits.enable |= (1 << timer_num_in_bank);
+}
+
+void timer_remove(int timer_num) {
+    assert_timer_number(timer_num);
+
+    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
+    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    bank->ctl.bits.enable &= ~(1 << timer_num_in_bank);
 
     timers_handlers[timer_num].type = TYPE_NONE;
     timers_handlers[timer_num].handler = NULL;
 }
 
+// not working
+int timer_read(int timer_num) {
+    assert_timer_number(timer_num);
 
-//int busy_wait() {
-//}
-//
-//int busy_wait_ms() {
-//}
+    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
+    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    bank->read_ctl.bits.read_index = timer_num_in_bank;
+    bank->read_ctl.bits.read_op = 1;
+
+    int timeout = 120000;
+    while (bank->read_ctl.bits.read_op) {
+        if (--timeout <= 0) return -1;
+    }
+
+    return bank->read_value;
+}

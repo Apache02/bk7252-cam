@@ -31,8 +31,8 @@ const Console::Handler handlers[] = {
         {"sys_ctl_test",   comand_sys_ctl_test},
         {"pwm",            command_pwm},
         {"pwm_stop",       command_pwm_stop},
-        {"timers",         command_timers},
-        {"tt",             command_timer_test},
+        {"tt",             command_timers_test},
+        {"tt2",            command_timers_test2},
         // required at the end
         {nullptr,          nullptr},
 };
