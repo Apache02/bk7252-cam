@@ -7,6 +7,7 @@ add_subdirectory(common)
 add_subdirectory(hardware_icu)
 add_subdirectory(hardware_wdt)
 add_subdirectory(hardware_gpio)
+add_subdirectory(hardware_uart)
 add_subdirectory(hardware_intc)
 add_subdirectory(hardware_timer)
 
@@ -26,7 +27,6 @@ target_link_libraries(
 
 target_sources(
         platform_drivers INTERFACE
-        uart.c
         time.c
 )
 

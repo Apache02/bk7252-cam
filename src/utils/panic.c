@@ -1,6 +1,6 @@
 #include "utils/panic.h"
 #include "utils/sleep.h"
-#include "drivers/uart.h"
+#include "hardware/uart.h"
 #include "hardware/wdt.h"
 #include <stdbool.h>
 
@@ -9,8 +9,14 @@ static inline void infinite_loop() {
 }
 
 static inline void panic_write(const char *message) {
-    for (; *message != '\0'; message++) {
-        uart_write_byte(UART2_PORT, *message); // TODO: unbind from uart2
+    if (uart1_is_tx_active()) {
+        for (const char *tmp = message; *tmp != '\0'; tmp++) {
+            uart1_write_byte(*tmp);
+        }
+    } else if (uart2_is_tx_active()) {
+        for (const char *tmp = message; *tmp != '\0'; tmp++) {
+            uart2_write_byte(*tmp);
+        }
     }
 }
 

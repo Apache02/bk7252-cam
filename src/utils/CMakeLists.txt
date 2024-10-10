@@ -10,6 +10,7 @@ target_include_directories(
 target_link_libraries(
         utils INTERFACE
         hardware_wdt
+        hardware_uart
 )
 
 target_sources(
