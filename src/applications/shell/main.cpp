@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "drivers/uart.h"
+#include "platform/stdio.h"
 #include "hardware/gpio.h"
 #include "hardware/intc.h"
 #include "hardware/timer.h"
@@ -18,8 +18,7 @@ static void init_hardware() {
 //    portENABLE_FIQ();
     timer_init();
 
-    gpio_config_function(GPIO_FUNC_UART2);
-    uart_hw_init(UART2_PORT);
+    platform_stdio_init();
 
     gpio_config(LED_PIN, GPIO_OUT);
     gpio_config(KEY_PWR_PIN, GPIO_IN_PULLUP);

@@ -19,6 +19,8 @@ target_include_directories(
         ${CMAKE_CURRENT_LIST_DIR}/
 )
 
+platform_set_stdio_uart(2)
+
 target_link_libraries(
         shell PRIVATE
         platform_port
