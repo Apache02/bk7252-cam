@@ -1,6 +1,3 @@
-# shared include
-include_directories(include)
-
 # libs
 add_subdirectory(platform)
 add_subdirectory(utils)

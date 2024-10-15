@@ -9,5 +9,6 @@ target_sources(
 target_link_libraries(
         platform_nosys INTERFACE
         platform_boot
+        hardware_intc
         utils
 )
