@@ -4,13 +4,9 @@ target_sources(
         platform_entry INTERFACE
         boot_vectors.s
         arm.s
+        boot_reset.S
         arch_main.c
         boot_handlers.S
-)
-
-target_link_libraries(
-        platform_entry INTERFACE
-        hardware_intc
 )
 
 target_include_directories(

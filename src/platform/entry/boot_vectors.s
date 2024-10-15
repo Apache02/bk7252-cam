@@ -26,15 +26,6 @@
 	.globl	_not_used
 	.globl	_irq
 	.globl	_fiq
-	
-	.extern boot_reset
-	.extern boot_swi
-	.extern boot_undefined
-	.extern boot_pabort
-	.extern boot_dabort
-	.extern boot_reserved
-	.extern irq_handler
-	.extern fiq_handler
 
 /*
  *************************************************************************
@@ -84,4 +75,54 @@ _fiq:				    .word fiq_handler
 
 	.balignl 16,0xdeadbeef
 
-/* eof */	
+
+		.align	5
+irq_handler:
+	STMFD  sp!,{r0-r1}
+	LDR    R1, =0x400000
+	LDR    r0, [R1]
+	BX     r0
+
+		.align	5
+fiq_handler:
+	STMFD  sp!,{r0-r1}
+	LDR    R1, =0x400004
+	LDR    r0, [R1]
+	BX     r0
+
+		.align	5
+boot_swi:
+	STMFD  sp!,{r0-r1}
+	LDR    R1, =0x400008
+	LDR    r0, [R1]
+	BX     r0
+
+         .align  5
+boot_undefined:
+ 	STMFD  sp!,{r0-r1}
+ 	LDR    R1, =0x40000c
+ 	LDR    r0, [R1]
+ 	BX     r0
+
+         .align  5
+boot_pabort:
+ 	STMFD  sp!,{r0-r1}
+ 	LDR    R1, =0x400010
+ 	LDR    r0, [R1]
+ 	BX     r0
+
+         .align  5
+boot_dabort:
+ 	STMFD  sp!,{r0-r1}
+ 	LDR    R1, =0x400014
+ 	LDR    r0, [R1]
+ 	BX     r0
+
+         .align  5
+boot_reserved:
+ 	STMFD  sp!,{r0-r1}
+ 	LDR    R1, =0x400018
+ 	LDR    r0, [R1]
+ 	BX     r0
+
+/* eof */

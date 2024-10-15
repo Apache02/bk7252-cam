@@ -1,8 +1,6 @@
 extern void __libc_init_array(void);
 extern int main();
 
-unsigned int ulCriticalNesting = 0;
-unsigned int pxCurrentTCB = 0;
 
 void entry_main(void) {
     __libc_init_array();
@@ -25,7 +23,9 @@ void bk_trap_resv() {
     while (1);
 }
 
-extern void vTaskSwitchContext(void) {}
+void bk_trap_swi() {
+    while (1);
+}
 
 
 // eof

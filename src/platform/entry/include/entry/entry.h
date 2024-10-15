@@ -13,8 +13,6 @@ void do_pabort(void);
 void do_dabort(void);
 void do_reserved(void);
 
-void vPortYieldProcessor();
-
 #ifdef __cplusplus
 }
 #endif
