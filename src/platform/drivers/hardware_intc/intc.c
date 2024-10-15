@@ -1,24 +1,31 @@
 #include "hardware/intc.h"
-#include "entry/entry.h"
 #include "utils/panic.h"
 #include <stdio.h>
 #include <string.h>
 
 #include "intc_regs.h"
-#include "int_handlers.h"
 #include "intc_manager.h"
+
+
+extern void do_irq(void);
+extern void do_fiq(void);
+extern void do_swi(void);
+extern void do_undefined(void);
+extern void do_pabort(void);
+extern void do_dabort(void);
+extern void do_reserved(void);
 
 
 void intc_init() {
     memset(&intc_manager, 0, sizeof(intc_manager));
 
-    bk_interrupt_trap_ram->irq = do_irq; // from platform_entry
-    bk_interrupt_trap_ram->fiq = do_fiq; // from platform_entry
-    bk_interrupt_trap_ram->swi = _do_swi;
-    bk_interrupt_trap_ram->undefined = _do_undefined;
-    bk_interrupt_trap_ram->pabort = _do_pabort;
-    bk_interrupt_trap_ram->dabort = _do_dabort;
-    bk_interrupt_trap_ram->reserved = _do_reserved;
+    bk_interrupt_trap_ram->irq = do_irq;
+    bk_interrupt_trap_ram->fiq = do_fiq;
+    bk_interrupt_trap_ram->swi = do_swi;
+    bk_interrupt_trap_ram->undefined = do_undefined;
+    bk_interrupt_trap_ram->pabort = do_pabort;
+    bk_interrupt_trap_ram->dabort = do_dabort;
+    bk_interrupt_trap_ram->reserved = do_reserved;
 
     icu_interrupt_enable_reg->reg = 0;
 
@@ -36,7 +43,6 @@ void intc_init() {
     icu_global_interrupt_enable_reg->reg = GINTR_IRQ_EN | GINTR_FIQ_EN;
 }
 
-// called from platform_entry
 void intc_irq(void) {
     icu_interrupts_reg_t status = *icu_interrupt_status_reg;
 
@@ -88,7 +94,6 @@ void intc_irq(void) {
     }
 }
 
-// called from platform_entry
 void intc_fiq(void) {
     panic(__FUNCTION__);
 }

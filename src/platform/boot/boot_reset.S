@@ -1,4 +1,4 @@
-#include "entry/boot.h"
+#include "boot.h"
 
     .globl entry_main
 	.globl boot_reset

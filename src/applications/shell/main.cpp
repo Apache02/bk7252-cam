@@ -3,6 +3,7 @@
 #include "hardware/gpio.h"
 #include "hardware/intc.h"
 #include "hardware/timer.h"
+#include "port/port.h"
 #include "utils/sleep.h"
 #include "handlers.h"
 
@@ -15,7 +16,7 @@
 static void init_hardware() {
     intc_init();
     portENABLE_IRQ();
-//    portENABLE_FIQ();
+    portENABLE_FIQ();
     timer_init();
 
     platform_stdio_init();

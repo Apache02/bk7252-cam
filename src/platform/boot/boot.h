@@ -1,5 +1,5 @@
-#ifndef PLATFORM_ENTRY_ARCH_H
-#define PLATFORM_ENTRY_ARCH_H
+#ifndef PLATFORM_BOOT_H
+#define PLATFORM_BOOT_H
 
 #define _FIQ_STACK_SIZE_ 	              0x7F0
 #define _IRQ_STACK_SIZE_ 	              0xFF0
@@ -25,4 +25,4 @@
 #define BOOT_COLOR_SYS     	              0xEEEEEEEE      //Pattern to fill SYS stack
 
 
-#endif // PLATFORM_ENTRY_ARCH_H
+#endif // PLATFORM_BOOT_H

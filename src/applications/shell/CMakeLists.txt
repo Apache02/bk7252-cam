@@ -23,6 +23,7 @@ platform_set_stdio_uart(2)
 
 target_link_libraries(
         shell PRIVATE
+        platform_nosys
         platform_port
         platform_stdio
         platform_drivers

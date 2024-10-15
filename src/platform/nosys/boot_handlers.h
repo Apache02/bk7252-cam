@@ -1,5 +1,5 @@
-#ifndef PLATFORM_ENTRY_ENTRY_H
-#define PLATFORM_ENTRY_ENTRY_H
+#ifndef PLATFORM_BOOT_HANDLERS_H
+#define PLATFORM_BOOT_HANDLERS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,4 +17,4 @@ void do_reserved(void);
 }
 #endif
 
-#endif // PLATFORM_ENTRY_ENTRY_H
+#endif // PLATFORM_BOOT_HANDLERS_H

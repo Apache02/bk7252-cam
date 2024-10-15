@@ -6,6 +6,5 @@ target_link_libraries(
 target_sources(
         hardware_intc INTERFACE
         intc.c
-        int_handlers.c
 )
 

@@ -11,7 +11,7 @@ set(SRC_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 function(bk_firmware TARGET)
     target_link_libraries(
             ${TARGET} PRIVATE
-            platform_entry
+            platform_boot
     )
 
     target_link_options(
