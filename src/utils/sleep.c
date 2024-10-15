@@ -10,7 +10,7 @@ static inline void busy_wait_at_least_cycles(unsigned long minimum_cycles) {
 }
 
 void usleep(unsigned int us) {
-    busy_wait_at_least_cycles(us * (180000000 / 1000000));
+    busy_wait_at_least_cycles(us * (120000000 / 1000000));
 }
 
 void msleep(unsigned int ms) {
