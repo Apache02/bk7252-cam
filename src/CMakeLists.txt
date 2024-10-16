@@ -13,7 +13,7 @@ function(bk_firmware TARGET)
 
     target_link_options(
             ${TARGET} PUBLIC
-            "LINKER:--script=${SRC_ROOT_DIR}/linker.ld"
+            "LINKER:--script=${SRC_ROOT_DIR}/linker.lds"
             "LINKER:--print-memory-usage"
     )
 
