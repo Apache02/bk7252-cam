@@ -30,14 +30,14 @@
 typedef struct {
     union {
         uint32_t reg;
-        struct __packed {
+        struct __attribute__((aligned(4))) __packed {
             uint32_t mclk_source: 2;            // [0:1]
             uint32_t hclk_div2: 2;              // [2:3]
             uint32_t divider: 4;                // [4:7]
             uint32_t flash_26m: 1;              // [8]
-            uint32_t ahb_div: 1;                // [9]
-            uint32_t modem_pwd: 1;              // [10]
-            uint32_t mac_pwd: 1;                // [11]
+            uint32_t hclk_div2_en: 1;           // [9]
+            uint32_t modem_clk480m_pwd: 1;      // [10]
+            uint32_t mac_clk480m__pwd: 1;       // [11]
             uint32_t mpif_clk_invert_bit: 1;    // [12]
             uint32_t sdio_clk_invert_bit: 1;    // [13]
             uint32_t dpll_div_reset: 1;         // [14]
@@ -47,7 +47,7 @@ typedef struct {
             uint32_t psram_vddpad_volt: 2;      // [20:21]
             uint32_t flash_spi_mux_bit: 1;      // [22]
             uint32_t efuse_vdd25_en: 1;         // [23]
-            uint32_t _pad_end: (32 - 24);
+            uint32_t reserved_24_31: (31 - 24 + 1);
         } bits;
     };
 } hw_sys_ctrl_t;
@@ -60,9 +60,9 @@ void comand_sys_ctl_print(Console &c) {
     TRACE(hw_sys_ctrl->bits.hclk_div2);
     TRACE(hw_sys_ctrl->bits.divider);
     TRACE(hw_sys_ctrl->bits.flash_26m);
-    TRACE(hw_sys_ctrl->bits.ahb_div);
-    TRACE(hw_sys_ctrl->bits.modem_pwd);
-    TRACE(hw_sys_ctrl->bits.mac_pwd);
+    TRACE(hw_sys_ctrl->bits.hclk_div2_en);
+    TRACE(hw_sys_ctrl->bits.modem_clk480m_pwd);
+    TRACE(hw_sys_ctrl->bits.mac_clk480m__pwd);
     TRACE(hw_sys_ctrl->bits.mpif_clk_invert_bit);
     TRACE(hw_sys_ctrl->bits.sdio_clk_invert_bit);
     TRACE(hw_sys_ctrl->bits.dpll_div_reset);
@@ -72,7 +72,7 @@ void comand_sys_ctl_print(Console &c) {
     TRACE(hw_sys_ctrl->bits.psram_vddpad_volt);
     TRACE(hw_sys_ctrl->bits.flash_spi_mux_bit);
     TRACE(hw_sys_ctrl->bits.efuse_vdd25_en);
-    TRACE(hw_sys_ctrl->bits._pad_end);
+    TRACE(hw_sys_ctrl->bits.reserved_24_31);
 }
 
 void comand_sys_ctl_test(Console &c) {

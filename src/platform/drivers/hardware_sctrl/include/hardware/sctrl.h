@@ -1,7 +1,9 @@
-#ifndef _COMMON_CHIP_ID
-#define _COMMON_CHIP_ID
+#ifndef _HARDWARE_SCTRL_H
+#define _HARDWARE_SCTRL_H
 
+#include <stdbool.h>
 #include <stdint.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,5 +17,4 @@ uint32_t device_id();
 }
 #endif
 
-
-#endif // _COMMON_CHIP_ID
+#endif // _HARDWARE_SCTRL_H

@@ -3,7 +3,7 @@
 
 #include "utils/sleep.h"
 #include "hardware/wdt.h"
-#include "chip_id.h"
+#include "hardware/sctrl.h"
 
 
 void command_reboot(Console &c) {

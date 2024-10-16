@@ -30,6 +30,7 @@ target_link_libraries(
         hardware_gpio
         hardware_intc
         hardware_timer
+        hardware_sctrl
         utils
         utils_shell
 )
