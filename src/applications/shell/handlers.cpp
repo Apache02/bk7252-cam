@@ -34,6 +34,7 @@ const Console::Handler handlers[] = {
         {"blink",          command_blink},
         {"tt",             command_timers_test},
         {"tt2",            command_timers_test2},
+        {"stack",          command_stack},
         // required at the end
         {nullptr,          nullptr},
 };
