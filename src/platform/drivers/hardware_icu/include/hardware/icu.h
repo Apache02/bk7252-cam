@@ -5,24 +5,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define ICU_BASE                                    (0x00802000)
-#define ICU_PERI_CLK_MUX                            (ICU_BASE + 0 * 4)
-#define ICU_PWM_CLK_MUX                             (ICU_BASE + 1 * 4)
-#define ICU_PERI_CLK_PWD                            (ICU_BASE + 2 * 4)
-#define ICU_PERI_CLK_GATING                         (ICU_BASE + 3 * 4)
-#define ICU_TL410_CLK_PWD                           (ICU_BASE + 4 * 4)
-#define ICU_CLK26M_DIV_FACTOR                       (ICU_BASE + 5 * 4)
-#define ICU_JTAG_SELECT                             (ICU_BASE + 6 * 4)
-//#define ICU_INTERRUPT_ENABLE                        (ICU_BASE + 16 * 4)
-//#define ICU_GLOBAL_INT_EN                           (ICU_BASE + 17 * 4)
-//#define ICU_INT_RAW_STATUS                          (ICU_BASE + 18 * 4)
-//#define ICU_INT_STATUS                              (ICU_BASE + 19 * 4)
-//#define ICU_ARM_WAKEUP_EN                           (ICU_BASE + 20 * 4)
-//#define ICU_TL4_INT_EN                              (ICU_BASE + 32 * 4)
-//#define ICU_TL4_INT_RAW_STATUS                      (ICU_BASE + 33 * 4)
-//#define ICU_TL4_INT_STATUS                          (ICU_BASE + 34 * 4)
-//#define ICU_TL4_WAKEUP_EN                           (ICU_BASE + 35 * 4)
+/*******************************************************************/
 
+#define ICU_BASE                    (0x00802000)
+
+/*******************************************************************/
 
 typedef enum {
     PERI_CLK_DCO = 0,
@@ -46,6 +33,22 @@ typedef enum {
     PWM_CLK_PCLK = 0,
     PWM_CLK_LPO = 1,
 } pwm_clk_t;
+
+typedef enum {
+    CLK26M_DIVIDER_1 = 0,
+    CLK26M_DIVIDER_2,
+    CLK26M_DIVIDER_4,
+    CLK26M_DIVIDER_8,
+} clk26m_div_t;
+
+typedef enum {
+    JTAG_SEL_WR_ARM = 0x7111E968,
+    JTAG_SEL_WR_TL4 = 0x7111E410,
+    JTAG_SEL_RD_ARM = 0x00000000,
+    JTAG_SEL_RD_TL4 = 0x00000001,
+} jtag_select_t;
+
+/*******************************************************************/
 
 typedef struct {
     // peripheral clock select
@@ -139,10 +142,22 @@ typedef struct {
             uint32_t ble: 1;
         };
     } tl410_clk_pwd;
+
+    union {
+        uint32_t reg;
+        clk26m_div_t value;
+    } clk26m_divider;
+
+    union {
+        uint32_t reg;
+        jtag_select_t value;
+    } jtag_select;
+
 } hw_icu_t;
 
 #define hw_icu          ((volatile hw_icu_t *)ICU_BASE)
 
+/*******************************************************************/
 
 #ifdef __cplusplus
 extern "C" {
