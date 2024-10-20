@@ -2,8 +2,8 @@
 #include "platform/stdio.h"
 #include "hardware/gpio.h"
 #include "hardware/intc.h"
+#include "hardware/cpu.h"
 #include "hardware/timer.h"
-#include "port/port.h"
 #include "utils/sleep.h"
 #include "handlers.h"
 

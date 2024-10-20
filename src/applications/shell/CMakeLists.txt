@@ -23,16 +23,15 @@ platform_set_stdio_uart(2)
 
 target_link_libraries(
         shell PRIVATE
+        utils_shell
+        utils
         platform_nosys
-        platform_port
         platform_stdio
         platform_drivers
         hardware_gpio
         hardware_intc
         hardware_timer
         hardware_sctrl
-        utils
-        utils_shell
 )
 
 bk_firmware(shell)

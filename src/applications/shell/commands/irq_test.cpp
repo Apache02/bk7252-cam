@@ -2,8 +2,8 @@
 #include <stdio.h>
 
 #include "utils/sleep.h"
-#include "port/port.h"
 #include "hardware/intc.h"
+#include "hardware/cpu.h"
 
 
 #define TRACE(var)                          printf(#var " = 0x%x\r\n", var)

@@ -55,20 +55,20 @@ typedef struct {
     union {
         uint32_t reg;
         struct __attribute__((aligned(4))) __packed {
-            peri_clk_t uart1: 1;
-            peri_clk_t uart2: 1;
-            peri_clk_t i2c1: 1;
-            peri_clk_t irda: 1;
-            peri_clk_t i2c2: 1;
-            peri_clk_t saradc: 1;
-            peri_clk_t spi: 1;
-            peri_clk_t pwms: 1;
-            peri_clk_t sdio: 1;
-            peri_clk_t saradc_aud: 1;
-            uint32_t _pad0: (16 - 10);
-            qspi_clk_t qspi: 2;
-            dco_divider_t dco_divider: 2;
-            //
+            peri_clk_t uart1: 1;                // [0]
+            peri_clk_t uart2: 1;                // [1]
+            peri_clk_t i2c1: 1;                 // [2]
+            peri_clk_t irda: 1;                 // [3]
+            peri_clk_t i2c2: 1;                 // [4]
+            peri_clk_t saradc: 1;               // [5]
+            peri_clk_t spi: 1;                  // [6]
+            peri_clk_t pwms: 1;                 // [7]
+            peri_clk_t sdio: 1;                 // [8]
+            peri_clk_t saradc_aud: 1;           // [9]
+            uint32_t reserved_10_15: 6;         // [10:15]
+            qspi_clk_t qspi: 2;                 // [16:17]
+            dco_divider_t dco_divider: 2;       // [18:19]
+            uint32_t reserved_20_31: 12;        // [20:31]
         } bits;
     } peri_clk_mux;
 
@@ -82,31 +82,31 @@ typedef struct {
     union {
         uint32_t reg;
         struct __attribute__((aligned(4))) __packed {
-            uint32_t uart1: 1;
-            uint32_t uart2: 1;
-            uint32_t i2c1: 1;
-            uint32_t irda: 1;
-            uint32_t i2s_pcm: 1;
-            uint32_t i2c2: 1;
-            uint32_t spi: 1;
-            uint32_t saradc: 1;
-            uint32_t arm_wdt: 1;
-            uint32_t pwm0: 1;
-            uint32_t pwm1: 1;
-            uint32_t pwm2: 1;
-            uint32_t pwm3: 1;
-            uint32_t pwm4: 1;
-            uint32_t pwm5: 1;
-            uint32_t audio: 1;
-            uint32_t tl410_wdt: 1;
-            uint32_t sdio: 1;
-            uint32_t usb: 1;
-            uint32_t fft: 1;
-            uint32_t timer_26m: 1;
-            uint32_t timer_32k: 1;
-            uint32_t _unk0: 1;
-            uint32_t _unk1: 1;
-            uint32_t reserved_24_31: 8;
+            uint32_t uart1: 1;                  // [0]
+            uint32_t uart2: 1;                  // [1]
+            uint32_t i2c1: 1;                   // [2]
+            uint32_t irda: 1;                   // [3]
+            uint32_t i2s_pcm: 1;                // [4]
+            uint32_t i2c2: 1;                   // [5]
+            uint32_t spi: 1;                    // [6]
+            uint32_t saradc: 1;                 // [7]
+            uint32_t arm_wdt: 1;                // [8]
+            uint32_t pwm0: 1;                   // [9]
+            uint32_t pwm1: 1;                   // [10]
+            uint32_t pwm2: 1;                   // [11]
+            uint32_t pwm3: 1;                   // [12]
+            uint32_t pwm4: 1;                   // [13]
+            uint32_t pwm5: 1;                   // [14]
+            uint32_t audio: 1;                  // [15]
+            uint32_t tl410_wdt: 1;              // [16]
+            uint32_t sdio: 1;                   // [17]
+            uint32_t usb: 1;                    // [18]
+            uint32_t fft: 1;                    // [19]
+            uint32_t timer_26m: 1;              // [20]
+            uint32_t timer_32k: 1;              // [21]
+            uint32_t _unk0: 1;                  // [22]
+            uint32_t _unk1: 1;                  // [23]
+            uint32_t reserved_24_31: 8;         // [24:31]
         } bits;
     } peri_clk_pwd;
 
@@ -114,23 +114,24 @@ typedef struct {
     union {
         uint32_t reg;
         struct __attribute__((aligned(4))) __packed {
-            uint32_t disable_icu_apb: 1;
-            uint32_t disable_uart1_apb: 1;
-            uint32_t disable_uart2_apb: 1;
-            uint32_t disable_i2c1_apb: 1;
-            uint32_t disable_irda_apb: 1;
-            uint32_t disable_i2s_pcm_apb: 1;
-            uint32_t disable_i2c2_apb: 1;
-            uint32_t disable_spi_apb: 1;
-            uint32_t disable_gpio_apb: 1;
-            uint32_t disable_wdt_apb: 1;
-            uint32_t disable_pwm_apb: 1;
-            uint32_t disable_audio_apb: 1;
-            uint32_t disable_saradc_apb: 1;
-            uint32_t disable_sdio_ahb: 1;
-            uint32_t disable_usb_ahb: 1;
-            uint32_t disable_fft_ahb: 1;
-            uint32_t disable_mac_ahb: 1;
+            uint32_t disable_icu_apb: 1;        // [0]
+            uint32_t disable_uart1_apb: 1;      // [1]
+            uint32_t disable_uart2_apb: 1;      // [2]
+            uint32_t disable_i2c1_apb: 1;       // [3]
+            uint32_t disable_irda_apb: 1;       // [4]
+            uint32_t disable_i2s_pcm_apb: 1;    // [5]
+            uint32_t disable_i2c2_apb: 1;       // [6]
+            uint32_t disable_spi_apb: 1;        // [7]
+            uint32_t disable_gpio_apb: 1;       // [8]
+            uint32_t disable_wdt_apb: 1;        // [9]
+            uint32_t disable_pwm_apb: 1;        // [10]
+            uint32_t disable_audio_apb: 1;      // [11]
+            uint32_t disable_saradc_apb: 1;     // [12]
+            uint32_t disable_sdio_ahb: 1;       // [13]
+            uint32_t disable_usb_ahb: 1;        // [14]
+            uint32_t disable_fft_ahb: 1;        // [15]
+            uint32_t disable_mac_ahb: 1;        // [16]
+            uint32_t reserved_17_31: 15;        // [17:31]
         };
     } peri_clk_gating;
 
@@ -138,8 +139,9 @@ typedef struct {
     union {
         uint32_t reg;
         struct __attribute__((aligned(4))) __packed {
-            uint32_t tl410: 1;
-            uint32_t ble: 1;
+            uint32_t tl410: 1;                  // [1]
+            uint32_t ble: 1;                    // [1]
+            uint32_t reserved_2_31: 30;         // [2:31]
         };
     } tl410_clk_pwd;
 
