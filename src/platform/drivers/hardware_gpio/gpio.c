@@ -159,7 +159,7 @@ void gpio_config_function(gpio_func_t func) {
         if (pull_up == 0) gpio_config(gpio, GPIO_SECOND_FUNC);
         else gpio_config(gpio, GPIO_SECOND_FUNC_PULLUP);
 
-        uint32_t shift = ((gpio & 0xFF) * 2);
+        uint32_t shift = ((gpio & 0x0F) * 2);
         volatile uint32_t *reg = func_cfg_regs[gpio >> 4];
         *reg = (*reg) & (~(0x03 << shift)) | ((pmode & 0x3u) << shift);
     }
