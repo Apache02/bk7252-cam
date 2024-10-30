@@ -32,7 +32,9 @@ void command_pwm(Console &c);
 
 void command_pwm_stop(Console &c);
 
-void command_blink(Console &c);
+void command_gpio_blink(Console &c);
+
+void command_sos(Console &c);
 
 void command_timers_test(Console &c);
 

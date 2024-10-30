@@ -27,6 +27,8 @@ typedef enum {
 
 typedef unsigned char gpio_num_t;
 
+#define GPIO_NUM_MAX        39
+
 
 #ifdef __cplusplus
 extern "C" {

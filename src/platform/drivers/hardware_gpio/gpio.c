@@ -17,11 +17,10 @@
 #define GPIO_FUNCTION_ENABLE_BIT            (1 << 6)
 #define GPIO_INPUT_MONITOR_BIT              (1 << 7)
 
-#define GPIO_TOTAL_COUNT                    40
 #define GPIO_BANK0_COUNT                    32
 #define GPIO_BANK0_START                    0
 #define GPIO_BANK0_END                      (GPIO_BANK0_START + GPIO_BANK0_COUNT - 1)
-#define GPIO_BANK1_COUNT                    (GPIO_TOTAL_COUNT - GPIO_BANK0_COUNT)
+#define GPIO_BANK1_COUNT                    (GPIO_NUM_MAX + 1 - GPIO_BANK0_COUNT)
 #define GPIO_BANK1_START                    GPIO_BANK0_COUNT
 #define GPIO_BANK1_END                      (GPIO_BANK1_START + GPIO_BANK1_COUNT - 1)
 
@@ -61,7 +60,7 @@ volatile typedef struct {
 
 
 void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
-    if (gpio > GPIO_TOTAL_COUNT - 1) return;
+    if (gpio > GPIO_NUM_MAX) return;
 
     uint32_t reg_value = 0;
 
