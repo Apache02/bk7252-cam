@@ -15,6 +15,7 @@ function(bk_firmware TARGET)
             ${TARGET} PUBLIC
             "LINKER:--script=${SRC_ROOT_DIR}/linker.lds"
             "LINKER:--print-memory-usage"
+            "LINKER:--gc-sections"
     )
 
     # remove prev build
