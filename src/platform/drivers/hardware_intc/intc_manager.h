@@ -28,8 +28,8 @@ static struct {
 } intc_manager;
 
 
-
-bool inline register_handler(struct handlers_collection_t *collection, uint32_t source, interrupt_handler_cb *func) {
+static inline bool
+register_handler(struct handlers_collection_t *collection, uint32_t source, interrupt_handler_cb *func) {
     disable_interrupts();
 
     for (int i = 0; i < collection->count; i++) {

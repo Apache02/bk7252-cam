@@ -27,7 +27,7 @@ void dash() {
 void command_sos(Console &c) {
     gpio_config(LED_PIN, GPIO_OUT);
 
-    for (int i=0; i<3; i++) {
+    for (int i = 0; i < 3; i++) {
         dot();
         dot();
         dot();
@@ -56,7 +56,7 @@ void command_gpio_blink(Console &c) {
 
     printf("gpio #%d: ", gpio);
 
-    for (int i=0; i<3; i++) {
+    for (int i = 0; i < 3; i++) {
         gpio_put(gpio, 1);
         usleep(DELAY);
         gpio_put(gpio, 0);
