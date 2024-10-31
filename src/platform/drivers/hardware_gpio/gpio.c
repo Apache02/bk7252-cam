@@ -38,25 +38,25 @@
 
 volatile typedef struct {
     union {
-        struct __attribute__((packed)) bits_t {
-            uint32_t input: 1;
-            uint32_t output: 1;
-            uint32_t input_enable: 1;
-            uint32_t output_enable: 1;
-            uint32_t pull_mode: 1;
-            uint32_t pull_enable: 1;
-            uint32_t function_enable: 1;
-            uint32_t input_monitor: 1;
-        } bits;
+        struct __attribute__((packed)) {
+            uint32_t input: 1;              // [0]
+            uint32_t output: 1;             // [1]
+            uint32_t input_enable: 1;       // [2]
+            uint32_t output_enable: 1;      // [3]
+            uint32_t pull_mode: 1;          // [4]
+            uint32_t pull_enable: 1;        // [5]
+            uint32_t function_enable: 1;    // [6]
+            uint32_t input_monitor: 1;      // [7]
+        };
 
-        uint32_t reg;
+        uint32_t v;
     };
 } gpio_register_t;
 
 #define gpio_bank0          (volatile gpio_register_t *)REG_GPIO_BANK0
 #define gpio_bank1          (volatile gpio_register_t *)REG_GPIO_BANK1
 
-#define get_reg(gpio)       (gpio > GPIO_BANK0_END ? (gpio_bank1 + gpio - GPIO_BANK0_COUNT) : (gpio_bank0 + gpio))
+#define get_reg(gpio)       (gpio > GPIO_BANK0_END ? (gpio_bank1 + (gpio - GPIO_BANK0_COUNT)) : (gpio_bank0 + gpio))
 
 
 void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
@@ -81,22 +81,22 @@ void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
     }
 
     gpio_register_t *reg = get_reg(gpio);
-    reg->reg = reg_value;
+    reg->v = reg_value;
 }
 
 uint8_t gpio_get(gpio_num_t gpio) {
     gpio_register_t *reg = get_reg(gpio);
-    return reg->bits.input != 0;
+    return reg->input != 0;
 }
 
 void gpio_put(gpio_num_t gpio, bool value) {
     gpio_register_t *reg = get_reg(gpio);
-    reg->bits.output = value;
+    reg->output = value;
 }
 
 void gpio_toggle(gpio_num_t gpio) {
     gpio_register_t *reg = get_reg(gpio);
-    reg->bits.output = !reg->bits.output;
+    reg->output = !reg->output;
 }
 
 void gpio_config_function(gpio_func_t func) {
@@ -149,17 +149,25 @@ void gpio_config_function(gpio_func_t func) {
     }
 
     static uint32_t *const func_cfg_regs[] = {
-            (uint32_t *const) REG_GPIO_FUNC_CFG_1,
-            (uint32_t *const) REG_GPIO_FUNC_CFG_2,
-            (uint32_t *const) REG_GPIO_FUNC_CFG_3,
+            (uint32_t *) REG_GPIO_FUNC_CFG_1,
+            (uint32_t *) REG_GPIO_FUNC_CFG_2,
+            (uint32_t *) REG_GPIO_FUNC_CFG_3,
     };
 
     for (int gpio = gpio_from; gpio <= gpio_to; gpio++) {
-        if (pull_up == 0) gpio_config(gpio, GPIO_SECOND_FUNC);
-        else gpio_config(gpio, GPIO_SECOND_FUNC_PULLUP);
+        if (func == GPIO_FUNC_DCMI && gpio == 28) continue;
+
+        if (pull_up == 0) {
+            gpio_config(gpio, GPIO_SECOND_FUNC);
+        } else {
+            gpio_config(gpio, GPIO_SECOND_FUNC_PULLUP);
+        }
 
         uint32_t shift = ((gpio & 0x0F) * 2);
         volatile uint32_t *reg = func_cfg_regs[gpio >> 4];
-        *reg = (*reg) & (~(0x03 << shift)) | ((pmode & 0x3u) << shift);
+        uint32_t value = *reg;
+        value &= ~(0x03 << shift);
+        value |= (pmode & 0x03) << shift;
+        *reg = value;
     }
 }
