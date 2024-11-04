@@ -64,20 +64,36 @@ void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
 
     uint32_t reg_value = 0;
 
-    if (dir == GPIO_OUT) {
-        reg_value = 0;
-    } else if (dir == GPIO_IN) {
-        reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT;
-    } else if (dir == GPIO_IN_PULLUP) {
-        reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT;
-    } else if (dir == GPIO_IN_PULLDOWN) {
-        reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT | GPIO_PULL_MODE_BIT;
-    } else if (dir == GPIO_SECOND_FUNC) {
-        reg_value = GPIO_FUNCTION_ENABLE_BIT | GPIO_OUTPUT_ENABLE_BIT;
-    } else if (dir == GPIO_SECOND_FUNC_PULLUP) {
-        reg_value = GPIO_FUNCTION_ENABLE_BIT | GPIO_OUTPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT | GPIO_PULL_MODE_BIT;
-    } else { // dir == GPIO_HIGH_IMPENDANCE
-        reg_value = GPIO_OUTPUT_ENABLE_BIT;
+    switch (dir) {
+        case GPIO_OUT:
+            reg_value = 0;
+            break;
+        case GPIO_IN:
+            // 0x0C
+            reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT;
+            break;
+        case GPIO_IN_PULLUP:
+            // 0x2C
+            reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT;
+            break;
+        case GPIO_IN_PULLDOWN:
+            // 0x3C
+            reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT | GPIO_PULL_MODE_BIT;
+            break;
+        case GPIO_SECOND_FUNC:
+            // 0x48
+            reg_value = GPIO_FUNCTION_ENABLE_BIT | GPIO_OUTPUT_ENABLE_BIT;
+            break;
+        case GPIO_SECOND_FUNC_PULLUP:
+            // 0x78
+            reg_value = GPIO_FUNCTION_ENABLE_BIT | GPIO_OUTPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT | GPIO_PULL_MODE_BIT;
+            break;
+        case GPIO_HIGH_IMPENDANCE:
+            // 0x08
+            reg_value = GPIO_OUTPUT_ENABLE_BIT;
+            break;
+        default:
+            return;
     }
 
     gpio_register_t *reg = get_reg(gpio);

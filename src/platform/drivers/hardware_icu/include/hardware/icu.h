@@ -104,8 +104,8 @@ typedef struct {
             uint32_t fft: 1;                    // [19]
             uint32_t timer_26m: 1;              // [20]
             uint32_t timer_32k: 1;              // [21]
-            uint32_t _unk0: 1;                  // [22]
-            uint32_t _unk1: 1;                  // [23]
+            uint32_t unknown_22: 1;             // [22]
+            uint32_t unknown_23: 1;             // [23]
             uint32_t reserved_24_31: 8;         // [24:31]
         } bits;
     } peri_clk_pwd;
@@ -174,7 +174,7 @@ inline void icu_peri_clk_uart2(peri_clk_t clk) {
     hw_icu->peri_clk_mux.bits.uart2 = clk;
 }
 
-inline void icu_peri_clk_i2c1(peri_clk_t clk) {
+inline void icu_i2c1_set_clk_source(peri_clk_t clk) {
     hw_icu->peri_clk_mux.bits.i2c1 = clk;
 }
 
@@ -212,6 +212,14 @@ inline void icu_qspi_clk(qspi_clk_t clk) {
 
 inline void icu_dco_divider(dco_divider_t divider) {
     hw_icu->peri_clk_mux.bits.dco_divider = divider;
+}
+
+inline void icu_i2c1_power_up() {
+    hw_icu->peri_clk_pwd.bits.i2c1 = 0;
+}
+
+inline void icu_i2c1_power_down() {
+    hw_icu->peri_clk_pwd.bits.i2c1 = 1;
 }
 
 

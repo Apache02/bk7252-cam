@@ -30,7 +30,7 @@ typedef struct {
             uint32_t psram_vddpad_volt: 2;      // [20:21]
             uint32_t flash_spi_mux_bit: 1;      // [22]
             uint32_t efuse_vdd25_en: 1;         // [23]
-            uint32_t reserved_24_31: (31 - 24 + 1);
+            uint32_t reserved_24_31: 8;         // [24:31]
         };
     } control;
 
