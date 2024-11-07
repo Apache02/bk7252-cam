@@ -1,24 +1,34 @@
-#if defined(PLATFORM_STDIO_UART1_ENABLED) || defined(PLATFORM_STDIO_UART2_ENABLED)
+#undef UART_INIT
+#undef UART_WRITE_BYTE
+#undef UART_READ_BYTE
+
+#if defined(PLATFORM_STDIO_UART1_ENABLED)
+
+// uart1
 #include "hardware/uart.h"
 
-#define PLATFORM_STDIO_UART_ENABLED
-
-#ifdef PLATFORM_STDIO_UART1_ENABLED
 #define UART_INIT           uart1_init
 #define UART_WRITE_BYTE     uart1_write_byte
 #define UART_READ_BYTE      uart1_read_byte
-#else
+
+#elif defined(PLATFORM_STDIO_UART2_ENABLED)
+
+// uart2
+#include "hardware/uart.h"
+
 #define UART_INIT           uart2_init
 #define UART_WRITE_BYTE     uart2_write_byte
 #define UART_READ_BYTE      uart2_read_byte
-#endif
+
+#else
+
+#define UART_INIT(...)
+
 #endif
 
 
 void platform_stdio_init() {
-#ifdef PLATFORM_STDIO_UART_ENABLED
     UART_INIT();
-#endif
 }
 
 int _write(int file, char *ptr, int len) {
@@ -27,7 +37,7 @@ int _write(int file, char *ptr, int len) {
 //        return -1;
 //    }
 
-#ifdef PLATFORM_STDIO_UART_ENABLED
+#ifdef UART_WRITE_BYTE
     for (int i = 0; i < len; i++) {
         UART_WRITE_BYTE(*ptr++);
     }
@@ -42,7 +52,7 @@ int _read(int file, char *ptr, int len) {
         return -1;
     }
 
-#ifdef PLATFORM_STDIO_UART_ENABLED
+#ifdef UART_READ_BYTE
     for (int i = 0; i < len; i++) {
         int c = UART_READ_BYTE();
         if (c == -1) {

@@ -19,14 +19,12 @@ target_include_directories(
         ${CMAKE_CURRENT_LIST_DIR}/
 )
 
-platform_set_stdio_uart(2)
-
 target_link_libraries(
         shell PRIVATE
         utils_shell
         utils
         platform_nosys
-        platform_stdio
+        platform_stdio_uart2
         platform_drivers
         hardware_gpio
         hardware_intc

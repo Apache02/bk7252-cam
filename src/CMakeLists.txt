@@ -40,17 +40,5 @@ function(bk_firmware TARGET)
     )
 endfunction()
 
-function(platform_set_stdio_uart PORT)
-    if ("${PORT}" STREQUAL "1")
-        target_compile_definitions(platform_stdio PRIVATE PLATFORM_STDIO_UART1_ENABLED)
-        target_link_libraries(platform_stdio PRIVATE hardware_uart)
-    elseif ("${PORT}" STREQUAL "2")
-        target_compile_definitions(platform_stdio PRIVATE PLATFORM_STDIO_UART2_ENABLED)
-        target_link_libraries(platform_stdio PRIVATE hardware_uart)
-    else()
-        message(FATAL_ERROR "Invalid UART number")
-    endif ()
-endfunction()
-
 # applications
 add_subdirectory(applications)
