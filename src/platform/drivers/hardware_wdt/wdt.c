@@ -2,8 +2,10 @@
 #include "hardware/icu.h"
 
 
-#define WDT_BASE                                     (0x00802900)
-#define WDT_CTRL_REG                                 (WDT_BASE + 0 * 4)
+#define WDT_BASE                (0x00802900)
+#define WDT_CTRL_REG            (WDT_BASE + 0 * 4)
+
+#define hw_wdt                  ((volatile uint32_t *) WDT_CTRL_REG)
 
 
 static uint16_t g_period;
@@ -13,8 +15,8 @@ void wdt_init(void) {
 }
 
 void wdt_ping(void) {
-    *((volatile uint32_t *) WDT_CTRL_REG) = (g_period & 0xFFFF) | 0x5A0000;
-    *((volatile uint32_t *) WDT_CTRL_REG) = (g_period & 0xFFFF) | 0xA50000;
+    *hw_wdt = (g_period & 0xFFFF) | 0x5A0000;
+    *hw_wdt = (g_period & 0xFFFF) | 0xA50000;
 }
 
 void wdt_set(unsigned long period) {
@@ -28,4 +30,14 @@ void wdt_up(void) {
 
 void wdt_down(void) {
     hw_icu->peri_clk_pwd.bits.arm_wdt = 1;
+}
+
+int wdt_is_active(void) {
+    return hw_icu->peri_clk_pwd.bits.arm_wdt == 0;
+}
+
+void wdt_reboot(uint16_t delay) {
+    wdt_set(100);
+    wdt_up();
+    while (true);
 }

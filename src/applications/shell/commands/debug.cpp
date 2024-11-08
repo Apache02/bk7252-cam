@@ -25,10 +25,7 @@ void command_reboot(Console &c) {
     printf("\r\nreboot system\r\n");
     msleep(100);
 
-    wdt_set(10);
-    wdt_up();
-
-    while (1);
+    wdt_reboot(100);
 }
 
 #define DUMP_DEFAULT_ADDRESS        0x00000000

@@ -52,13 +52,7 @@ int main() {
 
     msleep(200);
 
-    // reboot by wdt
-    wdt_set(100);
-    wdt_up();
-    wdt_ping();
-    while (true) {
-        /* nothing */;
-    }
+    wdt_reboot(100);
 
     return 0;
 }

@@ -2,11 +2,7 @@
 #include "utils/sleep.h"
 #include "hardware/uart.h"
 #include "hardware/wdt.h"
-#include <stdbool.h>
 
-static inline void infinite_loop() {
-    while (true);
-}
 
 static inline void panic_write(const char *message) {
     if (uart1_is_tx_active()) {
@@ -26,7 +22,5 @@ void panic(const char *message) {
     panic_write("\r\n");
 
     sleep(10);
-    wdt_set(1000);
-    wdt_up();
-    infinite_loop();
+    wdt_reboot(1000);
 }
