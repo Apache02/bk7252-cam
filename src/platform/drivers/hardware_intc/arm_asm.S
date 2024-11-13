@@ -76,3 +76,28 @@ portRestoreInt:
     MSR     CPSR_c, R1
     BX      LR
 
+;/*
+; * int portIsInIRQ( void );
+; */
+    .globl portIsInIRQ
+    .type portIsInIRQ, %function
+portIsInIRQ:
+    MRS     R0, CPSR
+    AND     R1, R0, #CPU_MODE_MASK
+    CMP     R1, #CPU_MODE_IRQ
+    MOVEQ   R0, #1
+    MOVNE   R0, #0
+    BX      LR
+
+;/*
+; * int portIsInFIQ( void );
+; */
+    .globl portIsInFIQ
+    .type portIsInFIQ, %function
+portIsInFIQ:
+    MRS     R0, CPSR
+    AND     R1, R0, #CPU_MODE_MASK
+    CMP     R1, #CPU_MODE_FIQ
+    MOVEQ   R0, #1
+    MOVNE   R0, #0
+    BX      LR

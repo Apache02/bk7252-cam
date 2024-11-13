@@ -10,4 +10,6 @@ add_subdirectory(tools/encrypt_crc)
 # Init toolchain
 include(cmake/toolchain.cmake)
 
+include(FreeRTOS_Kernel_import.cmake)
+
 add_subdirectory(src)

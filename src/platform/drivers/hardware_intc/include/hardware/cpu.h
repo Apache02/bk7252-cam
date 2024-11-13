@@ -20,6 +20,9 @@ int portDISABLE_FIQ(void);
 int portDisableInt(void);
 void portRestoreInt(int state);
 
+int portIsInIRQ(void);
+int portIsInFIQ(void);
+
 
 #ifdef __cplusplus
 }

@@ -1,0 +1,15 @@
+#if (DEFINED ENV{FREERTOS_KERNEL_PATH} AND (NOT FREERTOS_KERNEL_PATH))
+#    set(FREERTOS_KERNEL_PATH $ENV{FREERTOS_KERNEL_PATH})
+#    message("Using FREERTOS_KERNEL_PATH from environment ('${FREERTOS_KERNEL_PATH}')")
+#endif ()
+
+if (NOT FREERTOS_KERNEL_PATH)
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/FreeRTOS-Kernel/CMakeLists.txt)
+        set(FREERTOS_KERNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs/FreeRTOS-Kernel)
+        message("Setting FREERTOS_KERNEL_PATH to '${FREERTOS_KERNEL_PATH}'")
+    endif ()
+endif ()
+
+if (NOT FREERTOS_KERNEL_PATH)
+    message(FATAL_ERROR "FreeRTOS location was not specified. Please set FREERTOS_KERNEL_PATH.")
+endif ()
