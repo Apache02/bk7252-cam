@@ -22,6 +22,7 @@ target_include_directories(
 target_link_libraries(
         shell PRIVATE
         utils_shell
+        utils_shell_commands
         utils
         platform_nosys
         platform_stdio_uart2

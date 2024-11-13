@@ -1,4 +1,4 @@
-#include "commands.h"
+#include "shell_commands.h"
 #include <stdio.h>
 
 
@@ -28,7 +28,6 @@ void command_partitions(Console &c) {
         printf("Error: Partitions table not found!\r\n");
         return;
     }
-
 
     printf("| %16s | %16s | %10s | %10s |\r\n", "name", "flash name", "addr", "size");
     printf("| ---------------- | ---------------- | ---------- | ---------- |\r\n");

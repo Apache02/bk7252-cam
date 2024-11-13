@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "hardware/wdt.h"
 
+#include "shell_commands.h"
+
 
 static void help(Console &c) {
     printf("Commands:\r\n");
@@ -20,8 +22,13 @@ static void reboot(Console &c) {
 }
 
 const Console::Handler handlers[] = {
-        {"help",   help},
-        {"reboot", reboot},
+        {"help",       help},
+        {"reboot",     reboot},
+        {"echo",       command_echo},
+        {"dump",       command_dump},
+        {"dump32",     command_dump32},
+        {"partitions", command_partitions},
+        {"stack",      command_stack},
         // required at the end
-        {nullptr,  nullptr},
+        {nullptr,      nullptr},
 };

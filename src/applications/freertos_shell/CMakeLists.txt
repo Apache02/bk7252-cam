@@ -17,6 +17,7 @@ target_link_libraries(
         platform_stdio_uart2
         platform_freertos
         utils_shell
+        utils_shell_commands
         FreeRTOS-Kernel-Heap4
         hardware_wdt
 )
