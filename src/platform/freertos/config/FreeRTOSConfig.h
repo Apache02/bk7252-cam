@@ -33,7 +33,7 @@
 #define configCPU_CLOCK_HZ                      120000000   // 120MHz for BK7252
 #define configTICK_RATE_HZ                      1000         // FreeRTOS beats per second
 #define configMAX_PRIORITIES                    10          // Max number of priority values (0-10)
-#define configMINIMAL_STACK_SIZE                512
+#define configMINIMAL_STACK_SIZE                128
 #define configMAX_TASK_NAME_LEN                 16
 #define configUSE_16_BIT_TICKS                  0
 #define configIDLE_SHOULD_YIELD                 1
@@ -63,7 +63,7 @@
 /* Hook function related definitions. */
 #define configUSE_IDLE_HOOK                     0
 #define configUSE_TICK_HOOK                     0
-#define configCHECK_FOR_STACK_OVERFLOW          1
+#define configCHECK_FOR_STACK_OVERFLOW          0
 #define configUSE_MALLOC_FAILED_HOOK            0
 #define configUSE_DAEMON_TASK_STARTUP_HOOK      0
 
