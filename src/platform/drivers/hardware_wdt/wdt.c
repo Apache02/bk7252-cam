@@ -37,7 +37,7 @@ int wdt_is_active(void) {
 }
 
 void wdt_reboot(uint16_t delay) {
-    wdt_set(100);
+    wdt_set(delay);
     wdt_up();
     while (true);
 }
