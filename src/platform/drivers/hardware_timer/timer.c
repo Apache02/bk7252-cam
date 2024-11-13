@@ -3,6 +3,7 @@
 #include "sys_counter.h"
 #include "hardware/icu.h"
 #include "hardware/intc.h"
+#include "hardware/cpu.h"
 #include "utils/assert.h"
 
 
@@ -61,18 +62,24 @@ static void timer_irq_handler(interrupt_context_t context) {
     }
 }
 
-static int find_free_timer() {
-    for (int i = 0; i < TIMERS_TOTAL; i++) {
-        if (timers_handlers[i].type == TYPE_NONE) {
-            return i;
+static int find_free_timer(uint32_t freq) {
+    for (int timer_num = TIMERS_TOTAL - 1; timer_num >= 0; timer_num--) {
+        const int timer_clock_freq = get_timer_frequency(timer_num);
+        if (freq != 0 && freq > timer_clock_freq) {
+            continue;
+        }
+
+        if (timers_handlers[timer_num].type == TYPE_NONE) {
+            return timer_num;
         }
     }
 
     return -1;
 }
 
-static void register_sys_timer(int timer_num) {
-    const int timer_clock_freq = (timer_num < TIMERS_IN_BANK) ? 26000000 : 32000;
+static void register_sys_timer() {
+    int timer_num = find_free_timer(1);
+    const int timer_clock_freq = get_timer_frequency(timer_num);
     const int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
     volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
 
@@ -96,15 +103,21 @@ void timer_init() {
     hw_icu->peri_clk_pwd.bits.timer_26m = 0;
     hw_icu->peri_clk_pwd.bits.timer_32k = 0;
 
-    register_sys_timer(SYS_COUNTER_TIMER_NUM);
+    register_sys_timer();
 
     intc_register_irq_handler(IRQ_SOURCE_TIMER, timer_irq_handler);
     intc_enable_irq_source(IRQ_SOURCE_TIMER);
 }
 
 int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
-    int timer_num = find_free_timer();
-    if (timer_num < 0) return -1;
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+
+    int timer_num = find_free_timer(0);
+    if (timer_num < 0) {
+        GLOBAL_INT_RESTORE();
+        return -1;
+    }
 
     volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
     int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
@@ -115,6 +128,30 @@ int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     bank->counter[timer_num_in_bank] = count;
     bank->ctl.bits.irq_status &= ~(1 << timer_num_in_bank);
 
+    GLOBAL_INT_RESTORE();
+    return timer_num;
+}
+
+int timer_create_by_freq(uint32_t freq, timer_alarm_handler_t *func, bool once) {
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+
+    int timer_num = find_free_timer(freq);
+    if (timer_num < 0) {
+        GLOBAL_INT_RESTORE();
+        return -1;
+    }
+
+    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
+    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+
+    timers_handlers[timer_num].type = once ? TYPE_ONCE : TYPE_PERIODIC;
+    timers_handlers[timer_num].handler = func;
+
+    bank->counter[timer_num_in_bank] = get_timer_frequency(timer_num) / freq;
+    bank->ctl.bits.irq_status &= ~(1 << timer_num_in_bank);
+
+    GLOBAL_INT_RESTORE();
     return timer_num;
 }
 

@@ -13,6 +13,9 @@
 #define TIMERS_IN_BANK              3
 #define TIMERS_TOTAL                (TIMERS_IN_BANK * 2)
 
+#define TIMER_BANK_0_FREQ           (26000000)
+#define TIMER_BANK_1_FREQ           (32000)
+
 
 typedef struct {
     uint32_t counter[3];
@@ -52,4 +55,8 @@ static inline int get_timer_num_in_bank_by_index(int timer_num) {
     return (timer_num < TIMERS_IN_BANK)
            ? (timer_num)
            : (timer_num - TIMERS_IN_BANK);
+}
+
+static inline uint32_t get_timer_frequency(int timer_num) {
+    return (timer_num < TIMERS_IN_BANK) ? TIMER_BANK_0_FREQ : TIMER_BANK_1_FREQ;
 }

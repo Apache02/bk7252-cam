@@ -47,6 +47,8 @@ void vPortExitCritical(void) {
     }
 }
 
+static int sys_tick_timer;
+
 static void xPortSysTickHandler(__unused int timer_num) {
     if (xTaskIncrementTick() != pdFALSE) {
         /* Select a new task to run. */
@@ -58,9 +60,12 @@ extern void vPortStartFirstTask(void);
 
 BaseType_t xPortStartScheduler(void) {
     ulCriticalNesting = 0;
+    sys_tick_timer = -1;
 
     /* Start the timer that generates the tick ISR. Interrupts are disabled here already. */
-    int timer = timer_create(26000000 / configTICK_RATE_HZ, xPortSysTickHandler, false);
+    int timer = timer_create_by_freq(configTICK_RATE_HZ, xPortSysTickHandler, false);
+    sys_tick_timer = timer;
+
     if (timer < 0) {
         return 0;
     }
@@ -73,7 +78,7 @@ BaseType_t xPortStartScheduler(void) {
 }
 
 void vPortEndScheduler(void) {
-    // TODO: clear timer
+    timer_remove(sys_tick_timer);
 }
 
 /*-----------------------------------------------------------*/

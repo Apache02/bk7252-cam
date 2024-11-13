@@ -5,8 +5,6 @@
 #include <stdbool.h>
 
 
-#define SYS_COUNTER_TIMER_NUM      (5)
-
 typedef void (timer_alarm_handler_t)(int timer_num);
 
 
@@ -17,6 +15,8 @@ extern "C" {
 void timer_init();
 
 int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once);
+
+int timer_create_by_freq(uint32_t freq, timer_alarm_handler_t *func, bool once);
 
 void timer_start(int timer_num);
 
