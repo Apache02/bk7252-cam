@@ -21,6 +21,9 @@ void panic(const char *message) {
     panic_write(message);
     panic_write("\r\n");
 
-    sleep(10);
+    sleep(5);
+    if (uart1_is_tx_active()) uart1_flush();
+    else if (uart2_is_tx_active()) uart2_flush();
+
     wdt_reboot(1000);
 }

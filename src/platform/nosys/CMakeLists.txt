@@ -2,7 +2,7 @@ add_library(platform_nosys INTERFACE)
 
 target_sources(
         platform_nosys INTERFACE
-        arch_main.c
+        entry.c
         boot_handlers.S
 )
 

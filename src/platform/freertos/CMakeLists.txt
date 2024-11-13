@@ -54,10 +54,9 @@ target_link_libraries(FreeRTOS-Kernel-Heap5 INTERFACE platform_freertos)
 add_library(platform_freertos INTERFACE)
 target_sources(
         platform_freertos INTERFACE
-        ${CMAKE_CURRENT_LIST_DIR}/port.c
-        ${CMAKE_CURRENT_LIST_DIR}/port_asm.S
-        ${CMAKE_CURRENT_LIST_DIR}/bk_trap.c
-        ${CMAKE_CURRENT_LIST_DIR}/entry.c
+        port.c
+        port_asm.S
+        entry.c
 )
 
 if (NOT FREERTOS_CONFIG_FILE_DIRECTORY)
@@ -73,6 +72,7 @@ target_link_libraries(
         platform_freertos INTERFACE
         FreeRTOS-Kernel-Core
         # TODO: add libs
+        hardware_intc
         hardware_timer
         hardware_gpio
 )
