@@ -15,8 +15,6 @@ target_link_libraries(
         platform_stdio_uart2
         platform_freertos
         hardware_gpio
-        hardware_intc
-        hardware_timer
         utils
         FreeRTOS-Kernel-Heap4
 )

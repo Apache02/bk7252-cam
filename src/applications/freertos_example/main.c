@@ -6,8 +6,6 @@
 
 #include <stdio.h>
 
-#include "hardware/intc.h"
-#include "hardware/timer.h"
 #include "platform/stdio.h"
 #include "utils/panic.h"
 
@@ -41,18 +39,8 @@ static void vDynamicTask2(__unused void *parameters) {
 /*-----------------------------------------------------------*/
 
 
-static void init_hardware() {
-    intc_init();
-    platform_stdio_init();
-    timer_init();
-}
-
-static void init_software() {
-}
-
 int main(void) {
-    init_hardware();
-    init_software();
+    platform_stdio_init();
 
     printf("Example FreeRTOS Project\r\n");
     usleep(1000);

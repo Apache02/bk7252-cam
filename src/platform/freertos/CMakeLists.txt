@@ -71,9 +71,7 @@ target_include_directories(
 target_link_libraries(
         platform_freertos INTERFACE
         FreeRTOS-Kernel-Core
-        # TODO: add libs
         hardware_intc
         hardware_timer
-        hardware_gpio
 )
 
