@@ -7,6 +7,8 @@ extern "C" {
 
 void panic(const char *message);
 
+void panic_blink(int count);
+
 #ifdef __cplusplus
 }
 #endif

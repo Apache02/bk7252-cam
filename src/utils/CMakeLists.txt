@@ -11,6 +11,8 @@ target_link_libraries(
         utils INTERFACE
         hardware_wdt
         hardware_uart
+        hardware_gpio
+        board_config
 )
 
 target_sources(
