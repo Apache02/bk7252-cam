@@ -19,14 +19,14 @@ target_sources(
 
 target_include_directories(FreeRTOS-Kernel-Core INTERFACE ${FREERTOS_KERNEL_PATH}/include)
 
-# FreeRTOS-Kernel-Static
-add_library(FreeRTOS-Kernel-Static INTERFACE)
-target_compile_definitions(
-        FreeRTOS-Kernel-Static INTERFACE
-        configSUPPORT_STATIC_ALLOCATION=1
-        configKERNEL_PROVIDED_STATIC_MEMORY=1
-)
-target_link_libraries(FreeRTOS-Kernel-Static INTERFACE platform_freertos)
+## FreeRTOS-Kernel-Static
+#add_library(FreeRTOS-Kernel-Static INTERFACE)
+#target_compile_definitions(
+#        FreeRTOS-Kernel-Static INTERFACE
+#        configSUPPORT_STATIC_ALLOCATION=1
+#        configKERNEL_PROVIDED_STATIC_MEMORY=1
+#)
+#target_link_libraries(FreeRTOS-Kernel-Static INTERFACE platform_freertos)
 
 # FreeRTOS other
 add_library(FreeRTOS-Kernel-Heap1 INTERFACE)
