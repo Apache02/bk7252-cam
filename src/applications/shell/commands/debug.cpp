@@ -1,7 +1,7 @@
 #include "commands.h"
 #include <stdio.h>
 
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 #include "hardware/wdt.h"
 #include "hardware/sctrl.h"
 
@@ -16,14 +16,14 @@ void command_reboot(Console &c) {
         while (delay > 0) {
             printf("\b%d", delay);
 
-            sleep(1);
+            busy_wait(1);
             delay--;
         }
     }
 
 
     printf("\r\nreboot system\r\n");
-    msleep(100);
+    busy_wait_ms(100);
 
     wdt_reboot(100);
 }

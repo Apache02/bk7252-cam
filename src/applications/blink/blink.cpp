@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "hardware/gpio.h"
 #include "platform/stdio.h"
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 
 
 #define LED_PIN         26
@@ -47,7 +47,7 @@ int main() {
             }
         }
 
-        usleep(100);
+        busy_wait_us(100);
     }
 
     return 0;

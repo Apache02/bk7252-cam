@@ -1,21 +1,10 @@
 #include "utils/panic.h"
+#include "utils/busy_wait.h"
 #include "hardware/uart.h"
 #include "hardware/wdt.h"
 #include "hardware/gpio.h"
 #include "board.h"
 
-static inline void busy_wait_at_least_cycles(unsigned long minimum_cycles) {
-    __asm volatile(
-            ".syntax unified\n"
-            "1: subs %0, #3\n"
-            "bcs 1b\n"
-            : "+l" (minimum_cycles) : : "cc", "memory"
-            );
-}
-
-static void busy_wait(unsigned int us) {
-    busy_wait_at_least_cycles(us * (120000000 / 1000000));
-}
 
 static inline void panic_write(const char *message) {
     if (uart1_is_tx_active()) {

@@ -1,7 +1,7 @@
 #include "commands.h"
 #include <stdio.h>
 
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 #include "hardware/intc.h"
 #include "hardware/cpu.h"
 
@@ -92,7 +92,7 @@ void command_pwm(Console &c) {
 //    portENABLE_FIQ();
 
     for (auto i = 0; i < 200; i++) {
-        msleep(10);
+        busy_wait_ms(10);
         putchar('.');
     }
 

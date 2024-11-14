@@ -11,5 +11,5 @@ target_link_libraries(
         platform_stdio_uart2
         hardware_gpio
         hardware_uart
-        utils
+        utils_busy_wait
 )

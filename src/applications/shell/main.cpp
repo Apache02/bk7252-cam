@@ -4,7 +4,7 @@
 #include "hardware/intc.h"
 #include "hardware/cpu.h"
 #include "hardware/timer.h"
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 #include "handlers.h"
 
 
@@ -39,7 +39,7 @@ int main() {
     // disable stdout buffering
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    usleep(100'000);
+    busy_wait_us(100'000);
 
     Console *console = new Console(handlers);
 
@@ -68,7 +68,7 @@ int main() {
                 }
             }
 
-            usleep(1000);
+            busy_wait_us(1000);
         }
     }
 

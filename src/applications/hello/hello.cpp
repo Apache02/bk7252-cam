@@ -1,6 +1,6 @@
 #include "hardware/uart.h"
 #include "hardware/wdt.h"
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 
 
 int uart1_write(const char *message) {
@@ -40,7 +40,7 @@ int main() {
             if (c >= 0) uart2_write_byte(c);
         } while (c >= 0);
 
-        msleep(500);
+        busy_wait_ms(500);
     }
 
     const char *message = "\r\nreboot system\r\n\r\n";
@@ -50,7 +50,7 @@ int main() {
     uart1_flush();
     uart2_flush();
 
-    msleep(200);
+    busy_wait_ms(200);
 
     wdt_reboot(100);
 

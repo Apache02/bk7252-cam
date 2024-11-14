@@ -13,11 +13,11 @@ target_link_libraries(
         hardware_uart
         hardware_gpio
         board_config
+        utils_busy_wait
 )
 
 target_sources(
         utils INTERFACE
-        sleep.c
         panic.c
 )
 

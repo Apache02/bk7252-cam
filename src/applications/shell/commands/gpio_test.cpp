@@ -1,7 +1,7 @@
 #include "commands.h"
 #include <stdio.h>
 #include "hardware/gpio.h"
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 
 
 #define LED_PIN         26
@@ -11,17 +11,17 @@
 void dot() {
     putchar('.');
     gpio_put(LED_PIN, 1);
-    usleep(DELAY);
+    busy_wait_us(DELAY);
     gpio_put(LED_PIN, 0);
-    usleep(DELAY);
+    busy_wait_us(DELAY);
 }
 
 void dash() {
     putchar('-');
     gpio_put(LED_PIN, 1);
-    usleep(DELAY * 3);
+    busy_wait_us(DELAY * 3);
     gpio_put(LED_PIN, 0);
-    usleep(DELAY);
+    busy_wait_us(DELAY);
 }
 
 void command_sos(Console &c) {
@@ -37,7 +37,7 @@ void command_sos(Console &c) {
         dot();
         dot();
         dot();
-        usleep(DELAY * 2);
+        busy_wait_us(DELAY * 2);
         putchar(' ');
     }
 
@@ -58,9 +58,9 @@ void command_gpio_blink(Console &c) {
 
     for (int i = 0; i < 3; i++) {
         gpio_put(gpio, 1);
-        usleep(DELAY);
+        busy_wait_us(DELAY);
         gpio_put(gpio, 0);
-        usleep(DELAY);
+        busy_wait_us(DELAY);
         putchar('.');
     }
 

@@ -1,6 +1,6 @@
 #include "commands.h"
 #include <stdio.h>
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 
 
 #define count_of(x)     (sizeof(x) / sizeof(x[0]))
@@ -39,7 +39,7 @@ void command_watch_reg(Console &c) {
             printf("0x%08lx ", *regs[r]);
         }
 
-        usleep(10);
+        busy_wait_us(10);
     }
 
     printf("\r\n\r\n");

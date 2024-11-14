@@ -1,6 +1,6 @@
 #include "commands.h"
 #include <stdio.h>
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 #include "hardware/timer.h"
 
 
@@ -23,7 +23,7 @@ void command_timers_test(Console &c) {
             putchar('0' + timer_num);
         } else {
             putchar('!');
-            sleep(1);
+            busy_wait(1);
         }
     }
     printf("\r\n");
@@ -31,7 +31,7 @@ void command_timers_test(Console &c) {
 
 void command_timers_test2(Console &c) {
     printf("%llu\r\n", time());
-    sleep(1);
+    busy_wait(1);
     printf("%llu\r\n", time());
 
     for (int i = 0; i < 6; i++) {

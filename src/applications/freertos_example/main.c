@@ -9,7 +9,7 @@
 #include "platform/stdio.h"
 #include "utils/panic.h"
 
-#include "utils/sleep.h"
+#include "utils/busy_wait.h"
 
 
 /*-----------------------------------------------------------*/
@@ -18,7 +18,7 @@ static void vStaticTask1(__unused void *parameters) {
     for (int i = 0;; i++) {
         portENTER_CRITICAL();
         printf("%s #%d\r\n", __PRETTY_FUNCTION__, i);
-        usleep(500000);
+        busy_wait_us(500000);
         portEXIT_CRITICAL();
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -43,7 +43,7 @@ int main(void) {
     platform_stdio_init();
 
     printf("Example FreeRTOS Project\r\n");
-    usleep(1000);
+    busy_wait_us(1000);
 
     xTaskCreateStatic(
             vStaticTask1,

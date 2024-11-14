@@ -15,6 +15,6 @@ target_link_libraries(
         platform_stdio_uart2
         platform_freertos
         hardware_gpio
-        utils
+        utils_busy_wait
         FreeRTOS-Kernel-Heap4
 )

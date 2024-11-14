@@ -23,7 +23,7 @@ target_link_libraries(
         shell PRIVATE
         utils_shell
         utils_shell_commands
-        utils
+        utils_busy_wait
         platform_nosys
         platform_stdio_uart2
         platform_drivers

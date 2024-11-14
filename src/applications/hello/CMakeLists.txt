@@ -9,5 +9,5 @@ target_link_libraries(
         hello PRIVATE
         platform_nosys
         hardware_uart
-        utils
+        utils_busy_wait
 )
