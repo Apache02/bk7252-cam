@@ -30,4 +30,5 @@ target_link_libraries(
         utils_shell_commands
         FreeRTOS-Kernel-Heap4
         hardware_wdt
+        hardware_gpio
 )
