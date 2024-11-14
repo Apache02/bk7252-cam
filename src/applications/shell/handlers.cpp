@@ -37,6 +37,7 @@ const Console::Handler handlers[] = {
         {"tt",             command_timers_test},
         {"tt2",            command_timers_test2},
         {"stack",          command_stack},
+        {"write_regs",     command_write_regs},
         // required at the end
         {nullptr,          nullptr},
 };

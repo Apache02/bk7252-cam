@@ -40,4 +40,4 @@ void command_timers_test(Console &c);
 
 void command_timers_test2(Console &c);
 
-void command_stack(Console &c);
+void command_write_regs(Console &c);
