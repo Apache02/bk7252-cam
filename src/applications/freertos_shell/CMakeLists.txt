@@ -12,6 +12,16 @@ bk_firmware(freertos_shell)
 #        ${CMAKE_CURRENT_LIST_DIR}
 #)
 
+file(
+        GLOB COMMANDS
+        ${CMAKE_CURRENT_LIST_DIR}/commands/*.cpp
+)
+
+target_sources(
+        freertos_shell PRIVATE
+        ${COMMANDS}
+)
+
 target_link_libraries(
         freertos_shell PRIVATE
         platform_stdio_uart2

@@ -242,6 +242,14 @@
  * used if configUSE_TIMERS is set to 1. */
 #define configTIMER_QUEUE_LENGTH        10
 
+#define configTIMER_SERVICE_TASK_NAME          "_timer"
+
+/******************************************************************************/
+/* Idle task definitions. *****************************************************/
+/******************************************************************************/
+
+#define configIDLE_TASK_NAME                   "_idle"
+
 /******************************************************************************/
 /* Event Group related definitions. *******************************************/
 /******************************************************************************/
@@ -379,7 +387,7 @@
  * are used by trace and visualisation functions and tools.  Set to 0 to exclude
  * the additional information from the structures. Defaults to 0 if left
  * undefined. */
-#define configUSE_TRACE_FACILITY                0
+#define configUSE_TRACE_FACILITY                1
 
 /* Set to 1 to include the vTaskList() and vTaskGetRunTimeStats() functions in
  * the build.  Set to 0 to exclude these functions from the build.  These two

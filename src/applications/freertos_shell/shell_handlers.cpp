@@ -21,6 +21,8 @@ static void reboot(Console &c) {
     wdt_reboot(100);
 }
 
+extern void command_tasks(Console &);
+
 const Console::Handler handlers[] = {
         {"help",       help},
         {"reboot",     reboot},
@@ -29,6 +31,7 @@ const Console::Handler handlers[] = {
         {"dump32",     command_dump32},
         {"partitions", command_partitions},
         {"stack",      command_stack},
+        {"tasks",      command_tasks},
         // required at the end
         {nullptr,      nullptr},
 };

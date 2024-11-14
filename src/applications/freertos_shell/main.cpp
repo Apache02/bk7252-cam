@@ -14,7 +14,7 @@
 void vTaskShell(__unused void *pvParams);
 
 static StaticTask_t shellTaskTCB;
-static StackType_t shellTaskStack[configMINIMAL_STACK_SIZE * 4];
+static StackType_t shellTaskStack[configMINIMAL_STACK_SIZE * 6];
 
 /*-----------------------------------------------------------*/
 /*-----------------------------------------------------------*/
