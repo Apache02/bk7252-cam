@@ -22,6 +22,9 @@ static void reboot(Console &c) {
 }
 
 extern void command_tasks(Console &);
+
+extern void command_free(Console &);
+
 extern void command_blink(Console &c);
 
 const Console::Handler handlers[] = {
@@ -33,6 +36,7 @@ const Console::Handler handlers[] = {
         {"partitions", command_partitions},
         {"stack",      command_stack},
         {"tasks",      command_tasks},
+        {"free",       command_free},
         {"blink",      command_blink},
         // required at the end
         {nullptr,      nullptr},

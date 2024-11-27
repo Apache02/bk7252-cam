@@ -27,7 +27,7 @@ const StackType_t *xCalcHighWaterMark(const StackType_t *pxStack) {
     return pxStack;
 }
 
-void command_tasks(Console &) {
+void command_tasks(__unused Console &c) {
     uint32_t uxArraySize = uxTaskGetNumberOfTasks();
     size_t xTasksBufferSize = (sizeof(TaskStatus_t) * uxArraySize);
     TaskStatus_t *pxTasksBuffer = static_cast<TaskStatus_t *>(pvPortMalloc(xTasksBufferSize));
@@ -64,4 +64,22 @@ void command_tasks(Console &) {
     }
 
     vPortFree(pxTasksBuffer);
+}
+
+void command_free(__unused Console &c) {
+    size_t xFreeHeapSizeCurrent = xPortGetFreeHeapSize();
+
+    if (xFreeHeapSizeCurrent == 0) {
+        vPortFree(pvPortMalloc(32));
+        xFreeHeapSizeCurrent = xPortGetFreeHeapSize();
+    }
+
+    if (xFreeHeapSizeCurrent == 0) {
+        printf("Not available\r\n");
+    }
+
+    size_t xFreeHeapSizeMinimal = xPortGetMinimumEverFreeHeapSize();
+
+    printf("Free heap current (bytes): %d\r\n", xFreeHeapSizeCurrent);
+    printf("          minimum (bytes): %d\r\n", xFreeHeapSizeMinimal);
 }
