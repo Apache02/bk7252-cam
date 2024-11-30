@@ -3,8 +3,24 @@
 #include <stdio.h>
 
 
+#define count_of(x)     (sizeof(x) / sizeof(x[0]))
+
+#define CONTROL_ARROW_UP        "\x1B[A"
+#define CONTROL_ARROW_DOWN      "\x1B[B"
+#define CONTROL_ARROW_RIGHT     "\x1B[C"
+#define CONTROL_ARROW_LEFT      "\x1B[D"
+#define CONTROL_HOME            "\x1B[H"
+#define CONTROL_HOME_ALT        "\x1B[1~"
+#define CONTROL_END             "\x1B[F"
+#define CONTROL_END_ALT         "\x1B[4~"
+#define CONTROL_PAGE_UP         "\x1B[5~"
+#define CONTROL_PAGE_DOWN       "\x1B[6~"
+#define CONTROL_DELETE          "\x1B[3~"
+
+
 Console::Console(const Handler *handlers) : handlers(handlers) {
     history = new History(8);
+    control_pos = 0;
 }
 
 Console::~Console() {
@@ -59,6 +75,8 @@ bool Console::dispatch_command() {
 //------------------------------------------------------------------------------
 
 void Console::update(int c) {
+    if (is_control_sequence(c)) return;
+
     if (c == '\t') {
         this->autocomplete();
         return;
@@ -113,59 +131,85 @@ void Console::update(int c) {
         return;
     }
 
-    if (c > 0xFF) {
-        switch (c) {
-            case ARROW_UP:
-                this->replace_command(history->prev());
-                break;
-            case ARROW_DOWN:
-                this->replace_command(history->next());
-                break;
-            case ARROW_RIGHT:
-                if (*packet.cursor2 != '\0') {
-                    packet.cursor2++;
-                    printf("\x1B\x5B\x43");
-                }
-                break;
-            case ARROW_LEFT:
-                if (packet.cursor2 > packet.buf) {
-                    packet.cursor2--;
-                    printf("\x1B\x5B\x44");
-                }
-                break;
-        }
-
-        return;
-    }
-
     putchar(c);
     packet.put(c);
 }
 
-int Console::resolve_key(char *in, __unused int count) {
-    if (in[0] == '\x1B') {
-        if (in[1] == '\x5B' && in[2] == '\x41') {
-            return Console::ARROW_UP;
-        } else if (in[1] == '\x5B' && in[2] == '\x42') {
-            return Console::ARROW_DOWN;
-        } else if (in[1] == '\x5B' && in[2] == '\x43') {
-            return Console::ARROW_RIGHT;
-        } else if (in[1] == '\x5B' && in[2] == '\x44') {
-            return Console::ARROW_LEFT;
-        } else if (in[1] == '\x5B' && in[2] == '\x46') {
-            return Console::END;
-        } else if (in[1] == '\x5B' && in[2] == '\x48') {
-            return Console::HOME;
-        } else if (in[1] == '\x5B' && in[2] == '\x33' && in[3] == '\x7E') {
-            return Console::DELETE;
-        } else if (in[1] == '\x5B' && in[2] == '\x35' && in[3] == '\x7E') {
-            return Console::PAGE_UP;
-        } else if (in[1] == '\x5B' && in[2] == '\x36' && in[3] == '\x7E') {
-            return Console::PAGE_DOWN;
-        }
+bool Console::is_control_sequence(int c) {
+    if (c == '\x1B') {
+        // this is the beginning of control sequence
+        control_pos = 0;
+        control_buf[control_pos++] = c;
+
+        return true;
     }
 
-    return UNKNOWN;
+    if (control_pos == 1) {
+        if (c == '[') {
+            control_buf[control_pos++] = c;
+        } else {
+            // probably incorrect
+            // ignore current sequence
+            control_pos = 0;
+        }
+
+        return true;
+    }
+
+    if (control_pos > 1) {
+        control_buf[control_pos++] = c;
+
+        if (c >= 'A' && c <= 'Z') {
+            // end of control sequence
+            control_buf[control_pos] = 0;
+            control_pos = 0;
+        } else if (c == '~') {
+            // end of control sequence [F1-F12]
+            control_buf[control_pos] = 0;
+            control_pos = 0;
+        } else if (control_pos >= count_of(control_buf)) {
+            // buffer overflow
+            control_pos = 0;
+        }
+
+        if (control_pos == 0) {
+            handle_control_sequence(control_buf);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+void Console::handle_control_sequence(const char *control) {
+    if (strcmp(control, CONTROL_ARROW_UP) == 0) {
+        this->replace_command(history->prev());
+    } else if (strcmp(control, CONTROL_ARROW_DOWN) == 0) {
+        this->replace_command(history->next());
+    } else if (strcmp(control, CONTROL_ARROW_LEFT) == 0) {
+        if (packet.cursor2 > packet.buf) {
+            packet.cursor2--;
+            printf(CONTROL_ARROW_LEFT);
+        }
+    } else if (strcmp(control, CONTROL_ARROW_RIGHT) == 0) {
+        if (*packet.cursor2 != '\0') {
+            packet.cursor2++;
+            printf(CONTROL_ARROW_RIGHT);
+        }
+    } else if (strcmp(control, CONTROL_PAGE_UP) == 0) {
+    } else if (strcmp(control, CONTROL_PAGE_DOWN) == 0) {
+    } else if (strcmp(control, CONTROL_HOME) == 0 || strcmp(control, CONTROL_HOME_ALT) == 0) {
+        int length = packet.cursor2 - packet.buf;
+        for (int i=0; i<length; i++) {
+            printf(CONTROL_ARROW_LEFT);
+        }
+        packet.cursor2 = packet.buf;
+    } else if (strcmp(control, CONTROL_END) == 0 || strcmp(control, CONTROL_END_ALT) == 0) {
+    } else if (strcmp(control, CONTROL_DELETE) == 0) {
+    } else {
+        // TODO: unhandled sequence
+    }
 }
 
 void Console::replace_command(const char *command) {

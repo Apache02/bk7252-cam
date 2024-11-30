@@ -14,20 +14,10 @@ public:
         HandlerFunction *const handler;
     };
 
-    enum {
-        UNKNOWN = 0x100,
-        ARROW_LEFT,
-        ARROW_RIGHT,
-        ARROW_UP,
-        ARROW_DOWN,
-        HOME,
-        END,
-        PAGE_UP,
-        PAGE_DOWN,
-        DELETE,
-    } KEY;
-
 private:
+    char control_buf[16];
+    size_t control_pos;
+
     History *history = nullptr;
     const Handler *handlers = nullptr;
 
@@ -50,7 +40,9 @@ public:
 
     void replace_command(const char *command);
 
-    int resolve_key(char *in, int count);
+    bool is_control_sequence(int c);
+
+    void handle_control_sequence(const char *control);
 
     bool dispatch_command();
 
