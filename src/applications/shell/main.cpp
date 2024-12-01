@@ -50,25 +50,12 @@ int main() {
         console->start();
 
         while (is_connected()) {
-            char rx[8];
-            size_t count = 0;
-
-            for (int c; count < sizeof(rx) && (c = getchar()) != -1;) {
-                rx[count++] = c;
+            int c = getchar();
+            if (c < 0) {
+                busy_wait_us(1000);
+            } else {
+                console->update(c);
             }
-
-            if (count > 0) {
-                for (int i = 0; i < count; i++) {
-                    int c = rx[i];
-                    if (c == '\x1B') {
-                        c = console->resolve_key(&rx[i], count);
-                        i = count;
-                    }
-                    console->update(c);
-                }
-            }
-
-            busy_wait_us(1000);
         }
     }
 
