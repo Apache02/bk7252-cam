@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 
+#undef count_of
 #define count_of(x)     (sizeof(x) / sizeof(x[0]))
 
 #define CONTROL_ARROW_UP        "\x1B[A"

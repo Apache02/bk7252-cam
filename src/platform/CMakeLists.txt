@@ -1,5 +1,6 @@
 add_subdirectory(boot)
 add_subdirectory(nosys)
 add_subdirectory(freertos)
+add_subdirectory(port_newlib)
 add_subdirectory(drivers)
 add_subdirectory(stdio)

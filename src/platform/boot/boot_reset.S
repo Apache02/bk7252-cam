@@ -1,7 +1,6 @@
 #include "boot.h"
 
-    .globl entry_main
-	.globl boot_reset
+    .globl _start
 
 /* ========================================================================
  *                                Macros
@@ -135,7 +134,7 @@ boot_reset:
     MOV R11, #0
     MOV R12, #0
 
-    B entry_main
+    B _start
 
 /*FUNCTION:     _sysboot_copy_data_to_ram*/
 /*DESCRIPTION:  copy main stack code from FLASH/ROM to SRAM*/

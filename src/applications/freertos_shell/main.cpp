@@ -34,6 +34,7 @@ int main(void) {
             &(shellTaskTCB)
     );
 
+    vPortHeapResetState();
     vTaskStartScheduler();
 
     panic("Scheduler complete\r\n");

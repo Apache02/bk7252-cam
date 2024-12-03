@@ -3,16 +3,19 @@
 
 extern void __libc_init_array(void);
 
+extern void __libc_fini_array(void);
+
 extern int main();
 
 
-void entry_main(void) {
+void _start(void) {
     __libc_init_array();
 
     intc_init();
     timer_init();
 
     main();
+    __libc_fini_array();
 }
 
 

@@ -57,6 +57,8 @@ target_sources(
         port.c
         port_asm.S
         entry.c
+        sbrk.c
+        crt.cpp
 )
 
 if (NOT FREERTOS_CONFIG_FILE_DIRECTORY)
@@ -70,6 +72,8 @@ target_include_directories(
 )
 target_link_libraries(
         platform_freertos INTERFACE
+        platform_boot
+        platform_port_newlib
         FreeRTOS-Kernel-Core
         hardware_intc
         hardware_timer
