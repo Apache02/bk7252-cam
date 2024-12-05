@@ -302,8 +302,17 @@ struct Packet {
         size++;
     }
 
+    void remove_left() {
+        *--cursor2 = 0;
+        size--;
+    }
+
     void put_str(const char *s) {
         while (*s) put(*s++);
+    }
+
+    void put_strn(const char *s, int n) {
+        while (*s && n-- > 0) put(*s++);
     }
 
     void put_hex_u8(uint8_t x) {

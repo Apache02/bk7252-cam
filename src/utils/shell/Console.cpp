@@ -54,7 +54,7 @@ void Console::start() {
     printf("%s ", ">");
 }
 
-void Console::eol() {
+void Console::print_eol() {
     printf("\r\n");
 }
 
@@ -79,19 +79,22 @@ void Console::update(int c) {
     if (is_control_sequence(c)) return;
 
     if (c == '\t') {
-        this->autocomplete();
+        if (autocomplete_streak < 2) {
+            this->autocomplete();
+            autocomplete_streak++;
+        }
         return;
+    } else {
+        autocomplete_streak = 0;
     }
 
     if (c == '\r') c = '\n';
 
     if (c == '\x7F') {
         // backspace
-        if (packet.cursor2 > packet.buf) {
+        if (!packet.empty()) {
             printf("\b \b");
-            packet.cursor2--;
-            packet.size--;
-            *packet.cursor2 = 0;
+            packet.remove_left();
         }
 
         return;
@@ -99,7 +102,7 @@ void Console::update(int c) {
 
     if (c == '\x03' || c == '\x04') {
         // Ctrl + C | Ctrl + D
-        this->eol();
+        this->print_eol();
 
         packet.clear();
         this->start();
@@ -111,7 +114,7 @@ void Console::update(int c) {
         packet.buf[packet.size] = 0;
         packet.cursor2 = packet.buf;
 
-        this->eol();
+        this->print_eol();
 
         if (packet.buf[0] != '\0') {
 //            absolute_time_t time_before = get_absolute_time();
@@ -202,7 +205,7 @@ void Console::handle_control_sequence(const char *control) {
     } else if (strcmp(control, CONTROL_PAGE_DOWN) == 0) {
     } else if (strcmp(control, CONTROL_HOME) == 0 || strcmp(control, CONTROL_HOME_ALT) == 0) {
         int length = packet.cursor2 - packet.buf;
-        for (int i=0; i<length; i++) {
+        for (int i = 0; i < length; i++) {
             printf(CONTROL_ARROW_LEFT);
         }
         packet.cursor2 = packet.buf;
@@ -230,37 +233,86 @@ void Console::replace_command(const char *command) {
     }
 }
 
+static int prefix_match(const char *s1, const char *s2) {
+    int i = 0;
+    while (*s1 != '\0' && *s2 != '\0' && *s1 == *s2) {
+        s1++;
+        s2++;
+        i++;
+    }
+    return i;
+}
+
 void Console::autocomplete() {
     size_t length = strlen(packet.buf);
     if (length == 0 || packet.buf[length - 1] == ' ') {
         return;
     }
 
-    const char *found = NULL;
+    const char *candidates[16] = {NULL};
+
     int found_count = 0;
     for (int i = 0;; i++) {
         if (!handlers[i].name || !handlers[i].handler) break;
 
-        if (strncmp(handlers[i].name, packet.buf, length) == 0) {
-            if (!found) found = handlers[i].name;
-            found_count++;
+        int match_count = prefix_match(packet.buf, handlers[i].name);
+        if (match_count < length) {
+            continue;
         }
+
+        if (found_count < count_of(candidates)) {
+            candidates[found_count] = handlers[i].name;
+        }
+
+        found_count++;
     }
 
-    if (found_count == 1) {
-        int i = length;
-        if (found[i] == '\0') {
-            putchar(' ');
-            packet.put(' ');
-        } else {
-            for (;; i++) {
-                char c = found[i];
-                if (c == '\0') break;
-                putchar(c);
-                packet.put(c);
+    if (found_count == 0) return;
+
+    if (found_count > 1) {
+        // print candidates
+        putchar('\r');
+        for (int i = 0; i < found_count && i < count_of(candidates); i++) {
+            if (i > 0 && (i & 0b11) == 0b11) {
+                this->print_eol();
+                print_eol();
+            }
+            printf("%-16s", candidates[i]);
+        }
+        print_eol();
+
+        // find how many common symbols
+        int common_count = 0;
+        for (;;common_count++) {
+            for (int i=1; i<found_count; i++) {
+                if (candidates[0][common_count] != candidates[i][common_count]) {
+                    goto break_2;;
+                }
             }
         }
+break_2:
 
+        packet.clear();
+        packet.put_strn(candidates[0], common_count);
+        start();
+        printf("%s", packet.buf);
+
+        return;
+    }
+
+    // found_count == 1
+
+    int i = length;
+    if (candidates[0][i] == '\0') {
+        putchar(' ');
+        packet.put(' ');
+    } else {
+        for (;; i++) {
+            char c = candidates[0][i];
+            if (c == '\0') break;
+            putchar(c);
+            packet.put(c);
+        }
     }
 }
 

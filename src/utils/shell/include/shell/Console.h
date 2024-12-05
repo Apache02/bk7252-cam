@@ -16,7 +16,8 @@ public:
 
 private:
     char control_buf[16];
-    size_t control_pos;
+    size_t control_pos = 0;
+    size_t autocomplete_streak = 0;
 
     History *history = nullptr;
     const Handler *handlers = nullptr;
@@ -34,7 +35,7 @@ public:
 
     void start();
 
-    void eol();
+    void print_eol();
 
     void update(int c);
 
