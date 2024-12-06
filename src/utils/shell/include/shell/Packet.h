@@ -321,18 +321,28 @@ struct Packet {
         put(to_hex((x >> 0) & 0xF));
     }
 
-    void put_hex_u16(uint16_t x) {
-        // must be little-endian
+    void put_hex_u16_le(uint16_t x) {
         put_hex_u8(x >> 0);
         put_hex_u8(x >> 8);
     }
 
-    void put_hex_u32(uint32_t x) {
-        // must be little-endian
+    void put_hex_u32_le(uint32_t x) {
         put_hex_u8(x >> 0);
         put_hex_u8(x >> 8);
         put_hex_u8(x >> 16);
         put_hex_u8(x >> 24);
+    }
+
+    void put_hex_u16_be(uint16_t x) {
+        put_hex_u8(x >> 8);
+        put_hex_u8(x >> 0);
+    }
+
+    void put_hex_u32_be(uint32_t x) {
+        put_hex_u8(x >> 24);
+        put_hex_u8(x >> 16);
+        put_hex_u8(x >> 8);
+        put_hex_u8(x >> 0);
     }
 
     void put_hex_blob(void *blob, int size) {
