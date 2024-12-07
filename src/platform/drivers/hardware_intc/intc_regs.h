@@ -1,7 +1,6 @@
 #pragma once
 
 #define ICU_BASE                            (0x00802000)
-#define ICU_PERI_CLK_PWD                  (ICU_BASE + 2 * 4)
 #define ICU_INTERRUPT_ENABLE                (ICU_BASE + 16 * 4)
 #define ICU_INT_IRQ_MASK                    (0x0000FFFF);
 #define ICU_INT_FIQ_MASK                    (0xFFFF0000);
@@ -31,7 +30,7 @@ typedef struct {
 
 typedef struct {
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
             uint32_t irq_uart1: 1;                  // [0]
             uint32_t irq_uart2: 1;                  // [1]
@@ -64,17 +63,17 @@ typedef struct {
             uint32_t fiq_dpll_unlock: 1;            // [28]
             uint32_t unknown_29: 1;                 // [29]
             uint32_t reserved_30_31: 2;             // [30:31]
-        } bits;
+        };
     };
 } icu_interrupts_reg_t;
 
 typedef struct {
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
             uint32_t irq: 1;
             uint32_t fiq: 1;
-        } bits;
+        };
     };
 } icu_global_interrupt_enable_reg_t;
 

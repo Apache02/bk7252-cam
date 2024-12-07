@@ -50,8 +50,8 @@ static int uart_write_byte(volatile hw_uart_t *uart, char byte) {
 }
 
 void uart1_init() {
-    hw_icu->peri_clk_pwd.bits.uart1 = 0;
-    hw_icu->peri_clk_mux.bits.uart1 = PERI_CLK_26M_XTAL;
+    hw_icu->peri_clk_pwd.uart1 = 0;
+    hw_icu->peri_clk_mux.uart1 = PERI_CLK_26M_XTAL;
 
     gpio_config_function(GPIO_FUNC_UART1);
 
@@ -59,8 +59,8 @@ void uart1_init() {
 }
 
 void uart2_init() {
-    hw_icu->peri_clk_pwd.bits.uart2 = 0;
-    hw_icu->peri_clk_mux.bits.uart2 = PERI_CLK_26M_XTAL;
+    hw_icu->peri_clk_pwd.uart2 = 0;
+    hw_icu->peri_clk_mux.uart2 = PERI_CLK_26M_XTAL;
 
     gpio_config_function(GPIO_FUNC_UART2);
 

@@ -21,21 +21,21 @@ typedef struct {
     uint32_t counter[3];
 
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
             uint32_t enable: 3;
             uint32_t clk_divider: 4;
             uint32_t irq_status: 3;
-        } bits;
+        };
     } ctl;
 
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
             uint32_t read_op: 1;
             uint32_t _pad0: 1;
             uint32_t read_index: 2;
-        } bits;
+        };
     } read_ctl;
 
     uint32_t read_value;

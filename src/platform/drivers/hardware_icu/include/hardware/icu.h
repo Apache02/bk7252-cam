@@ -53,7 +53,7 @@ typedef enum {
 typedef struct {
     // peripheral clock select
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
             peri_clk_t uart1: 1;                // [0]
             peri_clk_t uart2: 1;                // [1]
@@ -69,18 +69,18 @@ typedef struct {
             qspi_clk_t qspi: 2;                 // [16:17]
             dco_divider_t dco_divider: 2;       // [18:19]
             uint32_t reserved_20_31: 12;        // [20:31]
-        } bits;
+        };
     } peri_clk_mux;
 
     // PWMs clock
     union {
-        uint32_t reg;
+        uint32_t v;
         pwm_clk_t value;
     } pwm_clk_mux;
 
     // clocks power down
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
             uint32_t uart1: 1;                  // [0]
             uint32_t uart2: 1;                  // [1]
@@ -107,12 +107,12 @@ typedef struct {
             uint32_t unknown_22: 1;             // [22]
             uint32_t unknown_23: 1;             // [23]
             uint32_t reserved_24_31: 8;         // [24:31]
-        } bits;
+        };
     } peri_clk_pwd;
 
     // ?
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
             uint32_t disable_icu_apb: 1;        // [0]
             uint32_t disable_uart1_apb: 1;      // [1]
@@ -137,21 +137,21 @@ typedef struct {
 
     // clocks power down 2
     union {
-        uint32_t reg;
+        uint32_t v;
         struct __attribute__((aligned(4))) __packed {
-            uint32_t tl410: 1;                  // [1]
+            uint32_t tl410: 1;                  // [0]
             uint32_t ble: 1;                    // [1]
             uint32_t reserved_2_31: 30;         // [2:31]
         };
     } tl410_clk_pwd;
 
     union {
-        uint32_t reg;
+        uint32_t v;
         clk26m_div_t value;
     } clk26m_divider;
 
     union {
-        uint32_t reg;
+        uint32_t v;
         jtag_select_t value;
     } jtag_select;
 
@@ -167,59 +167,59 @@ extern "C" {
 
 
 inline void icu_peri_clk_uart1(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.uart1 = clk;
+    hw_icu->peri_clk_mux.uart1 = clk;
 }
 
 inline void icu_peri_clk_uart2(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.uart2 = clk;
+    hw_icu->peri_clk_mux.uart2 = clk;
 }
 
 inline void icu_i2c1_set_clk_source(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.i2c1 = clk;
+    hw_icu->peri_clk_mux.i2c1 = clk;
 }
 
 inline void icu_peri_clk_i2c2(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.i2c2 = clk;
+    hw_icu->peri_clk_mux.i2c2 = clk;
 }
 
 inline void icu_peri_clk_irda(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.irda = clk;
+    hw_icu->peri_clk_mux.irda = clk;
 }
 
 inline void icu_peri_clk_saradc(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.saradc = clk;
+    hw_icu->peri_clk_mux.saradc = clk;
 }
 
 inline void icu_peri_clk_saradc_aud(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.saradc_aud = clk;
+    hw_icu->peri_clk_mux.saradc_aud = clk;
 }
 
 inline void icu_peri_clk_spi(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.spi = clk;
+    hw_icu->peri_clk_mux.spi = clk;
 }
 
 inline void icu_peri_clk_pwms(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.pwms = clk;
+    hw_icu->peri_clk_mux.pwms = clk;
 }
 
 inline void icu_peri_clk_sdio(peri_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.sdio = clk;
+    hw_icu->peri_clk_mux.sdio = clk;
 }
 
 inline void icu_qspi_clk(qspi_clk_t clk) {
-    hw_icu->peri_clk_mux.bits.qspi = clk;
+    hw_icu->peri_clk_mux.qspi = clk;
 }
 
 inline void icu_dco_divider(dco_divider_t divider) {
-    hw_icu->peri_clk_mux.bits.dco_divider = divider;
+    hw_icu->peri_clk_mux.dco_divider = divider;
 }
 
 inline void icu_i2c1_power_up() {
-    hw_icu->peri_clk_pwd.bits.i2c1 = 0;
+    hw_icu->peri_clk_pwd.i2c1 = 0;
 }
 
 inline void icu_i2c1_power_down() {
-    hw_icu->peri_clk_pwd.bits.i2c1 = 1;
+    hw_icu->peri_clk_pwd.i2c1 = 1;
 }
 
 

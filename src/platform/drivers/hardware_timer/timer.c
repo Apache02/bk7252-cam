@@ -25,8 +25,8 @@ static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 
 
 static void timer_irq_handler(interrupt_context_t context) {
-    uint32_t status0 = hw_timer_bank0->ctl.bits.irq_status;
-    uint32_t status1 = hw_timer_bank1->ctl.bits.irq_status;
+    uint32_t status0 = hw_timer_bank0->ctl.irq_status;
+    uint32_t status1 = hw_timer_bank1->ctl.irq_status;
     uint32_t status_all = status0 | (status1 << TIMERS_IN_BANK);
 
     for (int i = 0; i < TIMERS_TOTAL; i++) {
@@ -42,7 +42,7 @@ static void timer_irq_handler(interrupt_context_t context) {
             // disable hw timer
             volatile hw_timer_bank_t *bank = get_timer_bank_by_index(i);
             int timer_num_in_bank = get_timer_num_in_bank_by_index(i);
-            bank->ctl.bits.enable &= ~(1 << timer_num_in_bank);
+            bank->ctl.enable &= ~(1 << timer_num_in_bank);
 
             timers_handlers[i].handler = NULL;
             timers_handlers[i].type = TYPE_NONE;
@@ -52,13 +52,13 @@ static void timer_irq_handler(interrupt_context_t context) {
     // clear timers
     if (status0) {
         do {
-            hw_timer_bank0->ctl.bits.irq_status = status0;
-        } while (hw_timer_bank0->ctl.bits.irq_status & status0);
+            hw_timer_bank0->ctl.irq_status = status0;
+        } while (hw_timer_bank0->ctl.irq_status & status0);
     }
     if (status1) {
         do {
-            hw_timer_bank1->ctl.bits.irq_status = status1;
-        } while (hw_timer_bank1->ctl.bits.irq_status & status1);
+            hw_timer_bank1->ctl.irq_status = status1;
+        } while (hw_timer_bank1->ctl.irq_status & status1);
     }
 }
 
@@ -87,21 +87,21 @@ static void register_sys_timer() {
     timers_handlers[timer_num].handler = &sys_counter_tick;
 
     bank->counter[timer_num_in_bank] = timer_clock_freq;
-    bank->ctl.bits.irq_status &= ~(1 << timer_num_in_bank); // start after 1 second
-    bank->ctl.bits.enable |= (1 << timer_num_in_bank);
+    bank->ctl.irq_status &= ~(1 << timer_num_in_bank); // start after 1 second
+    bank->ctl.enable |= (1 << timer_num_in_bank);
 }
 
 void timer_init() {
-    hw_timer_bank0->ctl.bits.enable = 0;
-    hw_timer_bank0->ctl.bits.irq_status = 0;
-    hw_timer_bank0->ctl.bits.clk_divider = 0;
+    hw_timer_bank0->ctl.enable = 0;
+    hw_timer_bank0->ctl.irq_status = 0;
+    hw_timer_bank0->ctl.clk_divider = 0;
 
-    hw_timer_bank1->ctl.bits.enable = 0;
-    hw_timer_bank1->ctl.bits.irq_status = 0;
-    hw_timer_bank1->ctl.bits.clk_divider = 0;
+    hw_timer_bank1->ctl.enable = 0;
+    hw_timer_bank1->ctl.irq_status = 0;
+    hw_timer_bank1->ctl.clk_divider = 0;
 
-    hw_icu->peri_clk_pwd.bits.timer_26m = 0;
-    hw_icu->peri_clk_pwd.bits.timer_32k = 0;
+    hw_icu->peri_clk_pwd.timer_26m = 0;
+    hw_icu->peri_clk_pwd.timer_32k = 0;
 
     register_sys_timer();
 
@@ -126,7 +126,7 @@ int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     timers_handlers[timer_num].handler = func;
 
     bank->counter[timer_num_in_bank] = count;
-    bank->ctl.bits.irq_status &= ~(1 << timer_num_in_bank);
+    bank->ctl.irq_status &= ~(1 << timer_num_in_bank);
 
     GLOBAL_INT_RESTORE();
     return timer_num;
@@ -149,7 +149,7 @@ int timer_create_by_freq(uint32_t freq, timer_alarm_handler_t *func, bool once) 
     timers_handlers[timer_num].handler = func;
 
     bank->counter[timer_num_in_bank] = get_timer_frequency(timer_num) / freq;
-    bank->ctl.bits.irq_status &= ~(1 << timer_num_in_bank);
+    bank->ctl.irq_status &= ~(1 << timer_num_in_bank);
 
     GLOBAL_INT_RESTORE();
     return timer_num;
@@ -162,7 +162,7 @@ void timer_start(int timer_num) {
     volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
     int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
-    bank->ctl.bits.enable |= (1 << timer_num_in_bank);
+    bank->ctl.enable |= (1 << timer_num_in_bank);
 }
 
 void timer_remove(int timer_num) {
@@ -170,7 +170,7 @@ void timer_remove(int timer_num) {
 
     volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
     int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
-    bank->ctl.bits.enable &= ~(1 << timer_num_in_bank);
+    bank->ctl.enable &= ~(1 << timer_num_in_bank);
 
     timers_handlers[timer_num].type = TYPE_NONE;
     timers_handlers[timer_num].handler = NULL;
@@ -182,11 +182,11 @@ int timer_read(int timer_num) {
 
     volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
     int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
-    bank->read_ctl.bits.read_index = timer_num_in_bank;
-    bank->read_ctl.bits.read_op = 1;
+    bank->read_ctl.read_index = timer_num_in_bank;
+    bank->read_ctl.read_op = 1;
 
     int timeout = 120000;
-    while (bank->read_ctl.bits.read_op) {
+    while (bank->read_ctl.read_op) {
         if (--timeout <= 0) return -1;
     }
 
