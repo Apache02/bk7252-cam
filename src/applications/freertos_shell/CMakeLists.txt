@@ -31,4 +31,5 @@ target_link_libraries(
         FreeRTOS-Kernel-Heap4
         hardware_wdt
         hardware_gpio
+        hardware_efuse
 )

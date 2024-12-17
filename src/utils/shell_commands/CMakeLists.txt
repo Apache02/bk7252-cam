@@ -20,4 +20,5 @@ target_sources(
 target_link_libraries(
         utils_shell_commands INTERFACE
         utils_shell
+        hardware_efuse
 )

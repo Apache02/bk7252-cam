@@ -5,7 +5,7 @@
 #include "shell_commands.h"
 
 
-static void help(Console &c) {
+static void help(__unused Console &c) {
     printf("Commands:\r\n");
     for (int i = 0;; i++) {
         if (!handlers[i].name || !handlers[i].handler) {
@@ -16,7 +16,7 @@ static void help(Console &c) {
     }
 }
 
-static void reboot(Console &c) {
+static void reboot(__unused Console &c) {
     printf("\r\nreboot system\r\n");
     wdt_reboot(100);
 }
@@ -34,6 +34,7 @@ const Console::Handler handlers[] = {
         {"dump",       command_dump},
         {"dump32",     command_dump32},
         {"partitions", command_partitions},
+        {"efuse",      command_efuse},
         {"stack",      command_stack},
         {"tasks",      command_tasks},
         {"free",       command_free},

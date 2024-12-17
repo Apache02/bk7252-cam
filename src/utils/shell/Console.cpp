@@ -286,7 +286,7 @@ void Console::autocomplete() {
         for (;;common_count++) {
             for (int i=1; i<found_count; i++) {
                 if (candidates[0][common_count] != candidates[i][common_count]) {
-                    goto break_2;;
+                    goto break_2;
                 }
             }
         }
