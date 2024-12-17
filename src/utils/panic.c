@@ -37,7 +37,7 @@ void panic(const char *message) {
 
     busy_wait(5 * 1000000);
     if (uart1_is_tx_active()) uart1_flush();
-    else if (uart2_is_tx_active()) uart2_flush();
+    if (uart2_is_tx_active()) uart2_flush();
 
     wdt_reboot(1000);
 }
