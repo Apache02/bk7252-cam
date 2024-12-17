@@ -2,11 +2,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "hardware/cpu.h"
 
 
-// TODO: write macros
-#define disable_interrupts()
-#define restore_interrupts()
+#define disable_interrupts()            GLOBAL_INT_DECLARATION(); GLOBAL_INT_DISABLE()
+#define restore_interrupts()            GLOBAL_INT_RESTORE()
 
 // max interrupts handlers
 #define MAX_HANDLERS        32

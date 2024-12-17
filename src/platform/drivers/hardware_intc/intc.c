@@ -16,9 +16,7 @@ extern void do_dabort(void);
 extern void do_reserved(void);
 
 
-void intc_init() {
-    memset(&intc_manager, 0, sizeof(intc_manager));
-
+static inline void init_ram_traps() {
     bk_interrupt_trap_ram->irq = do_irq;
     bk_interrupt_trap_ram->fiq = do_fiq;
     bk_interrupt_trap_ram->swi = do_swi;
@@ -26,6 +24,12 @@ void intc_init() {
     bk_interrupt_trap_ram->pabort = do_pabort;
     bk_interrupt_trap_ram->dabort = do_dabort;
     bk_interrupt_trap_ram->reserved = do_reserved;
+}
+
+void intc_init() {
+    memset(&intc_manager, 0, sizeof(intc_manager));
+
+    init_ram_traps();
 
     icu_interrupt_enable_reg->v = 0;
 
@@ -95,7 +99,8 @@ void intc_irq(void) {
 }
 
 void intc_fiq(void) {
-    panic(__FUNCTION__);
+    // TODO: handle fiq
+    putchar('f');
 }
 
 bool intc_register_irq_handler(uint32_t source, interrupt_handler_cb *func) {
@@ -116,8 +121,9 @@ bool intc_unregister_fiq_handler(uint32_t source, interrupt_handler_cb *func) {
     return unregister_handler(&intc_manager.fiq, source, func);
 }
 
-static uint32_t source_to_reg(uint32_t source) {
+static uint32_t irq_source_to_reg(uint32_t source) {
     volatile icu_interrupts_reg_t reg = {0};
+
     if (source & IRQ_SOURCE_UART1) reg.irq_uart1 = 1;
     if (source & IRQ_SOURCE_UART2) reg.irq_uart2 = 1;
     if (source & IRQ_SOURCE_I2C1) reg.irq_i2c1 = 1;
@@ -139,9 +145,37 @@ static uint32_t source_to_reg(uint32_t source) {
 }
 
 void intc_enable_irq_source(uint32_t source) {
-    icu_interrupt_enable_reg->v |= source_to_reg(source);
+    icu_interrupt_enable_reg->v |= irq_source_to_reg(source);
 }
 
 void intc_disable_irq_source(uint32_t source) {
-    icu_interrupt_enable_reg->v &= ~source_to_reg(source);
+    icu_interrupt_enable_reg->v &= ~irq_source_to_reg(source);
+}
+
+static uint32_t fiq_source_to_reg(uint32_t source) {
+    volatile icu_interrupts_reg_t reg = {0};
+
+    if (source & FIQ_SOURCE_MODEM) reg.fiq_modem = 1;
+    if (source & FIQ_SOURCE_MAC_TX_RX_TIMER) reg.fiq_mac_tx_rx_timer = 1;
+    if (source & FIQ_SOURCE_MAC_TX_RX_MISC) reg.fiq_mac_tx_rx_misc = 1;
+    if (source & FIQ_SOURCE_MAC_RX_TRIGGER) reg.fiq_mac_rx_trigger = 1;
+    if (source & FIQ_SOURCE_MAC_TX_TRIGGER) reg.fiq_mac_tx_trigger = 1;
+    if (source & FIQ_SOURCE_MAC_PROT_TRIGGER) reg.fiq_mac_prot_trigger = 1;
+    if (source & FIQ_SOURCE_MAC_GENERAL) reg.fiq_mac_general = 1;
+    if (source & FIQ_SOURCE_SDIO_DMA) reg.fiq_sdio_dma = 1;
+    if (source & FIQ_SOURCE_USB_PLUG_INOUT) reg.fiq_usb_plug_inout = 1;
+    if (source & FIQ_SOURCE_SECURITY) reg.fiq_security = 1;
+    if (source & FIQ_SOURCE_MAC_WAKE_UP) reg.fiq_mac_wake_up = 1;
+    if (source & FIQ_SOURCE_SPI_DMA) reg.fiq_spi_dma = 1;
+    if (source & FIQ_SOURCE_DPLL_UNLOCK) reg.fiq_dpll_unlock = 1;
+
+    return reg.v;
+}
+
+void intc_enable_fiq_source(uint32_t source) {
+    icu_interrupt_enable_reg->v |= fiq_source_to_reg(source);
+}
+
+void intc_disable_fiq_source(uint32_t source) {
+    icu_interrupt_enable_reg->v &= ~fiq_source_to_reg(source);
 }

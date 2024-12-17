@@ -32,6 +32,19 @@ enum {
 
 enum {
     FIQ_SOURCE_NONE = 0,
+    FIQ_SOURCE_MODEM = (1 << 16),
+    FIQ_SOURCE_MAC_TX_RX_TIMER = (1 << 17),
+    FIQ_SOURCE_MAC_TX_RX_MISC = (1 << 18),
+    FIQ_SOURCE_MAC_RX_TRIGGER = (1 << 19),
+    FIQ_SOURCE_MAC_TX_TRIGGER = (1 << 20),
+    FIQ_SOURCE_MAC_PROT_TRIGGER = (1 << 21),
+    FIQ_SOURCE_MAC_GENERAL = (1 << 22),
+    FIQ_SOURCE_SDIO_DMA = (1 << 23),
+    FIQ_SOURCE_USB_PLUG_INOUT = (1 << 24),
+    FIQ_SOURCE_SECURITY = (1 << 25),
+    FIQ_SOURCE_MAC_WAKE_UP = (1 << 26),
+    FIQ_SOURCE_SPI_DMA = (1 << 27),
+    FIQ_SOURCE_DPLL_UNLOCK = (1 << 28),
 };
 
 typedef struct {
@@ -59,6 +72,10 @@ bool intc_unregister_fiq_handler(uint32_t source, interrupt_handler_cb *func);
 void intc_enable_irq_source(uint32_t source);
 
 void intc_disable_irq_source(uint32_t source);
+
+void intc_enable_fiq_source(uint32_t source);
+
+void intc_disable_fiq_source(uint32_t source);
 
 #ifdef __cplusplus
 }
