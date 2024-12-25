@@ -64,7 +64,7 @@ typedef struct {
 #define hw_pwm      ((volatile hw_pwm_t *)PWM_BASE)
 
 
-static void pwm_isr(interrupt_context_t context) {
+static void pwm_isr() {
     auto value = hw_pwm->int_status.reg & PWM_INTERRUPT_STATUS_MASK;
 
     do {

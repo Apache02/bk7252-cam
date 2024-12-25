@@ -7,6 +7,9 @@
 #include "intc_manager.h"
 
 
+#define count_of(x)     (sizeof(x) / sizeof(x[0]))
+
+
 extern void do_irq(void);
 extern void do_fiq(void);
 extern void do_swi(void);
@@ -47,6 +50,26 @@ void intc_init() {
     icu_global_interrupt_enable_reg->v = GINTR_IRQ_EN | GINTR_FIQ_EN;
 }
 
+static int find_handlers(
+        const struct handlers_collection_t *collection,
+        const uint32_t source,
+        interrupt_handler_cb **handlers,
+        const size_t length
+) {
+    int count = 0;
+
+    for (int i = 0; i < collection->count; i++) {
+        assert(count < length);
+
+        if ((collection->handlers[i].source & source) != 0) {
+            handlers[count] = collection->handlers[i].handler;
+            count++;
+        }
+    }
+
+    return count;
+}
+
 void intc_irq(void) {
     icu_interrupts_reg_t status = *icu_interrupt_status_reg;
 
@@ -79,28 +102,47 @@ void intc_irq(void) {
     if (!source) return;
 
     interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
-    int count = 0;
-
-    for (int i = 0; i < intc_manager.irq.count; i++) {
-        if ((intc_manager.irq.handlers[i].source & source) != 0) {
-            handlers[i] = intc_manager.irq.handlers[i].handler;
-            count++;
-        }
-    }
-
-    interrupt_context_t context = {
-            .type = INTERRUPT_TYPE_IRQ,
-            .source = source,
-    };
+    int count = find_handlers(&intc_manager.irq, source, handlers, count_of(handlers));
 
     for (int i = 0; i < count; i++) {
-        handlers[i](context);
+        handlers[i]();
     }
 }
 
 void intc_fiq(void) {
-    // TODO: handle fiq
-    putchar('f');
+    icu_interrupts_reg_t status = *icu_interrupt_status_reg;
+
+    status.v &= ICU_INT_FIQ_MASK;
+    if (!status.v) {
+        panic("irq:dead\r\n");
+    }
+
+    // clear status
+    icu_interrupt_status_reg->v |= status.v;
+
+    uint32_t source = 0;
+    if (status.fiq_modem) source |= FIQ_SOURCE_MODEM;
+    if (status.fiq_mac_tx_rx_timer) source |= FIQ_SOURCE_MAC_TX_RX_TIMER;
+    if (status.fiq_mac_tx_rx_misc) source |= FIQ_SOURCE_MAC_TX_RX_MISC;
+    if (status.fiq_mac_rx_trigger) source |= FIQ_SOURCE_MAC_RX_TRIGGER;
+    if (status.fiq_mac_tx_trigger) source |= FIQ_SOURCE_MAC_TX_TRIGGER;
+    if (status.fiq_mac_prot_trigger) source |= FIQ_SOURCE_MAC_PROT_TRIGGER;
+    if (status.fiq_mac_general) source |= FIQ_SOURCE_MAC_GENERAL;
+    if (status.fiq_sdio_dma) source |= FIQ_SOURCE_SDIO_DMA;
+    if (status.fiq_usb_plug_inout) source |= FIQ_SOURCE_USB_PLUG_INOUT;
+    if (status.fiq_security) source |= FIQ_SOURCE_SECURITY;
+    if (status.fiq_mac_wake_up) source |= FIQ_SOURCE_MAC_WAKE_UP;
+    if (status.fiq_spi_dma) source |= FIQ_SOURCE_SPI_DMA;
+    if (status.fiq_dpll_unlock) source |= FIQ_SOURCE_DPLL_UNLOCK;
+
+    if (!source) return;
+
+    interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
+    int count = find_handlers(&intc_manager.fiq, source, handlers, count_of(handlers));
+
+    for (int i = 0; i < count; i++) {
+        handlers[i]();
+    }
 }
 
 bool intc_register_irq_handler(uint32_t source, interrupt_handler_cb *func) {

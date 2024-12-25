@@ -24,7 +24,7 @@ static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 #define assert_timer_number(i)       assert_true((i >= 0) && (i < TIMERS_TOTAL), "Invalid timer number")
 
 
-static void timer_irq_handler(interrupt_context_t context) {
+static void timer_irq_handler() {
     uint32_t status0 = hw_timer_bank0->ctl.irq_status;
     uint32_t status1 = hw_timer_bank1->ctl.irq_status;
     uint32_t status_all = status0 | (status1 << TIMERS_IN_BANK);

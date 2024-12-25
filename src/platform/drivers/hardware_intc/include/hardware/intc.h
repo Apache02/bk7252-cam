@@ -47,12 +47,7 @@ enum {
     FIQ_SOURCE_DPLL_UNLOCK = (1 << 28),
 };
 
-typedef struct {
-    uint32_t source;
-    uint8_t type;
-} interrupt_context_t;
-
-typedef void interrupt_handler_cb(interrupt_context_t context);
+typedef void interrupt_handler_cb(void);
 
 
 #ifdef __cplusplus
