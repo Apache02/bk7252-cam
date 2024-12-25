@@ -95,7 +95,7 @@ void Console::update(int c) {
 
     if (c == '\n') {
         packet.buf[packet.size] = 0;
-        packet.cursor2 = packet.buf;
+        packet.cursor = packet.buf;
 
         this->print_eol();
 
@@ -106,8 +106,8 @@ void Console::update(int c) {
 
             if (is_handled) {
 //                printf("Command took %lld us\n", absolute_time_diff_us(time_before, time_after));
-                if ((packet.cursor2 - packet.buf) < packet.size) {
-                    printf(COLOR_RED("Leftover text in packet - {%s}\r\n"), packet.cursor2);
+                if ((packet.cursor - packet.buf) < packet.size) {
+                    printf(COLOR_RED("Leftover text in packet - {%s}\r\n"), packet.cursor);
                 }
             }
         }
@@ -175,23 +175,23 @@ void Console::handle_control_sequence(const char *control) {
     } else if (strcmp(control, CONTROL_ARROW_DOWN) == 0) {
         this->replace_command(history->next());
     } else if (strcmp(control, CONTROL_ARROW_LEFT) == 0) {
-        if (packet.cursor2 > packet.buf) {
-            packet.cursor2--;
+        if (packet.cursor > packet.buf) {
+            packet.cursor--;
             printf(CONTROL_ARROW_LEFT);
         }
     } else if (strcmp(control, CONTROL_ARROW_RIGHT) == 0) {
-        if (*packet.cursor2 != '\0') {
-            packet.cursor2++;
+        if (*packet.cursor != '\0') {
+            packet.cursor++;
             printf(CONTROL_ARROW_RIGHT);
         }
     } else if (strcmp(control, CONTROL_PAGE_UP) == 0) {
     } else if (strcmp(control, CONTROL_PAGE_DOWN) == 0) {
     } else if (strcmp(control, CONTROL_HOME) == 0 || strcmp(control, CONTROL_HOME_ALT) == 0) {
-        int length = packet.cursor2 - packet.buf;
+        int length = packet.cursor - packet.buf;
         for (int i = 0; i < length; i++) {
             printf(CONTROL_ARROW_LEFT);
         }
-        packet.cursor2 = packet.buf;
+        packet.cursor = packet.buf;
     } else if (strcmp(control, CONTROL_END) == 0 || strcmp(control, CONTROL_END_ALT) == 0) {
     } else if (strcmp(control, CONTROL_DELETE) == 0) {
     } else {

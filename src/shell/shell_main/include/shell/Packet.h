@@ -34,12 +34,10 @@ struct Result {
     bool is_err() const { return err; }
 
     operator R() const {
-//        CHECK(is_ok());
         return r;
     }
 
     operator E() const {
-//        CHECK(is_err());
         return e;
     }
 
@@ -70,8 +68,8 @@ struct Packet {
         memset(buf, 0, sizeof(buf));
         size = 0;
         error = false;
-        cursor2 = buf;
-        packet_valid = false;
+        cursor = buf;
+//        packet_valid = false;
     }
 
     //----------------------------------------
@@ -112,26 +110,26 @@ struct Packet {
     //----------------------------------------
 
     bool skip(int d) {
-        if ((cursor2 - buf) + d > size) {
+        if ((cursor - buf) + d > size) {
             error = true;
             return false;
         }
-        cursor2 += d;
+        cursor += d;
         return true;
     }
 
     //----------------------------------------
 
     char peek_char() {
-        return (cursor2 - buf) >= size ? 0 : *cursor2;
+        return (cursor - buf) >= size ? 0 : *cursor;
     }
 
     char take_char() {
-        if ((cursor2 - buf) >= size) {
+        if ((cursor - buf) >= size) {
             error = true;
             return 0;
         } else {
-            return *cursor2++;
+            return *cursor++;
         }
     }
 
@@ -151,10 +149,10 @@ struct Packet {
 
     Result<int, ParseError> take_int() {
         int out = 0;
-        const char *temp = cursor2;
+        const char *temp = cursor;
         auto ok = parse_int_literal(temp, out);
         if (ok) {
-            cursor2 = (char *) temp;
+            cursor = (char *) temp;
             return out;
         } else {
             return ParseError::ERROR;
@@ -167,7 +165,7 @@ struct Packet {
     uint32_t take_hex(int digits) {
         uint32_t accum = 0;
 
-        while (isspace(peek_char())) cursor2++;
+        while (isspace(peek_char())) cursor++;
 
         for (int i = 0; i < digits; i++) {
             int digit = 0;
@@ -176,7 +174,7 @@ struct Packet {
                 break;
             }
             accum = (accum << 4) | digit;
-            cursor2++;
+            cursor++;
         }
 
         return error ? 0 : accum;
@@ -189,14 +187,14 @@ struct Packet {
         int accum = 0;
         bool any_digits = false;
 
-        while (isspace(peek_char())) cursor2++;
+        while (isspace(peek_char())) cursor++;
 
         int digit = 0;
         for (int i = 0; i < 8; i++) {
             if (!from_hex(peek_char(), digit)) break;
             accum = (accum << 4) | digit;
             any_digits = true;
-            cursor2++;
+            cursor++;
         }
 
         if (!any_digits) error = true;
@@ -206,10 +204,10 @@ struct Packet {
     //----------------------------------------
 
     const char *take_rest_string() {
-        while (isspace(peek_char())) cursor2++;
+        while (isspace(peek_char())) cursor++;
 
-        const char *ret = cursor2;
-        cursor2 = buf + size;
+        const char *ret = cursor;
+        cursor = buf + size;
 
         return ret;
     }
@@ -217,23 +215,23 @@ struct Packet {
     //----------------------------------------
 
     bool take_blob(void *blob, int size) {
-        auto old_cursor = cursor2;
+        auto old_cursor = cursor;
         uint8_t *dst = (uint8_t *) blob;
 
         for (int i = 0; i < size; i++) {
             int lo = 0, hi = 0;
-            if (((cursor2 - buf) <= size - 2) &&
-                from_hex(cursor2[0], hi) &&
-                from_hex(cursor2[1], lo)) {
+            if (((cursor - buf) <= size - 2) &&
+                from_hex(cursor[0], hi) &&
+                from_hex(cursor[1], lo)) {
                 *dst++ = (hi << 4) | lo;
-                cursor2 += 2;
+                cursor += 2;
             } else {
                 error = true;
                 break;
             }
         }
 
-        if (error) cursor2 = old_cursor;
+        if (error) cursor = old_cursor;
         return !error;
     }
 
@@ -241,36 +239,36 @@ struct Packet {
 
     bool match(char c) {
         auto match = c && peek_char() == c;
-        if (match) cursor2++;
+        if (match) cursor++;
         return match;
     }
 
     //----------------------------------------
 
     bool match_word(const char *p) {
-        auto c = cursor2;
+        auto c = cursor;
         for (; *p && *c; p++, c++) {
             if (*p != *c) return false;
         }
 
         bool match = *p == 0 && (isspace(*c) || *c == 0);
-        if (match) cursor2 = c;
+        if (match) cursor = c;
         return match;
     }
 
     bool match_prefix(const char *p) {
-        auto c = cursor2;
+        auto c = cursor;
         for (; *p && *c; p++, c++) {
             if (*p != *c) return false;
         }
 
         bool match = *p == 0;
-        if (match) cursor2 = c;
+        if (match) cursor = c;
         return match;
     }
 
     bool match_prefix_hex(const char *p) {
-        auto c = cursor2;
+        auto c = cursor;
 
         while (*p) {
             auto hi = (*p >> 4) & 0xF;
@@ -281,7 +279,7 @@ struct Packet {
             p++;
         }
 
-        cursor2 = c;
+        cursor = c;
         return true;
     }
 
@@ -298,12 +296,12 @@ struct Packet {
     }
 
     void put(char c) {
-        *cursor2++ = c;
+        *cursor++ = c;
         size++;
     }
 
     void remove_left() {
-        *--cursor2 = 0;
+        *--cursor = 0;
         size--;
     }
 
@@ -353,11 +351,11 @@ struct Packet {
     }
 
     void end_packet() {
-        packet_valid = true;
+//        packet_valid = true;
     }
 
     bool empty() {
-        return cursor2 == buf;
+        return cursor == buf;
     }
 
     //----------------------------------------
@@ -367,7 +365,5 @@ struct Packet {
     int sentinel2 = 0xF00DCAFE;
     int size = 0;
     bool error = false;
-    //int    cursor = 0;
-    char *cursor2 = buf;
-    bool packet_valid = false;
+    char *cursor = buf;
 };
