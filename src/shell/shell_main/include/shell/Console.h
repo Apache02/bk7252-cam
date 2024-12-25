@@ -31,8 +31,6 @@ public:
 
     void reset();
 
-    void dump(const void *buf, size_t length);
-
     void start();
 
     void print_eol();

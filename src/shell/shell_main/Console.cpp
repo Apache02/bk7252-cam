@@ -33,23 +33,6 @@ Console::~Console() {
 
 void Console::reset() {}
 
-__unused void Console::dump(const void *buf, size_t length) {
-    const uint8_t *ptr = static_cast<const uint8_t *>(buf);
-    size_t i;
-
-    for (i = 0; i < length; i++) {
-        printf("%02X ", ptr[i]);
-
-        if ((i + 1) % 16 == 0) {
-            printf("\r\n");
-        }
-    }
-
-    if (i % 16 != 0) {
-        printf("\r\n");
-    }
-}
-
 void Console::start() {
     printf("%s ", ">");
 }

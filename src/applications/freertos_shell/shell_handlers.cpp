@@ -34,6 +34,7 @@ const Console::Handler handlers[] = {
         {"echo",       command_echo},
         {"dump",       command_dump},
         {"dump32",     command_dump32},
+        {"chip_id",    command_chip_id},
         {"partitions", command_partitions},
         {"efuse",      command_efuse},
         {"stack",      command_stack},

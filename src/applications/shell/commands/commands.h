@@ -1,18 +1,11 @@
 #pragma once
 
 #include "shell/Console.h"
+#include "shell/commands_common.h"
+#include "shell/commands_beken.h"
 
-void command_echo(Console &c);
 
 void command_reboot(Console &c);
-
-void command_dump(Console &c);
-
-void command_dump32(Console &c);
-
-void command_chip_id(Console &c);
-
-void command_partitions(Console &c);
 
 void command_watch_reg(Console &c);
 
