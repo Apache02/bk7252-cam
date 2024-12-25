@@ -30,6 +30,22 @@ enum {
     IRQ_SOURCE_GDMA = (1 << 15),
 };
 
+#define IRQ_SOURCE_ALL      ( 0\
+    | IRQ_SOURCE_UART1 \
+    | IRQ_SOURCE_UART2 \
+    | IRQ_SOURCE_I2C1 \
+    | IRQ_SOURCE_IRDA \
+    | IRQ_SOURCE_I2S_PCM \
+    | IRQ_SOURCE_I2C2 \
+    | IRQ_SOURCE_SPI \
+    | IRQ_SOURCE_GPIO \
+    | IRQ_SOURCE_TIMER \
+    | IRQ_SOURCE_PWM \
+    | IRQ_SOURCE_AUDIO \
+    | IRQ_SOURCE_SARADC \
+    | IRQ_SOURCE_SDIO \
+    )
+
 enum {
     FIQ_SOURCE_NONE = 0,
     FIQ_SOURCE_MODEM = (1 << 16),
@@ -46,6 +62,22 @@ enum {
     FIQ_SOURCE_SPI_DMA = (1 << 27),
     FIQ_SOURCE_DPLL_UNLOCK = (1 << 28),
 };
+
+#define FIQ_SOURCE_ALL      ( 0\
+    | FIQ_SOURCE_MODEM \
+    | FIQ_SOURCE_MAC_TX_RX_TIMER \
+    | FIQ_SOURCE_MAC_TX_RX_MISC \
+    | FIQ_SOURCE_MAC_RX_TRIGGER \
+    | FIQ_SOURCE_MAC_TX_TRIGGER \
+    | FIQ_SOURCE_MAC_PROT_TRIGGER \
+    | FIQ_SOURCE_MAC_GENERAL \
+    | FIQ_SOURCE_SDIO_DMA \
+    | FIQ_SOURCE_USB_PLUG_INOUT \
+    | FIQ_SOURCE_SECURITY \
+    | FIQ_SOURCE_MAC_WAKE_UP \
+    | FIQ_SOURCE_SPI_DMA \
+    | FIQ_SOURCE_DPLL_UNLOCK \
+    )
 
 typedef void interrupt_handler_cb(void);
 
