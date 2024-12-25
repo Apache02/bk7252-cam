@@ -3,8 +3,7 @@ add_subdirectory(boards)
 add_subdirectory(platform)
 add_subdirectory(utils)
 add_subdirectory(utils/busy_wait)
-add_subdirectory(utils/shell)
-add_subdirectory(utils/shell_commands)
+add_subdirectory(shell)
 
 set(SRC_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 

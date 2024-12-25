@@ -1,6 +1,7 @@
 #include "handlers.h"
 #include "commands/commands.h"
-#include "shell_commands.h"
+#include "shell/commands_common.h"
+#include "shell/commands_beken.h"
 #include <stdio.h>
 
 

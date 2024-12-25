@@ -21,8 +21,9 @@ target_include_directories(
 
 target_link_libraries(
         shell PRIVATE
-        utils_shell
-        utils_shell_commands
+        shell_main
+        shell_commands_common
+        shell_commands_beken
         utils_busy_wait
         platform_nosys
         platform_stdio_uart2

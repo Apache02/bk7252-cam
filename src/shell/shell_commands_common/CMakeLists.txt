@@ -1,9 +1,9 @@
 add_library(
-        utils_shell_commands INTERFACE
+        shell_commands_common INTERFACE
 )
 
 target_include_directories(
-        utils_shell_commands INTERFACE
+        shell_commands_common INTERFACE
         ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
@@ -13,12 +13,11 @@ file(
 )
 
 target_sources(
-        utils_shell_commands INTERFACE
+        shell_commands_common INTERFACE
         ${COMMANDS}
 )
 
 target_link_libraries(
-        utils_shell_commands INTERFACE
-        utils_shell
-        hardware_efuse
+        shell_commands_common INTERFACE
+        shell_main
 )

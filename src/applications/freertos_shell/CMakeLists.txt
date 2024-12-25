@@ -26,8 +26,9 @@ target_link_libraries(
         freertos_shell PRIVATE
         platform_stdio_uart2
         platform_freertos
-        utils_shell
-        utils_shell_commands
+        shell_main
+        shell_commands_common
+        shell_commands_beken
         FreeRTOS-Kernel-Heap4
         hardware_wdt
         hardware_gpio

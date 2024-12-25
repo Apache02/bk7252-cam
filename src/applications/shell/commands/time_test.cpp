@@ -40,7 +40,7 @@ void command_cpu_speed(Console &c) {
     int64_t us_spend = absolute_time_diff_us(start, get_absolute_time());
 
     printf("Instructions: %d\r\n", count);
-    printf("It took %lld us\r\n", us_spend);
+    printf("It took %lu us\r\n", (uint32_t) us_spend);
     printf("CPU freq: %lu Hz\r\n", (uint32_t) (count / (us_spend / 1000000.0)));
 }
 

@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include "hardware/wdt.h"
 
-#include "shell_commands.h"
+#include "shell/commands_common.h"
+#include "shell/commands_beken.h"
 
 
 static void help(__unused Console &c) {
