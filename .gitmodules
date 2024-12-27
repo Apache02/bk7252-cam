@@ -1,3 +1,0 @@
-[submodule "tools/hid_download_py"]
-	path = tools/hid_download_py
-	url = https://github.com/OpenBekenIOT/hid_download_py.git

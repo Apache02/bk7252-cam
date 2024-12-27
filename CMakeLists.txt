@@ -1,5 +1,5 @@
-project(bk7252_camera C CXX ASM)
 cmake_minimum_required(VERSION 3.19)
+project(bk7252_camera C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)

@@ -8,6 +8,10 @@ endif()
 set(BOARD ${BOARD} CACHE STRING "Target board configuration")
 set_property(CACHE BOARD PROPERTY STRINGS "BOARD_A" "BOARD_B" "BOARD_C")
 
+if(NOT BOARD)
+    set(BOARD A9_B_V1_3)
+endif()
+
 if(BOARD STREQUAL "A9_B_V1_3")
     target_compile_definitions(board_config INTERFACE BOARD_A9_B_V1_3)
 else()

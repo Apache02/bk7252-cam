@@ -1,29 +1,43 @@
 # BK7252 camera
 
-Test
+Description here...
 
 ## Requirements
 
 * gcc-arm-none-eabi
 * cmake
 * make
-* tio
-* https://github.com/tiancj/hid_download_py
+* python3
+* any serial monitor (tio for example)
+
+### Install requirements on Ubuntu
+```shell script
+sudo apt install cmake build-essential gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+sudo apt install python3 python3-hid python3-serial python3-tqdm
+```
+
 
 ## Build
+
+```shell script
+mkdir build
+(cd build && cmake .. && make freertos_shell)
+```
 
 
 ## Backup
 
-```shell
-uartprogram -r 0x00011000_app_$(date +%Y-%m-%d_%H%M%S)_crc.bin
+```shell script
+./backup.sh
 ```
+
 
 ## Flash
 
 ```shell
-uartprogram -w src/build/hello-world_crc.bin
+./flash.sh
 ```
+
 
 ## UART Monitor
 
