@@ -29,18 +29,20 @@ extern void command_free(Console &);
 extern void command_blink(Console &c);
 
 const Console::Handler handlers[] = {
-        {"help",       help},
-        {"reboot",     reboot},
-        {"echo",       command_echo},
-        {"dump",       command_dump},
-        {"dump32",     command_dump32},
-        {"chip_id",    command_chip_id},
-        {"partitions", command_partitions},
-        {"efuse",      command_efuse},
-        {"stack",      command_stack},
-        {"tasks",      command_tasks},
-        {"free",       command_free},
-        {"blink",      command_blink},
+        {"help",         help},
+        {"reboot",       reboot},
+        {"echo",         command_echo},
+        {"dump",         command_dump},
+        {"dump32",       command_dump32},
+        {"chip_id",      command_chip_id},
+        {"partitions",   command_partitions},
+        {"efuse",        command_efuse},
+        {"stack",        command_stack},
+        {"tasks",        command_tasks},
+        {"free",         command_free},
+        {"blink",        command_blink},
+        {"flash_dump",   command_flash_dump<uint8_t>},
+        {"flash_dump32", command_flash_dump<uint32_t>},
         // required at the end
-        {nullptr,      nullptr},
+        {nullptr,        nullptr},
 };

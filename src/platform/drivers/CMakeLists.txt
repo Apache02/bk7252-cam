@@ -11,6 +11,7 @@ add_subdirectory(hardware_intc)
 add_subdirectory(hardware_sctrl)
 add_subdirectory(hardware_timer)
 add_subdirectory(hardware_efuse)
+add_subdirectory(hardware_flash)
 
 add_library(
         platform_drivers INTERFACE

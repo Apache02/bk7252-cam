@@ -22,4 +22,5 @@ target_link_libraries(
         shell_main
         hardware_sctrl
         hardware_efuse
+        hardware_flash
 )
