@@ -1,9 +1,8 @@
 #ifndef _HARDWARE_ICU_H
 #define _HARDWARE_ICU_H
 
-#include <sys/cdefs.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "register_defs.h"
+
 
 /*******************************************************************/
 
@@ -50,11 +49,11 @@ typedef enum {
 
 /*******************************************************************/
 
-typedef struct {
+typedef volatile struct {
     // peripheral clock select
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             peri_clk_t uart1: 1;                // [0]
             peri_clk_t uart2: 1;                // [1]
             peri_clk_t i2c1: 1;                 // [2]
@@ -81,7 +80,7 @@ typedef struct {
     // clocks power down
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t uart1: 1;                  // [0]
             uint32_t uart2: 1;                  // [1]
             uint32_t i2c1: 1;                   // [2]
@@ -113,7 +112,7 @@ typedef struct {
     // ?
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t disable_icu_apb: 1;        // [0]
             uint32_t disable_uart1_apb: 1;      // [1]
             uint32_t disable_uart2_apb: 1;      // [2]
@@ -138,7 +137,7 @@ typedef struct {
     // clocks power down 2
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t tl410: 1;                  // [0]
             uint32_t ble: 1;                    // [1]
             uint32_t reserved_2_31: 30;         // [2:31]

@@ -114,7 +114,7 @@ void intc_fiq(void) {
 
     status.v &= ICU_INT_FIQ_MASK;
     if (!status.v) {
-        panic("irq:dead\r\n");
+        panic("fiq:dead\r\n");
     }
 
     // clear status

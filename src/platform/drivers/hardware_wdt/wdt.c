@@ -1,5 +1,6 @@
 #include "hardware/wdt.h"
 #include "hardware/icu.h"
+#include <stdbool.h>
 
 
 #define WDT_BASE                (0x00802900)

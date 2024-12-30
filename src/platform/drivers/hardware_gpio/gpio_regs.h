@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stdint.h>
-#include <sys/cdefs.h>
+#include "register_defs.h"
 
 
 #define GPIO_BASE_ADDR                      (0x00802800)
@@ -40,9 +39,9 @@
 #define PERIAL_MODE_4                       (3)
 
 
-volatile typedef struct {
+typedef volatile struct {
     union {
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t input: 1;              // [0]
             uint32_t output: 1;             // [1]
             uint32_t input_enable: 1;       // [2]

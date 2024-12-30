@@ -1,9 +1,6 @@
 #pragma once
 
-#include <stdint.h>
-#include <sys/cdefs.h>
-
-#define _register_bits                     __attribute__((aligned(4))) __packed
+#include "register_defs.h"
 
 
 #define FLASH_BASE                          (0x00803000)
