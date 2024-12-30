@@ -1,19 +1,18 @@
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <sys/cdefs.h>
+#include "register_defs.h"
 
 
 #define SCTRL_BASE                  (0x00800000)
 
-typedef struct {
+
+typedef volatile struct {
     uint32_t chip_id;
     uint32_t device_id;
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t mclk_source: 2;            // [0:1]
             uint32_t hclk_div2: 2;              // [2:3]
             uint32_t divider: 4;                // [4:7]
@@ -36,7 +35,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t mac_mpif: 1;               // [0]
             uint32_t mac_wt: 1;                 // [1]
             uint32_t mac_core_rx: 1;            // [2]
@@ -52,7 +51,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t modem_subchip_reset: 1;    // [0]
             uint32_t dsp_subsys_reset: 1;       // [1]
             uint32_t mac_subsys_reset: 1;       // [2]
@@ -71,7 +70,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t cycle_value: 12;           // [0:11]
             uint32_t reserved_12_31: 20;        // [12:31]
         };
@@ -84,7 +83,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t phy_hclk_enable: 1;        // [0]
             uint32_t mac_hclk_enable: 1;        // [1]
             uint32_t reset_request: 16;         // [2:17]
@@ -94,7 +93,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t reserved_0: 1;             // [0]
             uint32_t reserved_1: 1;             // [1]
             uint32_t dbg_mdm_bank0_mux: 5;      // [2:6]
@@ -176,7 +175,7 @@ typedef struct {
     uint32_t reserved_74;
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct _register_bits {
             uint32_t flash: 1;                  // [0]
             uint32_t dco: 1;                    // [1]
             uint32_t rosc_32k: 1;               // [2]

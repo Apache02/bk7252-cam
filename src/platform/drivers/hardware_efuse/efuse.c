@@ -1,53 +1,22 @@
 #include "hardware/efuse.h"
-#include "hardware/sctrl_regs.h"
-
-
-typedef union {
-    uint32_t v;
-    struct __attribute__((aligned(4))) __packed {
-        uint32_t op_enable: 1;              // [0]
-        uint32_t op_direction: 1;           // [1]
-        uint32_t reserved_2_7: 6;           // [2:7]
-        uint32_t addr: 5;                   // [8:12]
-        uint32_t reserved_13_15: 3;         // [13:15]
-        uint32_t wr_data: 5;                // [16:20]
-        uint32_t reserved_21_31: 11;        // [21:31]
-    };
-} efuse_ctrl_r;
-
-typedef union {
-    uint32_t v;
-    struct __attribute__((aligned(4))) __packed {
-        uint32_t rd_data: 8;                // [0:7]
-        uint32_t is_valid: 1;               // [8]
-        uint32_t reserved_9_31: 23;         // [9:31]
-    };
-} efuse_optr_r;
+#include "efuse_regs.h"
 
 
 int efuse_read_byte(uint8_t addr) {
     if (addr > 0x1F) return -1;
 
-    volatile efuse_ctrl_r ctrl;
-
-    ctrl.v = hw_sctrl->efuse_ctrl;
-    ctrl.addr = addr;
-    ctrl.op_enable = 1;
-
-    hw_sctrl->efuse_ctrl = ctrl.v;
+    hw_efuse->ctrl.addr = addr;
+    hw_efuse->ctrl.dir = 0;
+    hw_efuse->ctrl.en = 1;
 
     // wait for read
-    int timeout = 1000;
-    while (timeout-- > 0) {
-        ctrl.v = hw_sctrl->efuse_ctrl;
-        if (!ctrl.op_enable) break;
+    for (int timeout = 1000; hw_efuse->ctrl.en; timeout--) {
+        if (timeout <= 0) return -2;
     }
-    if (timeout <= 0) return -2;
 
-    volatile efuse_optr_r *optr_ptr = (efuse_optr_r *) &hw_sctrl->efuse_optr;
-    if (!optr_ptr->is_valid) return -3;
+    if (!hw_efuse->optr.is_valid) return -3;
 
-    return optr_ptr->rd_data;
+    return hw_efuse->optr.rd_data;
 }
 
 static int efuse_read_block(uint8_t *dst, uint8_t offset, uint8_t length) {
