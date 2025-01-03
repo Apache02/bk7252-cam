@@ -10,6 +10,8 @@ void command_chip_id(Console &c);
 
 void command_efuse(Console &c);
 
+void command_random_test(Console &c);
+
 template<typename T>
 void command_flash_dump(__unused Console &c);
 

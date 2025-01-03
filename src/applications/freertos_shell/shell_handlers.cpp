@@ -43,6 +43,7 @@ const Console::Handler handlers[] = {
         {"blink",        command_blink},
         {"flash_dump",   command_flash_dump<uint8_t>},
         {"flash_dump32", command_flash_dump<uint32_t>},
+        {"random_test",  command_random_test},
         // required at the end
         {nullptr,        nullptr},
 };

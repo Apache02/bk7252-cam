@@ -23,4 +23,5 @@ target_link_libraries(
         hardware_sctrl
         hardware_efuse
         hardware_flash
+        hardware_random
 )
