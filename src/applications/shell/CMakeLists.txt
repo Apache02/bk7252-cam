@@ -27,7 +27,6 @@ target_link_libraries(
         utils_busy_wait
         platform_nosys
         platform_stdio_uart2
-        platform_drivers
         hardware_gpio
         hardware_intc
         hardware_timer

@@ -1,5 +1,5 @@
-#ifndef _TIME_H_
-#define _TIME_H_
+#ifndef _HARDWARE_TIME_H
+#define _HARDWARE_TIME_H
 
 #include "stdint.h"
 
@@ -29,4 +29,5 @@ int64_t absolute_time_diff_us(absolute_time_t from, absolute_time_t to);
 #ifdef __cplusplus
 }
 #endif
-#endif // _TIME_H_
+
+#endif // _HARDWARE_TIME_H

@@ -1,27 +1,26 @@
-#include "drivers/time.h"
-#include "stdint.h"
+#include "hardware/time.h"
 
 
 #define NXMAC_MONOTONIC_COUNTER_1_ADDR      0xC000011C
 #define NXMAC_MONOTONIC_COUNTER_2_LO_ADDR   0xC0000120
 #define NXMAC_MONOTONIC_COUNTER_2_HI_ADDR   0xC0000124
 
-typedef struct {
+typedef volatile struct {
     uint32_t timeraw_hf;
     uint32_t timerawh;
     uint32_t timerawl;
 } nxmac_timer_t;
 
-#define hw_nxmac_timer    ((volatile nxmac_timer_t *) NXMAC_MONOTONIC_COUNTER_1_ADDR)
+#define hw_nxmac_counter    ((volatile nxmac_timer_t *) NXMAC_MONOTONIC_COUNTER_1_ADDR)
 
 
 uint32_t get_hf_counter() {
-    return hw_nxmac_timer->timeraw_hf;
+    return hw_nxmac_counter->timeraw_hf;
 }
 
 absolute_time_t get_absolute_time() {
     absolute_time_t time;
-    time.time_raw = (((uint64_t) hw_nxmac_timer->timerawl) << 32) | hw_nxmac_timer->timerawh;
+    time.time_raw = (((uint64_t) hw_nxmac_counter->timerawl) << 32) | hw_nxmac_counter->timerawh;
     return time;
 }
 

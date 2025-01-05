@@ -14,22 +14,5 @@ add_subdirectory(hardware_timer)
 add_subdirectory(hardware_efuse)
 add_subdirectory(hardware_flash)
 add_subdirectory(hardware_random)
-
-add_library(
-        platform_drivers INTERFACE
-)
-
-target_include_directories(
-        platform_drivers INTERFACE
-        ${CMAKE_CURRENT_LIST_DIR}/include
-)
-
-#target_link_libraries(
-#        platform_drivers INTERFACE
-#)
-
-target_sources(
-        platform_drivers INTERFACE
-        time.c
-)
+add_subdirectory(hardware_time)
 
