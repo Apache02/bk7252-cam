@@ -11,7 +11,7 @@ static void print_dump(const T *buf, uint32_t count) {
     char format[] = "%00x ";
     format[2] = '0' + (sizeof(buf[0]) * 2);
 
-    for (int i = 0, offset = 0; i < count; ++i) {
+    for (size_t i = 0, offset = 0; i < count; ++i) {
         printf(format, buf[i]);
 
         offset += sizeof(T);

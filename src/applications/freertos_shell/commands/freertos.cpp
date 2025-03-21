@@ -47,13 +47,13 @@ void command_tasks(__unused Console &c) {
                "----------------", "----------", "--------", "----------", "----------"
         );
 
-        for (int i = 0; i < uxArraySize; i++) {
+        for (unsigned int i = 0; i < uxArraySize; i++) {
             auto state = pxTasksBuffer[i].eCurrentState;
             const char *stateLabel = GET_TASK_STATE_LABEL(state);
             const StackType_t *pxHWM = xCalcHighWaterMark(pxTasksBuffer[i].pxStackBase);
 
             printf(
-                    "| %16s | %10s | %8ld | %010p | %10ld |\r\n",
+                    "| %16s | %10s | %8ld | %10p | %10ld |\r\n",
                     pxTasksBuffer[i].pcTaskName,
                     stateLabel,
                     pxTasksBuffer[i].uxCurrentPriority,

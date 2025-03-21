@@ -66,9 +66,7 @@ BaseType_t xPortStartScheduler(void) {
     int timer = timer_create_by_freq(configTICK_RATE_HZ, xPortSysTickHandler, false);
     sys_tick_timer = timer;
 
-    if (timer < 0) {
-        return 0;
-    }
+    if (timer < 0) return 0;
 
     timer_start(timer);
 

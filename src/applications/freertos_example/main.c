@@ -1,3 +1,4 @@
+#include <sys/cdefs.h>
 #include <FreeRTOS.h>
 #include <task.h>
 #include <queue.h>
@@ -17,7 +18,7 @@
 static void vStaticTask1(__unused void *parameters) {
     for (int i = 0;; i++) {
         portENTER_CRITICAL();
-        printf("%s #%d\r\n", __PRETTY_FUNCTION__, i);
+        printf("%s #%d\r\n", "vStaticTask1", i);
         busy_wait_us(500000);
         portEXIT_CRITICAL();
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -31,7 +32,7 @@ static StackType_t exampleTaskStack[configMINIMAL_STACK_SIZE];
 
 static void vDynamicTask2(__unused void *parameters) {
     for (int i = 0;; i++) {
-        printf("%s #%d\r\n", __PRETTY_FUNCTION__, i);
+        printf("%s #%d\r\n", "vDynamicTask2", i);
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

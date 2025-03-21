@@ -6,7 +6,6 @@
 
 bool parse_binary_literal(const char *&cursor, int &out) {
     int accum = 0;
-    int sign = 1;
     int digits = 0;
 
     while (*cursor && !isspace(*cursor)) {
@@ -61,7 +60,6 @@ bool parse_decimal_literal(const char *&cursor, int &out) {
 
 bool parse_hex_literal(const char *&cursor, int &out) {
     int accum = 0;
-    int sign = 1;
     int digits = 0;
 
     while (*cursor && !isspace(*cursor)) {
@@ -114,9 +112,6 @@ bool parse_octal_literal(const char *&cursor, int &out) {
 
 bool parse_int_literal(const char *&cursor, int &out) {
     auto old_cursor = cursor;
-    int digit_count = 0;
-    int accum = 0;
-    int sign = 1;
 
     // Skip leading whitespace
     while (isspace(*cursor)) cursor++;

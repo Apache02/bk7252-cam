@@ -10,9 +10,10 @@ set(CMAKE_CXX_COMPILER ${TOOLCHAIN}-g++)
 set(CMAKE_ASM_COMPILER ${TOOLCHAIN}-gcc)
 
 set(CPU_OPTIONS "-mcpu=arm968e-s -mthumb-interwork")
+set(COMPILER_OPTIONS " -Wall -Werror") # -Wpedantic
 
-set(CMAKE_C_FLAGS "${CPU_OPTIONS} -mthumb -O2 --specs=nano.specs -nostartfiles -fno-exceptions")
-set(CMAKE_CXX_FLAGS "${CPU_OPTIONS} -mthumb -O2 --specs=nano.specs -nostartfiles -fno-exceptions") #  -lstdc++ ??
+set(CMAKE_C_FLAGS "${CPU_OPTIONS} ${COMPILER_OPTIONS} -mthumb -O2 --specs=nano.specs -nostartfiles -fno-exceptions")
+set(CMAKE_CXX_FLAGS "${CPU_OPTIONS} ${COMPILER_OPTIONS} -mthumb -O2 --specs=nano.specs -nostartfiles -fno-exceptions") #  -lstdc++ ??
 set(CMAKE_ASM_FLAGS "${CPU_OPTIONS} -x assembler-with-cpp")
 
 #set(CMAKE_CROSSCOMPILING TRUE)

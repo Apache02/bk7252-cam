@@ -118,7 +118,7 @@ const uint32_t intc_tbl[] = {
 const struct {
     const uint32_t addr;
     const uint32_t skip;
-    const uint32_t length;
+    const size_t length;
     const uint32_t *tbl;
 } regions[] = {
         {0x00800000, 2, count_of(sctrl_tbl), sctrl_tbl},
@@ -136,7 +136,7 @@ void command_write_regs(Console &c) {
 
     for (auto region: regions) {
         printf("addr 0x%08lx\r\n", region.addr);
-        for (int i = 0; i < region.length; i++) {
+        for (unsigned int i = 0; i < region.length; i++) {
             uint32_t addr = region.addr + (4 * i);
             printf("0x%08lx: ", addr);
 

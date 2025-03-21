@@ -73,7 +73,7 @@ void command_blink(Console &c) {
         size_t uxDeletedCount = 0;
         uxArrayLength = uxTaskGetSystemState(pxTasksBuffer, uxArrayLength, NULL);
         if (uxArrayLength > 0) {
-            for (int i=0; i < uxArrayLength; i++) {
+            for (unsigned int i=0; i < uxArrayLength; i++) {
                 if (strcmp(pxTasksBuffer[i].pcTaskName, TASK_NAME) !=  0) continue;
                 vTaskDelete(pxTasksBuffer[i].xHandle);
                 uxDeletedCount++;
