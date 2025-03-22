@@ -57,7 +57,7 @@ void command_tasks(__unused Console &c) {
                     pxTasksBuffer[i].pcTaskName,
                     stateLabel,
                     pxTasksBuffer[i].uxCurrentPriority,
-                    pxTasksBuffer[i].pxStackBase,
+                    static_cast<void *>(pxTasksBuffer[i].pxStackBase),
                     ((uint32_t) pxHWM - (uint32_t) pxTasksBuffer[i].pxStackBase) / sizeof(StackType_t)
             );
         }
