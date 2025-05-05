@@ -8,6 +8,6 @@ void sys_counter_tick(__unused int timer_num) {
     g_sys_counter++;
 }
 
-uint64_t time() {
+uint32_t sys_counter_get_count() {
     return g_sys_counter;
 }

@@ -77,7 +77,7 @@ static int find_free_timer(uint32_t freq) {
     return -1;
 }
 
-static void register_sys_timer() {
+static void register_sys_counter() {
     int timer_num = find_free_timer(1);
     const int timer_clock_freq = get_timer_frequency(timer_num);
     const int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
@@ -103,7 +103,7 @@ void timer_init() {
     hw_icu->peri_clk_pwd.timer_26m = 0;
     hw_icu->peri_clk_pwd.timer_32k = 0;
 
-    register_sys_timer();
+    register_sys_counter();
 
     intc_register_irq_handler(IRQ_SOURCE_TIMER, timer_irq_handler);
     intc_enable_irq_source(IRQ_SOURCE_TIMER);

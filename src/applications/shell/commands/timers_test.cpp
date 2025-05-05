@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "utils/busy_wait.h"
 #include "hardware/timer.h"
+#include "hardware/sys_counter.h"
 
 
 #define TRACE(var)                                  printf(#var " = 0x%lx\r\n", var)
@@ -30,9 +31,9 @@ void command_timers_test(Console &c) {
 }
 
 void command_timers_test2(Console &c) {
-    printf("%llu\r\n", time());
+    printf("%lu\r\n", sys_counter_get_count());
     busy_wait(1);
-    printf("%llu\r\n", time());
+    printf("%lu\r\n", sys_counter_get_count());
 
     for (int i = 0; i < 6; i++) {
         printf("timer #%d value = %d\r\n", i, timer_read(i));
