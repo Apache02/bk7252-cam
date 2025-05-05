@@ -78,7 +78,7 @@ typedef volatile struct {
         pwm_clk_t value;
     } pwm_clk_mux;
 
-    // clock power down for periphral unit
+    // clock power down for peripheral unit
     union {
         uint32_t v;
         struct _register_bits {

@@ -196,6 +196,7 @@ typedef volatile struct {
             uint32_t audio: 1;                  // [17]
             uint32_t mic_qspi_ram_or_flash: 1;  // [18]
             uint32_t nc: 1;                     // [19]
+            uint32_t write_key: 12;             // [20:31] set 0xA5C to write
         };
     } block_enable;
     uint32_t reserved_76;
@@ -218,3 +219,23 @@ typedef volatile struct {
 #define USB_SUBSYS_RESET_WORD       (0x7111c12B)
 #define DSP_SUBSYS_RESET_WORD       (0x7111c410)
 #define MODEM_CORE_RESET_WORD       (0xE802)
+
+
+#define SCTRL_BLOCK_ENABLE_WRITE_KEY    (0xA5C)
+
+
+static inline void sctrl_block_enable_temprature_sensor() {
+    typeof(hw_sctrl->block_enable) tmp;
+    tmp.v = hw_sctrl->block_enable.v;
+    tmp.temprature_sensor = 1;
+    tmp.write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY;
+    hw_sctrl->block_enable.v = tmp.v;
+}
+
+static inline void sctrl_block_disable_temprature_sensor() {
+    typeof(hw_sctrl->block_enable) tmp;
+    tmp.v = hw_sctrl->block_enable.v;
+    tmp.temprature_sensor = 0;
+    tmp.write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY;
+    hw_sctrl->block_enable.v = tmp.v;
+}
