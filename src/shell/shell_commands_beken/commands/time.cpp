@@ -1,8 +1,17 @@
 #include "shell/commands_beken.h"
 #include <stdio.h>
 #include "hardware/time.h"
+#include "hardware/sys_counter.h"
 #include "hardware/cpu.h"
 
+
+static char * sprint_time(char * buf, uint64_t us) {
+    unsigned int ms = us / 1000;
+    unsigned int s = ms / 1000;
+    ms -= s * 1000;
+    sprintf(buf, "%d.%03d", s, ms);
+    return buf;
+}
 
 void command_time_delay(Console &c) {
     uint32_t seconds = c.packet.take_int().ok_or(0);
@@ -12,15 +21,17 @@ void command_time_delay(Console &c) {
     }
 
     absolute_time_t start = get_absolute_time();
-    printf("start at %f\r\n", to_us_since_boot(start) / 1000000.0);
-    for (uint64_t diff = 0; diff < seconds * 1000;) {
-        diff = absolute_time_diff_us(start, get_absolute_time()) / 1000;
+    char sTime[16];
+    printf("start at %s\r\n", sprint_time(sTime, to_us_since_boot(start)));
+    for (uint64_t diff = 0; diff < seconds * 1000000;) {
+        diff = absolute_time_diff_us(start, get_absolute_time());
 
         // update value
-        for (int i = 0; i < 10; i++) putchar('\b');
-        printf(" %.03f", (float) diff / 1000.0);
+        putchar('\r');
+        printf("%s", sprint_time(sTime, diff));
     }
-    printf("\r\ndone.\r\n");
+    printf("\r\n");
+    printf("done at %s\r\n", sprint_time(sTime, to_us_since_boot(get_absolute_time())));
 }
 
 static inline void busy_wait_at_least_cycles(unsigned long minimum_cycles) {
@@ -30,6 +41,30 @@ static inline void busy_wait_at_least_cycles(unsigned long minimum_cycles) {
             "bcs 1b\n"
             : "+l" (minimum_cycles) : : "cc", "memory"
             );
+}
+
+void command_uptime(Console &c) {
+    uint32_t total = sys_counter_get_count();
+    int days, hours, minutes, seconds;
+
+    days = total / (24 * 3600);
+    seconds = total - (days * (24 * 3600));
+    hours = seconds / 3600;
+    seconds -= hours * 3600;
+    minutes = seconds / 60;
+    seconds -= minutes * 60;
+
+    if (days > 0) {
+        printf("uptime: %d days %02d:%02d:%02d\r\n", days, hours, minutes, seconds);
+    } else if (hours > 0) {
+        printf("uptime: %d:%02d:%02d\r\n", hours, minutes, seconds);
+    } else if (minutes > 0) {
+        printf("uptime: %d:%02d\r\n", minutes, seconds);
+    } else if (seconds == 1) {
+        printf("uptime: %d second\r\n", seconds);
+    } else {
+        printf("uptime: %d seconds\r\n", seconds);
+    }
 }
 
 void command_cpu_speed(Console &c) {

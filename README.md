@@ -45,6 +45,15 @@ mkdir build
 tio -b 115200 /dev/ttyUSB0
 ```
 
+
+## Notes
+
+Currently, printf without float support. I float is required use next:
+```cmake
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -u _printf_float -u _scanf_float")
+```
+
+
 ## Links
 
 ...

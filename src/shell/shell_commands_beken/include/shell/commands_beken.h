@@ -17,4 +17,6 @@ void command_flash_dump(__unused Console &c);
 
 void command_time_delay(Console &c);
 
+void command_uptime(Console &c);
+
 void command_cpu_speed(Console &c);
