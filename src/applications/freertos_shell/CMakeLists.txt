@@ -29,8 +29,13 @@ target_link_libraries(
         shell_main
         shell_commands_common
         shell_commands_beken
-        FreeRTOS-Kernel-Heap4
+        FreeRTOS-Kernel-Heap5
         hardware_wdt
         hardware_gpio
         hardware_efuse
+)
+
+target_include_directories(
+        freertos_shell PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/config
 )

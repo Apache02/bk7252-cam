@@ -55,7 +55,6 @@ SECTIONS
         . = . + SIZEOF(.data);
         . = ALIGN(4);
     } > FLASH
-
     __exidx_end = .;
 
     .data : AT ( _begin_data )
@@ -102,7 +101,6 @@ SECTIONS
     .bss ALIGN(8):
     {
         _bss_start = .;
-        __bss_start__ = .;
         *(.bss .bss.*)
         *(.scommon)
         *(.sbss)
@@ -111,12 +109,11 @@ SECTIONS
         /* Align here to ensure that the .bss section occupies space up to
            _end.  Align after .bss to ensure correct alignment even if the
            .bss section disappears because there are no input sections.  */
-        . = ALIGN(32 / 8);
+        . = ALIGN(4);
         _bss_end = .;
-        __bss_end__ = .;
     } > RAM
 
-    . = ALIGN (8);
+    . = ALIGN (16);
     _empty_ram = .;
 
     /* This symbol defines end of code/data sections. Heap starts here. */
@@ -126,9 +123,10 @@ SECTIONS
        Typically you set this to be top of your RAM. Note: code never checks, if stack
        grows into heap area!
     */
-    PROVIDE(_stack_unused      = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0 - 0x10); /* 0x10*/
-    PROVIDE(_stack_svc         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0); /* 0x3F0*/
-    PROVIDE(_stack_irq         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0); /* 0xFF0*/
-    PROVIDE(_stack_fiq         = 0x440000 - 0x3F0 - 0x7F0); /* 0x7F0*/
-    PROVIDE(_stack_sys         = 0x440000 - 0x3F0); /* 0x3F0*/
+    _stack_top = ORIGIN(RAM) + LENGTH(RAM);
+    PROVIDE(_stack_sys         = _stack_top - 0x3F0);
+    PROVIDE(_stack_fiq         = _stack_sys - 0x7F0);
+    PROVIDE(_stack_irq         = _stack_fiq - 0xFF0);
+    PROVIDE(_stack_svc         = _stack_irq - 0x3F0);
+    PROVIDE(_stack_unused      = _stack_svc - 0x10);
 }

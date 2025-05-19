@@ -2,10 +2,10 @@
 #include <errno.h>
 
 
-extern char _empty_ram;
+extern char end;
 extern char _stack_unused;
 
-static char *heap_end = &_empty_ram;
+static char *heap_end = &end;
 
 void *_sbrk(ptrdiff_t incr) {
     char *prev_heap_end = heap_end;

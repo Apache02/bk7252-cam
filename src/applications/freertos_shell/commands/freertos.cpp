@@ -66,7 +66,7 @@ void command_tasks(__unused Console &c) {
     vPortFree(pxTasksBuffer);
 }
 
-extern char _empty_ram;
+extern char end;
 extern char _stack_unused;
 extern "C" void *_sbrk(ptrdiff_t incr);
 
@@ -79,15 +79,25 @@ void command_free(__unused Console &c) {
     }
 
     if (xFreeHeapSizeCurrent == 0) {
-        printf("Not available\r\n");
+        printf("FreeRTOS head not available\r\n");
+    } else {
+        size_t xFreeHeapSizeMinimal = xPortGetMinimumEverFreeHeapSize();
+        size_t xUsedHeapSizeCurrent = configTOTAL_HEAP_SIZE - xFreeHeapSizeCurrent;
+
+        printf("== FreeRTOS heap ==\r\n");
+        printf("           total: %d\r\n", configTOTAL_HEAP_SIZE);
+        printf("            free: %d\r\n", xFreeHeapSizeCurrent);
+        printf("            used: %d | %d%%\r\n", xUsedHeapSizeCurrent, xUsedHeapSizeCurrent * 100 / configTOTAL_HEAP_SIZE);
+        printf("    minimum free: %d\r\n", xFreeHeapSizeMinimal);
+        printf("\r\n");
     }
 
-    size_t xFreeHeapSizeMinimal = xPortGetMinimumEverFreeHeapSize();
 
-    printf("Free heap current (bytes): %d of %d\r\n", xFreeHeapSizeCurrent, configTOTAL_HEAP_SIZE);
-    printf("          minimum (bytes): %d\r\n", xFreeHeapSizeMinimal);
-
-    size_t total = &_stack_unused - &_empty_ram;
-    size_t used = (char *) _sbrk(0) - &_empty_ram;
-    printf(" newlib heap used (bytes): %d of %d\r\n", used, total);
+    size_t total = &_stack_unused - &end;
+    size_t used = (char *) _sbrk(0) - &end;
+    printf("== newlib heap ==\r\n");
+    printf("           total: %d\r\n", total);
+    printf("            free: %d\r\n", total - used);
+    printf("            used: %d | %d%%\r\n", used, used * 100 / total);
+    printf("\r\n");
 }
