@@ -176,7 +176,7 @@ inline void icu_peri_clk_uart2(peri_clk_t clk) {
     hw_icu->peri_clk_mux.uart2 = clk;
 }
 
-inline void icu_i2c1_set_clk_source(peri_clk_t clk) {
+inline void icu_peri_clk_i2c1(peri_clk_t clk) {
     hw_icu->peri_clk_mux.i2c1 = clk;
 }
 

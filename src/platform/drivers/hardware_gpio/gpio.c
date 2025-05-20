@@ -82,13 +82,16 @@ void gpio_config_function(gpio_func_t func) {
             gpio_from = 20;
             gpio_to = 21;
             pmode = PERIAL_MODE_1;
+            gpio_dir = GPIO_SECOND_FUNC_PULLUP;
             break;
 
         case GPIO_FUNC_I2C2:
             gpio_from = 0;
             gpio_to = 1;
             pmode = PERIAL_MODE_2;
+            gpio_dir = GPIO_SECOND_FUNC_PULLUP;
             break;
+
         case GPIO_FUNC_DCMI:
             gpio_from = 27;
             gpio_to = 39;
