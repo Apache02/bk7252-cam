@@ -61,6 +61,9 @@ enum {
     FIQ_SOURCE_MAC_WAKE_UP = (1 << 26),
     FIQ_SOURCE_SPI_DMA = (1 << 27),
     FIQ_SOURCE_DPLL_UNLOCK = (1 << 28),
+    FIQ_SOURCE_JPEG_ENCODER = (1 << 29),
+    FIQ_SOURCE_BLE = (1 << 30),
+    FIQ_SOURCE_PSRAM = (1 << 31),
 };
 
 #define FIQ_SOURCE_ALL      ( 0\
@@ -77,6 +80,9 @@ enum {
     | FIQ_SOURCE_MAC_WAKE_UP \
     | FIQ_SOURCE_SPI_DMA \
     | FIQ_SOURCE_DPLL_UNLOCK \
+    | FIQ_SOURCE_JPEG_ENCODER \
+    | FIQ_SOURCE_BLE \
+    | FIQ_SOURCE_PSRAM \
     )
 
 typedef void interrupt_handler_cb(void);

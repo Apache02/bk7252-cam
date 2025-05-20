@@ -104,8 +104,8 @@ typedef volatile struct {
             uint32_t fft: 1;                    // [19]
             uint32_t timer_26m: 1;              // [20]
             uint32_t timer_32k: 1;              // [21]
-            uint32_t unknown_22: 1;             // [22]     JPEG?
-            uint32_t unknown_23: 1;             // [23]
+            uint32_t jpeg_encoder: 1;           // [22]
+            uint32_t qspi: 1;             // [23]
 
             uint32_t reserved_24_31: 8;         // [24:31]
         };

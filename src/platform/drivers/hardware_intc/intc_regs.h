@@ -61,8 +61,9 @@ typedef struct {
             uint32_t fiq_mac_wake_up: 1;            // [26]
             uint32_t fiq_spi_dma: 1;                // [27]
             uint32_t fiq_dpll_unlock: 1;            // [28]
-            uint32_t unknown_29: 1;                 // [29]
-            uint32_t reserved_30_31: 2;             // [30:31]
+            uint32_t jpeg_encoder: 1;               // [29]
+            uint32_t ble: 1;                        // [30]
+            uint32_t psram: 1;                      // [31]
         };
     };
 } icu_interrupts_reg_t;

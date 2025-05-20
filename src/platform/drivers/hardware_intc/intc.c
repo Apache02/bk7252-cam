@@ -210,6 +210,9 @@ static uint32_t fiq_source_to_reg(uint32_t source) {
     if (source & FIQ_SOURCE_MAC_WAKE_UP) reg.fiq_mac_wake_up = 1;
     if (source & FIQ_SOURCE_SPI_DMA) reg.fiq_spi_dma = 1;
     if (source & FIQ_SOURCE_DPLL_UNLOCK) reg.fiq_dpll_unlock = 1;
+    if (source & FIQ_SOURCE_JPEG_ENCODER) reg.jpeg_encoder = 1;
+    if (source & FIQ_SOURCE_BLE) reg.ble = 1;
+    if (source & FIQ_SOURCE_PSRAM) reg.psram = 1;
 
     return reg.v;
 }
