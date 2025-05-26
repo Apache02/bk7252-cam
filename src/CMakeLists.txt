@@ -32,13 +32,8 @@ function(bk_firmware TARGET)
             COMMAND chmod -x ${TARGET}
             COMMAND ${CMAKE_OBJCOPY} -Obinary ${TARGET} ${TARGET}.bin
             COMMAND chmod -x ${TARGET}.bin
-            COMMAND ${CMAKE_BINARY_DIR}/tools/encrypt_crc/encrypt_crc ${TARGET}.bin ${TARGET}_crc.bin
+            COMMAND python3 ${TOOLS_DIR}/crc ${TARGET}.bin ${TARGET}_crc.bin
             COMMAND cp ${TARGET}_crc.bin ${CMAKE_BINARY_DIR}/app_crc.bin
-    )
-
-    add_dependencies(
-            ${TARGET}
-            encrypt_crc
     )
 endfunction()
 

@@ -4,8 +4,7 @@ project(bk7252_camera C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 20)
 
-# Tools
-add_subdirectory(tools/encrypt_crc)
+set(TOOLS_DIR ${CMAKE_CURRENT_LIST_DIR}/tools)
 
 # Init toolchain
 include(cmake/toolchain.cmake)
