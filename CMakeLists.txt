@@ -9,6 +9,7 @@ add_subdirectory(tools/encrypt_crc)
 
 # Init toolchain
 include(cmake/toolchain.cmake)
+add_compile_options(-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}=.)
 
 include(FreeRTOS_Kernel_import.cmake)
 
