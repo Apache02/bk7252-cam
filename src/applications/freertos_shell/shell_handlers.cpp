@@ -28,6 +28,10 @@ extern void command_free(Console &);
 
 extern void command_blink(Console &c);
 
+extern void command_i2c1_scan(Console &c);
+
+extern void command_i2c1_test(Console &c);
+
 const Console::Handler handlers[] = {
         {"help",         help},
         {"reboot",       reboot},
@@ -47,6 +51,8 @@ const Console::Handler handlers[] = {
         {"timer_delay",  command_time_delay},
         {"uptime",       command_uptime},
         {"cpu_speed",    command_cpu_speed},
+        {"i2c1_scan",    command_i2c1_scan},
+        {"i2c1_test",    command_i2c1_test},
         // required at the end
         {nullptr,        nullptr},
 };

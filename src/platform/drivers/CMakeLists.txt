@@ -15,4 +15,5 @@ add_subdirectory(hardware_efuse)
 add_subdirectory(hardware_flash)
 add_subdirectory(hardware_random)
 add_subdirectory(hardware_time)
+add_subdirectory(hardware_i2c)
 

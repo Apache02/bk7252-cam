@@ -33,4 +33,5 @@ target_link_libraries(
         hardware_wdt
         hardware_gpio
         hardware_efuse
+        hardware_i2c
 )
