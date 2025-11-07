@@ -7,7 +7,7 @@ target_link_libraries(
 )
 target_sources(
         hardware_i2c INTERFACE
-        i2c1_dummy.c
-#        i2c1_sync.c
+#        i2c1_dummy.c
+        i2c1_sync.c
 #        i2c1_async.c
 )

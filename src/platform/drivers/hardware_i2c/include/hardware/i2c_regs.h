@@ -1,6 +1,7 @@
 #pragma once
 
 #include "register_defs.h"
+#include <assert.h>
 
 #define I2C1_BASE_ADDR             (0x0802300)
 #define I2C2_BASE_ADDR             (0x0802600)
@@ -44,5 +45,6 @@ static inline void i2c1_reset() {
 }
 
 static inline void i2c1_set_divider(uint16_t div) {
+    assert((div & ~(0x3FF)) == 0);
     hw_i2c1->config.divider = div & 0x3FF;
 }

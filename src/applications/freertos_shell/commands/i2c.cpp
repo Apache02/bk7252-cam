@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include "shell/Console.h"
 #include "hardware/i2c.h"
+#include "hardware/i2c_regs.h"
 #include "hardware/gpio.h"
 #include "hardware/icu.h"
 
 #define DEBUG_NAME "I2C1"
-
 #include "shell/console_debug.h"
 
 #define count_of(x)     (sizeof(x) / sizeof(x[0]))
@@ -106,7 +106,8 @@ void command_i2c1_test(Console &c) {
     LOG_I("init display");
     for (unsigned int i = 0; i < count_of(ssd1306_init_tbl); i++) {
         int count = i2c1_write(SSD1306_ADDR, ssd1306_init_tbl[i], sizeof(ssd1306_init_tbl[0]), 100);
-        LOG_D("i2c1_write(0x%02x, 0x%02x): %d", ssd1306_init_tbl[i][0], ssd1306_init_tbl[i][1], count);
+        LOG_I("i2c1_write(0x%02x, 0x%02x): %d", ssd1306_init_tbl[i][0], ssd1306_init_tbl[i][1], count);
+        LOG_D("i2c1_config: 0x%08lx", *(uint32_t *)(0x0802300));
     }
 
     // set cursor
@@ -121,14 +122,35 @@ void command_i2c1_test(Console &c) {
 
     for (unsigned int i = 0; i < count_of(ssd1306_set_cursor_tbl); i++) {
         int count = i2c1_write(SSD1306_ADDR, ssd1306_set_cursor_tbl[i], sizeof(ssd1306_set_cursor_tbl[0]), 100);
-        LOG_D("i2c1_write(0x%02x, 0x%02x): %d", ssd1306_set_cursor_tbl[i][0], ssd1306_set_cursor_tbl[i][1], count);
+        LOG_I("i2c1_write(0x%02x, 0x%02x): %d", ssd1306_set_cursor_tbl[i][0], ssd1306_set_cursor_tbl[i][1], count);
+        LOG_D("i2c1_config: 0x%08lx", *(uint32_t *)(0x0802300));
     }
 
     // draw
     LOG_I("draw");
     static const uint8_t ssd1306_draw_example[2] = {SSD1306_DATA, 0xAF};
     int count = i2c1_write(SSD1306_ADDR, ssd1306_draw_example, sizeof(ssd1306_draw_example), 100);
-    LOG_D("i2c1_write(0x%02x, 0x%02x): %d", ssd1306_draw_example[0], ssd1306_draw_example[1], count);
+    LOG_I("i2c1_write(0x%02x, 0x%02x): %d", ssd1306_draw_example[0], ssd1306_draw_example[1], count);
+    LOG_D("i2c1_config: 0x%08lx", *(uint32_t *)(0x0802300));
 
     LOG_I("done.");
+}
+
+void command_i2c1_dump(Console &c) {
+    typeof(hw_i2c1->config) config;
+    config.v = hw_i2c1->config.v;
+
+    LOG_D("i2c_config: 0x%08lx", config.v);
+    LOG_D("           ensmb: 0x%x", config.ensmb);
+    LOG_D("             sta: 0x%x", config.sta);
+    LOG_D("             sto: 0x%x", config.sto);
+    LOG_D("          ack_tx: 0x%x", config.ack_tx);
+    LOG_D("         tx_mode: 0x%x", config.tx_mode);
+    LOG_D("        reserved: 0x%x", config.reserved);
+    LOG_D("         divider: 0x%x", config.divider);
+    LOG_D("              si: 0x%x", config.si);
+    LOG_D("          ack_rx: 0x%x", config.ack_rx);
+    LOG_D("         ack_req: 0x%x", config.ack_req);
+    LOG_D("            busy: 0x%x", config.busy);
+    LOG_D("  reserved_20_31: 0x%x", config.reserved_20_31);
 }

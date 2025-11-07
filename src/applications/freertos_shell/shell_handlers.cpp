@@ -32,6 +32,8 @@ extern void command_i2c1_scan(Console &c);
 
 extern void command_i2c1_test(Console &c);
 
+extern void command_i2c1_dump(Console &c);
+
 const Console::Handler handlers[] = {
         {"help",         help},
         {"reboot",       reboot},
@@ -53,6 +55,7 @@ const Console::Handler handlers[] = {
         {"cpu_speed",    command_cpu_speed},
         {"i2c1_scan",    command_i2c1_scan},
         {"i2c1_test",    command_i2c1_test},
+        {"i2c1_dump",    command_i2c1_dump},
         // required at the end
         {nullptr,        nullptr},
 };
