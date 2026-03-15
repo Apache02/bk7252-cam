@@ -28,7 +28,7 @@ int command_dump(int argc, const char *argv[]) {
     }
 
     for (size_t i = 0; i < count;) {
-        printf("%02x ", *(reinterpret_cast<volatile uint8_t *>(addr)));
+        printf("%02x ", *(reinterpret_cast<volatile uint8_t *>(addr + i)));
         i += sizeof(uint8_t);
         if (i % 16 == 0) {
             printf("\r\n");
@@ -49,7 +49,7 @@ int command_dump32(int argc, const char *argv[]) {
     }
 
     for (size_t i = 0; i < count;) {
-        printf("%08lx ", *(reinterpret_cast<volatile uint32_t *>(addr)));
+        printf("%08lx ", *(reinterpret_cast<volatile uint32_t *>(addr + i)));
         i += sizeof(uint32_t);
         if (i % 16 == 0) {
             printf("\r\n");
