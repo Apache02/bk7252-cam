@@ -1,32 +1,27 @@
 #pragma once
 
-#include "shell/Shell.h"
-#include "shell/commands_common.h"
-#include "shell/commands_beken.h"
+int command_reboot(int argc, const char *argv[]);
 
+int command_watch_reg(int argc, const char *argv[]);
 
-void command_reboot(Console &c);
+int command_sys_clk_source(int argc, const char *argv[]);
 
-void command_watch_reg(Console &c);
+int command_sys_clk_div(int argc, const char *argv[]);
 
-void command_sys_clk_source(Console &c);
+int comand_sys_ctl_print(int argc, const char *argv[]);
 
-void command_sys_clk_div(Console &c);
+int comand_sys_ctl_test(int argc, const char *argv[]);
 
-void comand_sys_ctl_print(Console &c);
+int command_pwm(int argc, const char *argv[]);
 
-void comand_sys_ctl_test(Console &c);
+int command_pwm_stop(int argc, const char *argv[]);
 
-void command_pwm(Console &c);
+int command_gpio_blink(int argc, const char *argv[]);
 
-void command_pwm_stop(Console &c);
+int command_sos(int argc, const char *argv[]);
 
-void command_gpio_blink(Console &c);
+int command_timers_test(int argc, const char *argv[]);
 
-void command_sos(Console &c);
+int command_timers_test2(int argc, const char *argv[]);
 
-void command_timers_test(Console &c);
-
-void command_timers_test2(Console &c);
-
-void command_write_regs(Console &c);
+int command_write_regs(int argc, const char *argv[]);

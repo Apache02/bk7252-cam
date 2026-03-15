@@ -1,7 +1,7 @@
 add_executable(
         shell
         main.cpp
-        handlers.cpp
+        shell_handlers.cpp
 )
 
 file(

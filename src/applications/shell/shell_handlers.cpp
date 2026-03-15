@@ -1,11 +1,8 @@
 #include "shell_handlers.h"
-#include <stdio.h>
-#include "hardware/wdt.h"
-
 #include "shell/commands_common.h"
-#include "shell/commands_freertos.h"
 #include "shell/commands_beken.h"
-#include "shell/Shell.h"
+#include "commands/commands.h"
+#include <stdio.h>
 
 
 static int help(__unused int intc, __unused const char *argv[]) {
@@ -22,35 +19,29 @@ static int help(__unused int intc, __unused const char *argv[]) {
     return 0;
 }
 
-static int reboot(__unused int argc, __unused const char *argv[]) {
-    printf("\r\nreboot system\r\n");
-    wdt_reboot(100);
-    return 0;
-}
-
-extern int command_free(int argc, const char *argv[]);
-
-extern int command_blink(int argc, const char *argv[]);
-
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
-    {"reboot", reboot, nullptr},
     {"echo", command_echo, nullptr},
+    {"reboot", command_reboot, nullptr},
+    {"chip_id", command_chip_id, nullptr},
     {"dump", command_dump, nullptr},
     {"dump32", command_dump32, nullptr},
-    {"chip_id", command_chip_id, nullptr},
+    {"watch_reg", command_watch_reg, nullptr},
     {"partitions", command_partitions, nullptr},
-    {"efuse", command_efuse, nullptr},
-    {"stack", command_stack, nullptr},
-    {"tasks", command_tasks, nullptr},
-    {"free", command_free, nullptr},
-    {"blink", command_blink, nullptr},
-    {"flash_dump", command_flash_dump<uint8_t>, nullptr},
-    {"flash_dump32", command_flash_dump<uint32_t>, nullptr},
-    {"random_test", command_random_test, nullptr},
     {"timer_delay", command_time_delay, nullptr},
-    {"uptime", command_uptime, nullptr},
     {"cpu_speed", command_cpu_speed, nullptr},
+    {"sys_clk_source", command_sys_clk_source, nullptr},
+    {"sys_clk_div", command_sys_clk_div, nullptr},
+    {"sys_ctl_print", comand_sys_ctl_print, nullptr},
+    {"sys_ctl_test", comand_sys_ctl_test, nullptr},
+    {"pwm", command_pwm, nullptr},
+    {"pwm_stop", command_pwm_stop, nullptr},
+    {"sos", command_sos, nullptr},
+    {"gpio_blink", command_gpio_blink, nullptr},
+    {"tt", command_timers_test, nullptr},
+    {"tt2", command_timers_test2, nullptr},
+    {"stack", command_stack, nullptr},
+    {"write_regs", command_write_regs, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };

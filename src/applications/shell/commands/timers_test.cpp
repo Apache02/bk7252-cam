@@ -14,7 +14,7 @@ static void timer_complete(int timer_num) {
     putchar('0' + timer_num);
 }
 
-void command_timers_test(Console &c) {
+int command_timers_test(int argc, const char *argv[]) {
     for (int i = 0; i < 10; i++) {
         int timer_num = timer_create(32000 * 2, timer_complete, true);
 
@@ -28,9 +28,11 @@ void command_timers_test(Console &c) {
         }
     }
     printf("\r\n");
+
+    return 0;
 }
 
-void command_timers_test2(Console &c) {
+int command_timers_test2(int argc, const char *argv[]) {
     printf("%lu\r\n", sys_counter_get_count());
     busy_wait(1);
     printf("%lu\r\n", sys_counter_get_count());
@@ -38,4 +40,6 @@ void command_timers_test2(Console &c) {
     for (int i = 0; i < 6; i++) {
         printf("timer #%d value = %d\r\n", i, timer_read(i));
     }
+
+    return 0;
 }

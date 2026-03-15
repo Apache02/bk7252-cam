@@ -5,7 +5,8 @@
 #include "hardware/cpu.h"
 #include "hardware/timer.h"
 #include "utils/busy_wait.h"
-#include "handlers.h"
+#include "shell_handlers.h"
+#include "shell/console_colors.h"
 
 
 #define LED_PIN         26
@@ -27,7 +28,7 @@ static void init_hardware() {
 }
 
 static void print_welcome() {
-    printf("\r\n%s.\r\n\r\n", COLOR_WHITE("Console is ready"));
+    printf("\r\n%s.\r\n\r\n", COLOR_WHITE("Shell is ready"));
 }
 
 static bool is_connected() {
@@ -41,7 +42,7 @@ int main() {
 
     busy_wait_us(100'000);
 
-    Console *console = new Console(handlers);
+    Shell *console = new Shell(shell_handlers);
 
     for (;;) {
         print_welcome();

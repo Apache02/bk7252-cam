@@ -19,6 +19,7 @@
 typedef struct {
     union {
         uint32_t reg;
+
         struct __packed {
             uint32_t pwm0_enable: 1;
             uint32_t pwm0_int_enable: 1;
@@ -43,6 +44,7 @@ typedef struct {
 
     union {
         uint32_t reg;
+
         struct __packed {
             uint32_t pwm0: 1;
             uint32_t pwm1: 1;
@@ -78,7 +80,7 @@ static void pwm_isr() {
     } while (hw_pwm->int_status.reg & value);
 }
 
-void command_pwm(Console &c) {
+int command_pwm(__unused int argc, __unused const char *argv[]) {
     intc_enable_irq_source(IRQ_SOURCE_PWM);
 
     hw_pwm->params[0].counter = 60'000'000;
@@ -89,7 +91,7 @@ void command_pwm(Console &c) {
 
     printf("enable irq\r\n");
     portENABLE_IRQ();
-//    portENABLE_FIQ();
+    // portENABLE_FIQ();
 
     for (auto i = 0; i < 200; i++) {
         busy_wait_ms(10);
@@ -97,13 +99,17 @@ void command_pwm(Console &c) {
     }
 
     portDISABLE_IRQ();
-//    portDISABLE_FIQ();
+    // portDISABLE_FIQ();
     printf("disabled irq\r\n");
 
     intc_unregister_irq_handler(IRQ_SOURCE_PWM, pwm_isr);
+
+    return 0;
 }
 
-void command_pwm_stop(Console &c) {
+int command_pwm_stop(__unused int argc, __unused const char *argv[]) {
     hw_pwm->ctl.pwm0_int_enable = 0;
     hw_pwm->ctl.pwm0_enable = 0;
+
+    return 0;
 }

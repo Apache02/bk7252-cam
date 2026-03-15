@@ -1,26 +1,28 @@
 #include "commands.h"
+#include "shell/Parser.h"
+#include "shell/console_colors.h"
 #include <stdio.h>
+#include <stdint.h>
 #include "utils/busy_wait.h"
 
 
 #define count_of(x)     (sizeof(x) / sizeof(x[0]))
 
-void command_watch_reg(Console &c) {
-    size_t count = c.packet.take_int().ok_or(10000);
+int command_watch_reg(int argc, const char *argv[]) {
+    size_t count = argc > 1
+                       ? take_int(argv[1]).ok_or(10000)
+                       : 10000;
 
     uint32_t *regs[16];
     size_t regs_count = 0;
-    for (unsigned int r = 0; r < count_of(regs); r++) {
-        regs[r] = (uint32_t *) c.packet.take_int().ok_or(0);
-        if (!regs[r]) {
-            regs_count = r;
-            break;
-        }
+    for (int i = 2, r = 0; i < argc && r < static_cast<int>(count_of(regs)); i++, r++) {
+        regs[r] = reinterpret_cast<uint32_t *>(take_int(argv[i]).ok_or(0));
+        regs_count++;
     }
 
     if (!regs_count) {
         printf(COLOR_RED("Address not defined") "\r\n");
-        return;
+        return 1;
     }
 
     // print header, registers addresses
@@ -41,4 +43,6 @@ void command_watch_reg(Console &c) {
     }
 
     printf("\r\n\r\n");
+
+    return 0;
 }
