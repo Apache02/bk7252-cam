@@ -21,19 +21,19 @@ static void print_stack_region(const char *name, uint32_t color, uint32_t addr_s
     sprintf(used_s, "0x%x (%d%%)", used * sizeof(uint32_t), (int) (used * sizeof(uint32_t) * 100 / size));
 
     printf(
-            "| %10s | 0x%08lx | %8s | 0x%08lx | %12s |\r\n",
-            name, addr_start, size_s, color, used_s
+        "| %10s | 0x%08lx | %8s | 0x%08lx | %12s |\r\n",
+        name, addr_start, size_s, color, used_s
     );
 }
 
-void command_stack(Console &c) {
+int command_stack(__unused int argc, __unused const char *argv[]) {
     printf(
-            "| %10s | %10s | %8s | %10s | %12s |\r\n",
-            "name", "start", "size", "color", "used"
+        "| %10s | %10s | %8s | %10s | %12s |\r\n",
+        "name", "start", "size", "color", "used"
     );
     printf(
-            "| %10s | %10s | %8s | %10s | %12s |\r\n",
-            "----------", "----------", "--------", "----------", "------------"
+        "| %10s | %10s | %8s | %10s | %12s |\r\n",
+        "----------", "----------", "--------", "----------", "------------"
     );
     print_stack_region("unused", 0xaaaaaaaa, (uint32_t) &_stack_unused,
                        ((uint32_t) &_stack_svc) - ((uint32_t) &_stack_unused));
@@ -41,4 +41,6 @@ void command_stack(Console &c) {
     print_stack_region("irq", 0xcccccccc, (uint32_t) &_stack_irq, ((uint32_t) &_stack_fiq) - ((uint32_t) &_stack_irq));
     print_stack_region("fiq", 0xdddddddd, (uint32_t) &_stack_fiq, ((uint32_t) &_stack_sys) - ((uint32_t) &_stack_fiq));
     print_stack_region("sys", 0xeeeeeeee, (uint32_t) &_stack_sys, ((uint32_t) ram_end) - ((uint32_t) &_stack_sys));
+
+    return 0;
 }

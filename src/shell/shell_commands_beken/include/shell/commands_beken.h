@@ -1,22 +1,22 @@
 #pragma once
 
-#include "shell/Console.h"
+#include "shell/Shell.h"
 
-void command_partitions(Console &c);
+int command_partitions(int argc, const char *argv[]);
 
-void command_stack(Console &c);
+int command_stack(int argc, const char *argv[]);
 
-void command_chip_id(Console &c);
+int command_chip_id(int argc, const char *argv[]);
 
-void command_efuse(Console &c);
+int command_efuse(int argc, const char *argv[]);
 
-void command_random_test(Console &c);
+int command_random_test(int argc, const char *argv[]);
 
 template<typename T>
-void command_flash_dump(__unused Console &c);
+int command_flash_dump(int argc, const char *argv[]);
 
-void command_time_delay(Console &c);
+int command_time_delay(int argc, const char *argv[]);
 
-void command_uptime(Console &c);
+int command_uptime(int argc, const char *argv[]);
 
-void command_cpu_speed(Console &c);
+int command_cpu_speed(int argc, const char *argv[]);

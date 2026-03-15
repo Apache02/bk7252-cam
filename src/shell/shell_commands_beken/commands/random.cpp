@@ -3,7 +3,8 @@
 #include "hardware/random.h"
 
 
-void command_random_test(__unused Console &c) {
+int command_random_test(__unused int argc, __unused const char *argv[]) {
     trng_enable();
     printf("0x%08lx\r\n", get_random());
+    return 0;
 }

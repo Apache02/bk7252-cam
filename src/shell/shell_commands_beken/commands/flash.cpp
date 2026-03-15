@@ -1,4 +1,5 @@
 #include "shell/commands_beken.h"
+#include "shell/Parser.h"
 #include <stdio.h>
 #include "hardware/flash.h"
 
@@ -22,16 +23,20 @@ static void print_dump(const T *buf, uint32_t count) {
 }
 
 template<typename T>
-void command_flash_dump(__unused Console &c) {
-    auto addr = c.packet.take_int().ok_or(DUMP_DEFAULT_ADDRESS);
+int command_flash_dump(__unused int argc, __unused const char *argv[]) {
+    auto addr = argc == 2
+                    ? take_int(argv[1]).ok_or(DUMP_DEFAULT_ADDRESS)
+                    : DUMP_DEFAULT_ADDRESS;
     printf("addr 0x%08x\r\n", addr);
 
     T buf[256 / sizeof(T)] = {0};
     flash_read(addr, (uint8_t *) buf, sizeof(buf));
 
     print_dump(buf, count_of(buf));
+
+    return 0;
 }
 
-template void command_flash_dump<uint8_t>(Console &c);
+template int command_flash_dump<uint8_t>(int argc, const char *argv[]);
 
-template void command_flash_dump<uint32_t>(Console &c);
+template int command_flash_dump<uint32_t>(int argc, const char *argv[]);

@@ -1,7 +1,8 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <stdio.h>
-#include "shell/Console.h"
+#include "shell/Shell.h"
+#include "shell/console_colors.h"
 #include "hardware/gpio.h"
 
 
@@ -24,17 +25,30 @@ static void vTaskBlink(__unused void *pvParams) {
     }
 }
 
-void command_blink(Console &c) {
-    const char *pAction = c.packet.take_rest_string();
+static void usage() {
+    printf("\r\n");
+    printf("Usage:\r\n");
+    printf("    blink start\r\n");
+    printf("    blink stop\r\n");
+    printf("    blink stop all\r\n");
+    printf("\r\n");
+}
 
-    if (strcmp(pAction, "start") == 0) {
+int command_blink(int argc, const char *argv[]) {
+    if (argc < 2) {
+        printf(COLOR_RED("Arguments required") "\r\n");
+        usage();
+        return 1;
+    }
+
+    if (strcmp(argv[1], "start") == 0) {
         auto result = xTaskCreate(
-                vTaskBlink,
-                TASK_NAME,
-                configMINIMAL_STACK_SIZE,
-                NULL,
-                configMAX_PRIORITIES - 2,
-                &pxTaskBlink
+            vTaskBlink,
+            TASK_NAME,
+            configMINIMAL_STACK_SIZE,
+            NULL,
+            configMAX_PRIORITIES - 2,
+            &pxTaskBlink
         );
 
         if (result == pdTRUE) {
@@ -42,12 +56,13 @@ void command_blink(Console &c) {
             printf(COLOR_GREEN("Task created") "\r\n");
         } else {
             printf(COLOR_RED("Task not created") "\r\n");
+            return 1;
         }
 
-        return;
+        return 0;
     }
 
-    if (strcmp(pAction, "stop") == 0) {
+    if (argc == 2 && strcmp(argv[1], "stop") == 0) {
         if (pxTaskBlink) {
             vTaskDelete(pxTaskBlink);
             printf("done\r\n");
@@ -57,24 +72,24 @@ void command_blink(Console &c) {
             printf(COLOR_RED("task not found\r\n"));
         }
 
-        return;
+        return 0;
     }
 
-    if (strcmp(pAction, "stop all") == 0) {
+    if (argc == 3 && strcmp(argv[1], "stop") == 0 && strcmp(argv[2], "all") == 0) {
         uint32_t uxArrayLength = uxTaskGetNumberOfTasks();
         size_t xTasksBufferSize = (sizeof(TaskStatus_t) * uxArrayLength);
         TaskStatus_t *pxTasksBuffer = static_cast<TaskStatus_t *>(pvPortMalloc(xTasksBufferSize));
 
         if (!pxTasksBuffer) {
             printf(COLOR_RED("Can't allocate %d bytes") "\r\n", xTasksBufferSize);
-            return;
+            return 3;
         }
 
         size_t uxDeletedCount = 0;
         uxArrayLength = uxTaskGetSystemState(pxTasksBuffer, uxArrayLength, NULL);
         if (uxArrayLength > 0) {
-            for (unsigned int i=0; i < uxArrayLength; i++) {
-                if (strcmp(pxTasksBuffer[i].pcTaskName, TASK_NAME) !=  0) continue;
+            for (unsigned int i = 0; i < uxArrayLength; i++) {
+                if (strcmp(pxTasksBuffer[i].pcTaskName, TASK_NAME) != 0) continue;
                 vTaskDelete(pxTasksBuffer[i].xHandle);
                 uxDeletedCount++;
             }
@@ -87,10 +102,10 @@ void command_blink(Console &c) {
             printf("required tasks not found\r\n");
         }
 
-        return;
+        return 0;
     }
 
-    printf(COLOR_RED("Action is not defined") "\r\n");
-    printf("Usage: %s <%s|%s|%s>\r\n", "blink", "start", "stop", "stop all");
-    return;
+    printf(COLOR_RED("Invalid required") "\r\n");
+    usage();
+    return 1;
 }

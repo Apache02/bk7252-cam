@@ -28,6 +28,7 @@ target_link_libraries(
         platform_freertos
         shell_main
         shell_commands_common
+        shell_commands_freertos
         shell_commands_beken
         FreeRTOS-Kernel-Heap4
         hardware_wdt

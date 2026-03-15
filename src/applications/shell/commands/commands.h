@@ -1,6 +1,6 @@
 #pragma once
 
-#include "shell/Console.h"
+#include "shell/Shell.h"
 #include "shell/commands_common.h"
 #include "shell/commands_beken.h"
 

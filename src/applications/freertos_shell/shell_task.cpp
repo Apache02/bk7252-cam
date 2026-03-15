@@ -3,12 +3,13 @@
 
 #include <stdio.h>
 #include "shell_handlers.h"
+#include "shell/console_colors.h"
 
 
-Console console(handlers);
+Shell console(shell_handlers);
 
 static void print_welcome() {
-    printf("\r\n%s.\r\n\r\n", COLOR_WHITE("Console is ready"));
+    printf("\r\n%s.\r\n\r\n", COLOR_WHITE("Shell is ready"));
 }
 
 static bool is_connected() {

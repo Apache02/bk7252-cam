@@ -1,6 +1,6 @@
 #pragma once
 
-#include "shell/Console.h"
+#include "shell/Shell.h"
 
 
 extern const Console::Handler handlers[];

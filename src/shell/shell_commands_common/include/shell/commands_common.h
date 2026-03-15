@@ -1,10 +1,7 @@
 #pragma once
 
-#include "shell/Console.h"
+int command_echo(int argc, const char *argv[]);
 
-void command_echo(Console &c);
+int command_dump(int argc, const char *argv[]);
 
-void command_dump(Console &c);
-
-void command_dump32(Console &c);
-
+int command_dump32(int argc, const char *argv[]);

@@ -14,7 +14,7 @@ struct fal_partition {
     uint32_t reserved;
 };
 
-void command_partitions(Console &c) {
+int command_partitions(__unused int argc, __unused const char *argv[]) {
     // find partitions table
     struct fal_partition *tbl = NULL;
     for (uint32_t addr = 0xe000; addr < 0xf000; addr += sizeof(tbl->magic_word)) {
@@ -26,7 +26,7 @@ void command_partitions(Console &c) {
 
     if (!tbl) {
         printf("Error: Partitions table not found!\r\n");
-        return;
+        return 1;
     }
 
     printf("| %16s | %16s | %10s | %10s |\r\n", "name", "flash name", "addr", "size");
@@ -36,5 +36,6 @@ void command_partitions(Console &c) {
         sprintf(tmp_len, "0x%x", tbl->len);
         printf("| %16s | %16s | 0x%08lx | %10s |\r\n", tbl->name, tbl->flash_name, tbl->offset, tmp_len);
     }
-}
 
+    return 0;
+}
