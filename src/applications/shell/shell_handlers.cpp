@@ -22,6 +22,7 @@ static int help(__unused int intc, __unused const char *argv[]) {
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
     {"echo", command_echo, nullptr},
+    {"crc32", command_crc32, nullptr},
     {"reboot", command_reboot, nullptr},
     {"chip_id", command_chip_id, nullptr},
     {"dump", command_dump, nullptr},

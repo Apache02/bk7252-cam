@@ -34,3 +34,4 @@ target_link_libraries(
 )
 
 bk_firmware(shell)
+bk_firmware_iram(shell)

@@ -30,6 +30,7 @@ target_link_libraries(
         shell_commands_common
         shell_commands_freertos
         shell_commands_beken
+        shell_commands_iram
         FreeRTOS-Kernel-Heap4
         hardware_wdt
         hardware_gpio

@@ -12,3 +12,5 @@ target_link_libraries(
         hardware_uart
         utils_busy_wait
 )
+
+bk_firmware_iram(hello)

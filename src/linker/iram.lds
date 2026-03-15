@@ -1,24 +1,24 @@
 MEMORY
 {
-    FLASH(rx) : ORIGIN = 0x00010000, LENGTH = 1215k
-    RAM(rwx) : ORIGIN =  0x00400020, LENGTH = 256k - 0x20
+    IRAM(rwx) : ORIGIN = 0x00900000, LENGTH = 256k
+    RAM(rwx)  : ORIGIN = 0x00400020, LENGTH = 256k - 0x20
 }
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
 OUTPUT_ARCH(arm)
 ENTRY(_vector_start);
-_vector_start = ORIGIN(FLASH);
+_vector_start = ORIGIN(IRAM);
 
 
 SECTIONS
 {
-    /* vectors go to vectors region */
-    . = ORIGIN(FLASH);
+    /* vectors go to start of IRAM */
+    . = ORIGIN(IRAM);
     .vectors :
     {
         KEEP(*(*.vectors))
         KEEP( *(*.rom1))
-    } > FLASH
+    } > IRAM
 
     /* instructions go to the text region*/
 
@@ -30,13 +30,12 @@ SECTIONS
         *(.text)
         *(.text.*)
         *(.stub)
-        /* .gnu.warning sections are handled specially by elf32.em.  */
         *(.gnu.warning)
         *(.gnu.linkonce.t*)
         *(.glue_7t) *(.glue_7)
 
         KEEP(*(.fini))
-    } > FLASH
+    } > IRAM
 
     .rodata ALIGN(8):
     {
@@ -44,7 +43,7 @@ SECTIONS
         *(.rodata.*)
         *(.gnu.linkonce.r*)
         *(.eh_frame)
-    } > FLASH
+    } > IRAM
 
 
     __exidx_start = .;
@@ -54,30 +53,28 @@ SECTIONS
         _begin_data = .;
         . = . + SIZEOF(.data);
         . = ALIGN(4);
-    } > FLASH
+    } > IRAM
 
     __exidx_end = .;
 
+    /* .data VMA is in RAM, but LMA (load address) is in IRAM right after .rodata */
     .data : AT ( _begin_data )
     {
         *(.data .data.*)
         *(.sdata)
 
         . = ALIGN(4);
-        /* preinit data */
         PROVIDE_HIDDEN (__preinit_array_start = .);
         KEEP(*(.preinit_array))
         PROVIDE_HIDDEN (__preinit_array_end = .);
 
         . = ALIGN(4);
-        /* init data */
         PROVIDE_HIDDEN (__init_array_start = .);
         KEEP(*(SORT(.init_array.*)))
         KEEP(*(.init_array))
         PROVIDE_HIDDEN (__init_array_end = .);
 
         . = ALIGN(4);
-        /* finit data */
         PROVIDE_HIDDEN (__fini_array_start = .);
         KEEP(*(SORT(.fini_array.*)))
         KEEP(*(.fini_array))
@@ -85,7 +82,6 @@ SECTIONS
 
         KEEP(*(.jcr*))
         . = ALIGN(4);
-        /* All data end */
 
         *(.gnu.linkonce.d*)
         SORT(CONSTRUCTORS)
@@ -93,12 +89,10 @@ SECTIONS
 
     _end_data = .;
 
-    /* Loader will copy data from _flash_begin to _ram_begin..ram_end */
     _data_flash_begin = LOADADDR(.data);
     _data_ram_begin = ADDR(.data);
     _data_ram_end = .;
 
-    /* uninitialized data section - global   int i; */
     .bss ALIGN(8):
     {
         _bss_start = .;
@@ -108,9 +102,6 @@ SECTIONS
         *(.sbss)
         *(.dynbss)
         *(COMMON)
-        /* Align here to ensure that the .bss section occupies space up to
-           _end.  Align after .bss to ensure correct alignment even if the
-           .bss section disappears because there are no input sections.  */
         . = ALIGN(32 / 8);
         _bss_end = .;
         __bss_end__ = .;
@@ -119,13 +110,8 @@ SECTIONS
     . = ALIGN (8);
     _empty_ram = .;
 
-    /* This symbol defines end of code/data sections. Heap starts here. */
     PROVIDE(end = .);
 
-    /* _stack symbol defines initial stack bottom addres. Stack grows to lower addresses.
-       Typically you set this to be top of your RAM. Note: code never checks, if stack
-       grows into heap area!
-    */
     PROVIDE(_stack_unused      = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0 - 0x10); /* 0x10*/
     PROVIDE(_stack_svc         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0); /* 0x3F0*/
     PROVIDE(_stack_irq         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0); /* 0xFF0*/

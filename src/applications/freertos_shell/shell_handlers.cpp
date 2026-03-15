@@ -5,6 +5,7 @@
 #include "shell/commands_common.h"
 #include "shell/commands_freertos.h"
 #include "shell/commands_beken.h"
+#include "shell/commands_iram.h"
 #include "shell/Shell.h"
 
 
@@ -35,6 +36,7 @@ extern int command_blink(int argc, const char *argv[]);
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
     {"reboot", reboot, nullptr},
+    {"crc32", command_crc32, nullptr},
     {"echo", command_echo, nullptr},
     {"dump", command_dump, nullptr},
     {"dump32", command_dump32, nullptr},
@@ -51,6 +53,8 @@ const Shell::Handler shell_handlers[] = {
     {"timer_delay", command_time_delay, nullptr},
     {"uptime", command_uptime, nullptr},
     {"cpu_speed", command_cpu_speed, nullptr},
+    {"iram_load", command_iram_load, nullptr},
+    {"iram_jump", command_iram_jump, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };
