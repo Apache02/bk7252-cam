@@ -57,6 +57,8 @@ def readline(ser: serial.Serial, timeout: float = 2.0) -> tuple[str, bool]:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         c = ser.read(1)
+        if not c:
+            continue
         if c in (b'\r', b'\n'):
             line = buf.decode(errors="ignore").strip()
             if line == '':
@@ -150,7 +152,7 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int
     # Read echo
     echo, is_timeout = readline(ser, timeout)
     if echo != cmd.strip():
-        log(f"echo mismatch: {echo!r}")
+        log_warn(f"echo mismatch: {echo!r}")
 
     # Wait for READY
     ready, is_timeout = readline(ser, timeout)
@@ -265,9 +267,13 @@ def main():
                 break
 
             print()
+            log_warn(f"Upload failed (attempt {attempt}/2), retrying...")
+            print()
             ser.write(b"\x03")
             ser.reset_input_buffer()
             wait_for_prompt(ser, 2)
+        else:
+            die("Upload failed after 2 attempts.")
 
         # Step 3 — jump
         if not args.no_jump:
