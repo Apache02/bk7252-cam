@@ -24,7 +24,7 @@ import serial
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Logging
 # ---------------------------------------------------------------------------
 
 def log(msg: str):
@@ -32,6 +32,12 @@ def log(msg: str):
 
 def log_ok(msg: str):
     print(f"  \033[32m✓\033[0m {msg}", flush=True)
+
+def log_debug(msg: str):
+    print(f"  \033[34m#\033[0m {msg}", flush=True)
+
+def log_warn(msg: str):
+    print(f"  \033[33m!\033[0m {msg}", flush=True)
 
 def log_err(msg: str):
     print(f"  \033[31m✗\033[0m {msg}", flush=True)
@@ -41,51 +47,38 @@ def die(msg: str):
     sys.exit(1)
 
 
-def readline(ser: serial.Serial, timeout: float = 10.0) -> str:
-    """Read one line, strip CR/LF, decode."""
-    ser.timeout = timeout
-    line = ser.readline().decode(errors="ignore").strip()
-    return line
+# ---------------------------------------------------------------------------
+# Serial helpers
+# ---------------------------------------------------------------------------
+
+def readline(ser: serial.Serial, timeout: float = 2.0) -> tuple[str, bool]:
+    ser.timeout = 0.1
+    buf = b''
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        c = ser.read(1)
+        if c in (b'\r', b'\n'):
+            line = buf.decode(errors="ignore").strip()
+            if line == '':
+                continue
+            return line, False
+        buf += c
+    return buf.decode(errors="ignore").strip(), True  # True = timeout
 
 
-def wait_for_prompt(ser: serial.Serial, timeout: float = 10.0) -> bool:
+def wait_for_prompt(ser: serial.Serial, timeout: float = 2.0) -> bool:
     """
     Read lines until we see a bare '>' prompt (no spaces — shell convention).
     Returns True on success, False on timeout.
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        ser.timeout = max(0.1, deadline - time.monotonic())
-        line = ser.readline().decode(errors="ignore").strip()
+        line, is_timeout = readline(ser, 1)
         if line == ">":
             return True
+        if is_timeout:
+            ser.write(b"\x03")
     return False
-
-
-def send_command(ser: serial.Serial, cmd: str, timeout: float = 10.0) -> list[str]:
-    """
-    Send a shell command and collect response lines until the next '>' prompt.
-    Returns list of non-empty response lines (prompt itself is not included).
-    """
-    ser.write((cmd + "\n").encode())
-
-    # First line echoed back is the command itself (shell echoes input)
-    echo = readline(ser, timeout)
-    if echo != cmd.strip():
-        # Not a match — could be noise; log but continue
-        log(f"  echo mismatch: expected {cmd.strip()!r}, got {echo!r}")
-
-    lines = []
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        ser.timeout = max(0.1, deadline - time.monotonic())
-        line = ser.readline().decode(errors="ignore").strip()
-        if line == ">":
-            break
-        if line:
-            lines.append(line)
-
-    return lines
 
 
 # ---------------------------------------------------------------------------
@@ -119,8 +112,9 @@ def crc32(data: bytes) -> int:
 
 def step_reboot(ser: serial.Serial, timeout: float):
     log("Sending Ctrl+C to clear shell input...")
-    ser.write(b"\x03")
+    ser.write(b"\x03\x03")
     time.sleep(0.2)
+    ser.reset_input_buffer()
 
     log("Sending reboot command...")
     ser.write(b"reboot\n")
@@ -129,6 +123,18 @@ def step_reboot(ser: serial.Serial, timeout: float):
     if not wait_for_prompt(ser, timeout):
         die("Timed out waiting for shell prompt after reboot.")
     log_ok("Shell is ready.")
+
+
+def step_ensure_prompt(ser: serial.Serial):
+    """Used with --no-reboot: send Ctrl+C, expect prompt immediately."""
+    ser.write(b"\x03")
+    ser.reset_input_buffer()
+
+    if not wait_for_prompt(ser, timeout=2.0):
+        die("No shell prompt detected. Is the device running?")
+    log_ok("Shell is ready.")
+    time.sleep(0.2)
+    ser.reset_input_buffer()
 
 
 def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int:
@@ -142,12 +148,12 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int
     ser.write((cmd + "\n").encode())
 
     # Read echo
-    echo = readline(ser, timeout)
+    echo, is_timeout = readline(ser, timeout)
     if echo != cmd.strip():
         log(f"echo mismatch: {echo!r}")
 
     # Wait for READY
-    ready = readline(ser, timeout)
+    ready, is_timeout = readline(ser, timeout)
     if ready != "READY":
         die(f"Expected READY, got: {ready!r}")
     log_ok("Device is ready to receive data.")
@@ -168,7 +174,7 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int
     print()  # newline after progress
 
     # Wait for DONE <crc32>
-    done_line = readline(ser, timeout)
+    done_line, is_timeout = readline(ser, timeout)
     if not done_line.startswith("DONE"):
         die(f"Expected DONE <crc32>, got: {done_line!r}")
 
@@ -180,11 +186,13 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int
     return fw_crc
 
 
-def step_verify(data: bytes, fw_crc: int):
+def step_verify(data: bytes, fw_crc: int) -> bool:
     local_crc = crc32(data)
     if local_crc != fw_crc:
-        die(f"CRC mismatch! local=0x{local_crc:08x} firmware=0x{fw_crc:08x}")
+        log_warn(f"CRC mismatch! local=0x{local_crc:08x} firmware=0x{fw_crc:08x}")
+        return False
     log_ok(f"CRC32 OK: 0x{local_crc:08x}")
+    return True
 
 
 def step_jump(ser: serial.Serial, addr: int, timeout: float):
@@ -245,16 +253,21 @@ def main():
             step_reboot(ser, args.timeout)
         else:
             print("[ Step 1/3 ] Skipping reboot, waiting for prompt...")
-            if not wait_for_prompt(ser, args.timeout):
-                die("Timed out waiting for shell prompt.")
-            log_ok("Shell is ready.")
+            step_ensure_prompt(ser)
         print()
 
         # Step 2 — upload binary
-        print(f"[ Step 2/3 ] Uploading {len(data)} bytes to 0x{addr:08x}...")
-        fw_crc = step_load(ser, addr, data, args.timeout)
-        step_verify(data, fw_crc)
-        print()
+        for attempt in range(1, 3):
+            print(f"[ Step 2/3 ] Uploading {len(data)} bytes to 0x{addr:08x}...")
+            fw_crc = step_load(ser, addr, data, args.timeout)
+            if step_verify(data, fw_crc):
+                print()
+                break
+
+            print()
+            ser.write(b"\x03")
+            ser.reset_input_buffer()
+            wait_for_prompt(ser, 2)
 
         # Step 3 — jump
         if not args.no_jump:
