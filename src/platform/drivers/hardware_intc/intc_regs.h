@@ -23,6 +23,7 @@ typedef struct {
     intc_trap_cb *pabort;
     intc_trap_cb *dabort;
     intc_trap_cb *reserved;
+    intc_trap_cb *_pad;
 } bk_interrupt_trap_tbl_t;
 
 #define bk_interrupt_trap_ram  ((volatile bk_interrupt_trap_tbl_t *)0x00400000)

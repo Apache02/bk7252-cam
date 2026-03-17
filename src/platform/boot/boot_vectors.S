@@ -1,13 +1,16 @@
 /**
  ****************************************************************************************
  *
- * @file boot_vectors.s
+ * @file boot_vectors.S
  *
  * @brief ARM Exception Vectors table.
  *
  * Copyright (C) Beken Corp 2017-2026
  *
  ****************************************************************************************
+ */
+
+#include "boot.h"
 
  
 /*
@@ -19,13 +22,6 @@
  */
 
 	.globl _vector_start
-	.globl	_undefined_instruction
-	.globl	_software_interrupt
-	.globl	_prefetch_abort
-	.globl	_data_abort
-	.globl	_not_used
-	.globl	_irq
-	.globl	_fiq
 
 /*
  *************************************************************************
@@ -79,49 +75,49 @@ _fiq:				    .word fiq_handler
 		.align	5
 irq_handler:
 	STMFD  sp!,{r0-r1}
-	LDR    R1, =0x400000
+	LDR    R1, =RAM_VECTORS_IRQ_ADDR
 	LDR    r0, [R1]
 	BX     r0
 
 		.align	5
 fiq_handler:
 	STMFD  sp!,{r0-r1}
-	LDR    R1, =0x400004
+	LDR    R1, =RAM_VECTORS_FIQ_ADDR
 	LDR    r0, [R1]
 	BX     r0
 
 		.align	5
 boot_swi:
 	STMFD  sp!,{r0-r1}
-	LDR    R1, =0x400008
+	LDR    R1, =RAM_VECTORS_SWI_ADDR
 	LDR    r0, [R1]
 	BX     r0
 
          .align  5
 boot_undefined:
  	STMFD  sp!,{r0-r1}
- 	LDR    R1, =0x40000c
+ 	LDR    R1, =RAM_VECTORS_UNDEFINED_ADDR
  	LDR    r0, [R1]
  	BX     r0
 
          .align  5
 boot_pabort:
  	STMFD  sp!,{r0-r1}
- 	LDR    R1, =0x400010
+ 	LDR    R1, =RAM_VECTORS_PABORT_ADDR
  	LDR    r0, [R1]
  	BX     r0
 
          .align  5
 boot_dabort:
  	STMFD  sp!,{r0-r1}
- 	LDR    R1, =0x400014
+ 	LDR    R1, =RAM_VECTORS_DABORT_ADDR
  	LDR    r0, [R1]
  	BX     r0
 
          .align  5
 boot_reserved:
  	STMFD  sp!,{r0-r1}
- 	LDR    R1, =0x400018
+ 	LDR    R1, =RAM_VECTORS_RESERVED_ADDR
  	LDR    r0, [R1]
  	BX     r0
 

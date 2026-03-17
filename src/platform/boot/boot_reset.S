@@ -80,12 +80,12 @@ boot_stack_len_SYS:
 	.globl	boot_reset
 
 boot_reset:
-    //Disable IRQ and FIQ before starting anything
+    // Disable IRQ and FIQ before starting anything
     MRS   R0, CPSR
     ORR   R0, R0, #0xC0
     MSR   CPSR_c, R0
 
-    //Setup all stacks //Note: Abt and Usr mode are not used
+    // Setup all stacks //Note: Abt and Usr mode are not used
 	BOOT_CHANGE_MODE BOOT_MODE_SYS BOOT_MODE_MASK
 	BOOT_SET_STACK   boot_stack_base_SYS boot_stack_len_SYS BOOT_COLOR_SYS
 
@@ -118,8 +118,8 @@ boot_reset:
     // Init the BSS section
     BL _sysboot_zi_init
     
-    //==================
-    //Clear Registers
+    // ==================
+    // Clear Registers
     MOV R0, #0
     MOV R1, #0
     MOV R2, #0
@@ -135,30 +135,3 @@ boot_reset:
     MOV R12, #0
 
     B _start
-
-/*FUNCTION:     _sysboot_copy_data_to_ram*/
-/*DESCRIPTION:  copy main stack code from FLASH/ROM to SRAM*/
-_sysboot_copy_data_to_ram:
-    LDR     R0, =_data_flash_begin
-    LDR     R1, =_data_ram_begin
-    LDR     R2, =_data_ram_end
-	
-4: CMP R1, R2
-    LDRLO   R4, [R0], #4
-    STRLO   R4, [R1], #4
-    BLO     4b
-    BX LR
-        
-/*FUNCTION:     _sysboot_zi_init*/
-/*DESCRIPTION:  Initialise Zero-Init Data Segment*/
-_sysboot_zi_init:
-    LDR     R0, =_bss_start
-    LDR     R1, =_bss_end
-    
-    MOV R3, R1
-    MOV R4, R0
-    MOV R2, #0
-5: CMP R4, R3
-    STRLO R2, [R4], #4
-    BLO 5b
-    BX LR
