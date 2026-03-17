@@ -30,6 +30,10 @@ void uart1_flush();
 
 void uart2_flush();
 
+void uart1_set_baudrate(unsigned long baudrate);
+
+void uart2_set_baudrate(unsigned long baudrate);
+
 
 #ifdef __cplusplus
 }

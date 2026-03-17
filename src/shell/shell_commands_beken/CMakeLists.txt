@@ -25,4 +25,5 @@ target_link_libraries(
         hardware_flash
         hardware_random
         hardware_time
+        hardware_uart
 )

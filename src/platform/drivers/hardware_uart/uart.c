@@ -12,9 +12,13 @@
 #define RX_STOP_DETECT_TIME128          (2)
 #define RX_STOP_DETECT_TIME256          (3)
 
+#define DEFAULT_CLK_SOURCE              PERI_CLK_26M_XTAL
+#define DEFAULT_CLK_HZ                  (26000000)
+#define DEFAULT_BAUDRATE                (115200)
+
 
 static void uart_init(volatile hw_uart_t *uart) {
-    uint32_t baud_div = 26000000 / 115200;
+    const uint32_t baud_div = DEFAULT_CLK_HZ / DEFAULT_BAUDRATE;
 
     uart->config.tx_enable = 1;
     uart->config.rx_enable = 1;
@@ -41,17 +45,29 @@ static int uart_read_byte(volatile hw_uart_t *uart) {
 }
 
 static int uart_write_byte(volatile hw_uart_t *uart, char byte) {
-    while (!uart->fifo_status.wr_ready) {
-        /* nothing */;
-    }
+    while (!uart->fifo_status.wr_ready);
     uart->fifo_data.tx = byte;
 
     return 1;
 }
 
+static void uart_flush(volatile hw_uart_t *uart) {
+    uint32_t tmp = uart->config.v;
+
+    while (!uart->fifo_status.tx_empty);
+    uart->config.rx_enable = 0;
+    uart->config.tx_enable = 0;
+    uart->config.v = tmp;
+}
+
+static void uart_set_baudrate(volatile hw_uart_t *uart, unsigned long baudrate) {
+    uint32_t baud_div = DEFAULT_CLK_HZ / baudrate;
+    uart->config.clk_divid = baud_div;
+}
+
 void uart1_init() {
     hw_icu->peri_clk_pwd.uart1 = 0;
-    hw_icu->peri_clk_mux.uart1 = PERI_CLK_26M_XTAL;
+    hw_icu->peri_clk_mux.uart1 = DEFAULT_CLK_SOURCE;
 
     gpio_config_function(GPIO_FUNC_UART1);
 
@@ -60,7 +76,7 @@ void uart1_init() {
 
 void uart2_init() {
     hw_icu->peri_clk_pwd.uart2 = 0;
-    hw_icu->peri_clk_mux.uart2 = PERI_CLK_26M_XTAL;
+    hw_icu->peri_clk_mux.uart2 = DEFAULT_CLK_SOURCE;
 
     gpio_config_function(GPIO_FUNC_UART2);
 
@@ -92,19 +108,17 @@ int uart2_write_byte(char c) {
 }
 
 void uart1_flush() {
-    uint32_t tmp = hw_uart1->config.v;
-
-    while (!hw_uart1->fifo_status.tx_empty);
-    hw_uart1->config.rx_enable = 0;
-    hw_uart1->config.tx_enable = 0;
-    hw_uart1->config.v = tmp;
+    uart_flush(hw_uart1);
 }
 
 void uart2_flush() {
-    uint32_t tmp = hw_uart2->config.v;
+    uart_flush(hw_uart2);
+}
 
-    while (!hw_uart2->fifo_status.tx_empty);
-    hw_uart2->config.rx_enable = 0;
-    hw_uart2->config.tx_enable = 0;
-    hw_uart2->config.v = tmp;
+void uart1_set_baudrate(unsigned long baudrate) {
+    uart_set_baudrate(hw_uart1, baudrate);
+}
+
+void uart2_set_baudrate(unsigned long baudrate) {
+    uart_set_baudrate(hw_uart2, baudrate);
 }

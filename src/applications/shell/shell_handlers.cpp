@@ -43,6 +43,7 @@ const Shell::Handler shell_handlers[] = {
     {"tt2", command_timers_test2, nullptr},
     {"stack", command_stack, nullptr},
     {"write_regs", command_write_regs, nullptr},
+    {"uart_baud", command_uart_baudrate, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };
