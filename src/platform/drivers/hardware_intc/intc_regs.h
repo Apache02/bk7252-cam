@@ -13,20 +13,20 @@
 #define ICU_INT_STATUS                      (ICU_BASE + 19 * 4)
 
 
-typedef void (intc_trap_cb)(void);
+typedef void (_func_t)(void);
 
 typedef struct {
-    intc_trap_cb *irq;
-    intc_trap_cb *fiq;
-    intc_trap_cb *swi;
-    intc_trap_cb *undefined;
-    intc_trap_cb *pabort;
-    intc_trap_cb *dabort;
-    intc_trap_cb *reserved;
-    intc_trap_cb *_pad;
-} bk_interrupt_trap_tbl_t;
+    _func_t *irq;
+    _func_t *fiq;
+    _func_t *swi;
+    _func_t *undefined;
+    _func_t *pabort;
+    _func_t *dabort;
+    _func_t *reserved;
+    _func_t *_pad;
+} ram_vectors_tbl_t;
 
-#define bk_interrupt_trap_ram  ((volatile bk_interrupt_trap_tbl_t *)0x00400000)
+#define ram_vectors     ((volatile ram_vectors_tbl_t *)0x00400000)
 
 
 typedef struct {

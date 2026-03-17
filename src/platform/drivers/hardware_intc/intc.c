@@ -19,20 +19,20 @@ extern void do_dabort(void);
 extern void do_reserved(void);
 
 
-static inline void init_ram_traps() {
-    bk_interrupt_trap_ram->irq = do_irq;
-    bk_interrupt_trap_ram->fiq = do_fiq;
-    bk_interrupt_trap_ram->swi = do_swi;
-    bk_interrupt_trap_ram->undefined = do_undefined;
-    bk_interrupt_trap_ram->pabort = do_pabort;
-    bk_interrupt_trap_ram->dabort = do_dabort;
-    bk_interrupt_trap_ram->reserved = do_reserved;
+static inline void init_ram_vectors() {
+    ram_vectors->irq = do_irq;
+    ram_vectors->fiq = do_fiq;
+    ram_vectors->swi = do_swi;
+    ram_vectors->undefined = do_undefined;
+    ram_vectors->pabort = do_pabort;
+    ram_vectors->dabort = do_dabort;
+    ram_vectors->reserved = do_reserved;
 }
 
 void intc_init() {
     memset(&intc_manager, 0, sizeof(intc_manager));
 
-    init_ram_traps();
+    init_ram_vectors();
 
     icu_interrupt_enable_reg->v = 0;
 
