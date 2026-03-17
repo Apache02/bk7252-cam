@@ -21,6 +21,7 @@ import sys
 import time
 import argparse
 import serial
+import zlib
 
 
 # ---------------------------------------------------------------------------
@@ -81,31 +82,6 @@ def wait_for_prompt(ser: serial.Serial, timeout: float = 2.0) -> bool:
         if is_timeout:
             ser.write(b"\x03")
     return False
-
-
-# ---------------------------------------------------------------------------
-# CRC32 (must match firmware implementation)
-# ---------------------------------------------------------------------------
-
-def _build_crc32_table() -> list[int]:
-    table = []
-    for i in range(256):
-        crc = i
-        for _ in range(8):
-            if crc & 1:
-                crc = (crc >> 1) ^ 0xEDB88320
-            else:
-                crc >>= 1
-        table.append(crc)
-    return table
-
-_CRC32_TABLE = _build_crc32_table()
-
-def crc32(data: bytes) -> int:
-    crc = 0xFFFFFFFF
-    for b in data:
-        crc = (crc >> 8) ^ _CRC32_TABLE[(crc ^ b) & 0xFF]
-    return crc ^ 0xFFFFFFFF
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +165,7 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int
 
 
 def step_verify(data: bytes, fw_crc: int) -> bool:
-    local_crc = crc32(data)
+    local_crc = zlib.crc32(data)
     if local_crc != fw_crc:
         log_warn(f"CRC mismatch! local=0x{local_crc:08x} firmware=0x{fw_crc:08x}")
         return False
