@@ -125,3 +125,11 @@ Result<int, ParseError> take_int(const char *s) {
     }
 }
 
+Result<void *, ParseError> take_pointer(const char *s) {
+    int out = 0;
+    if (parse_int_literal(s, out)) {
+        return reinterpret_cast<void *>(out);
+    } else {
+        return ParseError::ERROR;
+    }
+}

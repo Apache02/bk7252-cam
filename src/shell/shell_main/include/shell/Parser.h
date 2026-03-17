@@ -61,3 +61,5 @@ struct Result {
 
 
 Result<int, ParseError> take_int(const char *s);
+
+Result<void *, ParseError> take_pointer(const char *s);
