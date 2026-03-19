@@ -5,8 +5,6 @@ add_executable(
         shell_handlers.cpp
 )
 
-bk_firmware(freertos_shell)
-
 #target_include_directories(
 #        freertos_shell PRIVATE
 #        ${CMAKE_CURRENT_LIST_DIR}
@@ -36,3 +34,6 @@ target_link_libraries(
         hardware_gpio
         hardware_efuse
 )
+
+bk_firmware(freertos_shell)
+bk_firmware_iram(freertos_shell)

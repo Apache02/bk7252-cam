@@ -487,4 +487,7 @@
 #define INCLUDE_xTaskResumeFromISR             1
 #define INCLUDE_xQueueGetMutexHolder           1
 
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()   vConfigureTimerForRunTimeStats()
+#define portGET_RUN_TIME_COUNTER_VALUE()           ulGetRunTimeCounterValue()
+
 #endif /* FREERTOS_CONFIG_H */

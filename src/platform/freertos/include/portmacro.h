@@ -70,6 +70,8 @@ extern void vPortExitCritical( void );
 #define portTASK_FUNCTION_PROTO(vFunction, pvParameters)    void vFunction( void * pvParameters )
 #define portTASK_FUNCTION(vFunction, pvParameters)          void vFunction( void * pvParameters )
 
+void vConfigureTimerForRunTimeStats();
+uint32_t ulGetRunTimeCounterValue();
 
 #ifdef __cplusplus
 }

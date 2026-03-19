@@ -18,6 +18,10 @@ uint32_t get_hf_counter() {
     return hw_nxmac_counter->timeraw_hf;
 }
 
+uint32_t get_us_counter() {
+    return hw_nxmac_counter->timerawh;
+}
+
 absolute_time_t get_absolute_time() {
     absolute_time_t time;
     time.time_raw = (((uint64_t) hw_nxmac_counter->timerawl) << 32) | hw_nxmac_counter->timerawh;

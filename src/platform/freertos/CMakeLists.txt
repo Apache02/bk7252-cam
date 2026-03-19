@@ -58,6 +58,7 @@ target_sources(
         port_asm.S
         entry.c
         sbrk.c
+        stats.c
         crt.cpp
 )
 
