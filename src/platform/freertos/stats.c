@@ -14,6 +14,7 @@ static uint32_t remainder = 0;
 void vConfigureTimerForRunTimeStats() {
     accumulator = 0;
     previous = 0;
+    remainder = 0;
     ulGetRunTimeCounterValue();
 }
 
