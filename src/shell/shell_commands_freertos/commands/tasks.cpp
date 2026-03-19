@@ -42,14 +42,15 @@ int command_tasks(int argc, const char *argv[]) {
         return 1;
     }
 
-    uxArraySize = uxTaskGetSystemState(pxTasksBuffer, uxArraySize, nullptr);
+    uint32_t ulTotalRunTime = 0;
+    uxArraySize = uxTaskGetSystemState(pxTasksBuffer, uxArraySize, &ulTotalRunTime);
 
     if (uxArraySize > 0) {
-        printf("| %16s | %10s | %8s | %10s | %10s |\r\n",
-               "name", "state", "priority", "stack", "free"
+        printf("| %16s | %10s | %8s | %10s | %10s | %6s |\r\n",
+               "name", "state", "priority", "stack", "free", "cpu%"
         );
-        printf("| %16s | %10s | %8s | %10s | %10s |\r\n",
-               "----------------", "----------", "--------", "----------", "----------"
+        printf("| %16s | %10s | %8s | %10s | %10s | %6s |\r\n",
+               "----------------", "----------", "--------", "----------", "----------", "------"
         );
 
         for (unsigned int i = 0; i < uxArraySize; i++) {
@@ -57,13 +58,22 @@ int command_tasks(int argc, const char *argv[]) {
             const char *stateLabel = get_task_state_label(state);
             const StackType_t *pxHWM = xCalcHighWaterMark(pxTasksBuffer[i].pxStackBase);
 
+            char cpuBuf[16];
+            const char *cpuPtr = "  n/a";
+            if (ulTotalRunTime > 0) {
+                int permille = pxTasksBuffer[i].ulRunTimeCounter * 1000UL / ulTotalRunTime;
+                snprintf(cpuBuf, sizeof(cpuBuf), "%3d.%d%%", permille / 10, permille % 10);
+                cpuPtr = cpuBuf;
+            }
+
             printf(
-                "| %16s | %10s | %8ld | 0x%8p | %10ld |\r\n",
+                "| %16s | %10s | %8ld | 0x%8p | %10ld | %6s |\r\n",
                 pxTasksBuffer[i].pcTaskName,
                 stateLabel,
                 pxTasksBuffer[i].uxCurrentPriority,
                 static_cast<void *>(pxTasksBuffer[i].pxStackBase),
-                static_cast<unsigned long>(pxHWM - pxTasksBuffer[i].pxStackBase)
+                static_cast<unsigned long>(pxHWM - pxTasksBuffer[i].pxStackBase),
+                cpuPtr
             );
         }
     }
