@@ -10,6 +10,11 @@ set(TOOLS_DIR ${CMAKE_CURRENT_LIST_DIR}/tools)
 include(cmake/toolchain.cmake)
 add_compile_options(-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}=.)
 
-include(FreeRTOS_Kernel_import.cmake)
+if (NOT FREERTOS_KERNEL_PATH)
+    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/FreeRTOS-Kernel/CMakeLists.txt)
+        set(FREERTOS_KERNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs/FreeRTOS-Kernel)
+        message("Setting FREERTOS_KERNEL_PATH to '${FREERTOS_KERNEL_PATH}'")
+    endif ()
+endif ()
 
 add_subdirectory(src)
