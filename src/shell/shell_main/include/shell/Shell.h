@@ -58,3 +58,5 @@ public:
 
     void autocomplete();
 };
+
+void print_command_help(const Shell::Handler *ptr);

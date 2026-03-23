@@ -6,16 +6,7 @@
 
 
 static int help(__unused int intc, __unused const char *argv[]) {
-    printf("Commands:\r\n");
-    for (int i = 0;; i++) {
-        if (!shell_handlers[i].name || !shell_handlers[i].handler) break;
-
-        if (shell_handlers[i].description) {
-            printf("  %-16s %s\r\n", shell_handlers[i].name, shell_handlers[i].description);
-        } else {
-            printf("  %s\r\n", shell_handlers[i].name);
-        }
-    }
+    print_command_help(shell_handlers);
     return 0;
 }
 

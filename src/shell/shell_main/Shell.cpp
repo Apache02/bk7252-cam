@@ -333,3 +333,16 @@ break_2:
     this->start();
     printf("%s", input->buffer);
 }
+
+void print_command_help(const Shell::Handler *handlers) {
+    printf("Commands:\r\n");
+    for (int i = 0;; i++) {
+        if (!handlers[i].name || !handlers[i].handler) break;
+
+        if (handlers[i].description) {
+            printf("  %-16s %s\r\n", handlers[i].name, handlers[i].description);
+        } else {
+            printf("  %s\r\n", handlers[i].name);
+        }
+    }
+}
