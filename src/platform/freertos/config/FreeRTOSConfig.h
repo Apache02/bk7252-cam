@@ -490,4 +490,6 @@
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()   vConfigureTimerForRunTimeStats()
 #define portGET_RUN_TIME_COUNTER_VALUE()           ulGetRunTimeCounterValue()
 
+#define configRECORD_STACK_HIGH_ADDRESS        1
+
 #endif /* FREERTOS_CONFIG_H */
