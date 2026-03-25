@@ -20,7 +20,7 @@ static StackType_t shellTaskStack[configMINIMAL_STACK_SIZE * 6];
 /*-----------------------------------------------------------*/
 
 static StaticTask_t wdtTaskTCB;
-static StackType_t wdtTaskStack[configMINIMAL_STACK_SIZE];
+static StackType_t wdtTaskStack[64];
 
 void vTaskWdt(__unused void *pvParams) {
     wdt_init();
