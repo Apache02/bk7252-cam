@@ -1,5 +1,5 @@
-#ifndef _PLATFORM_UTILS_CRC32_H
-#define _PLATFORM_UTILS_CRC32_H
+#ifndef _UTILS_CRC32_H
+#define _UTILS_CRC32_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -10,4 +10,4 @@ extern "C"
 uint32_t crc32(const uint8_t *data, size_t length);
 
 
-#endif // _PLATFORM_UTILS_CRC32_H
+#endif // _UTILS_CRC32_H

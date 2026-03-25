@@ -3,8 +3,6 @@ add_executable(
         hello.cpp
 )
 
-bk_firmware(hello)
-
 target_link_libraries(
         hello PRIVATE
         platform_nosys
@@ -13,4 +11,5 @@ target_link_libraries(
         utils_busy_wait
 )
 
+bk_firmware(hello)
 bk_firmware_iram(hello)

@@ -20,4 +20,5 @@ target_sources(
 target_link_libraries(
         shell_commands_iram INTERFACE
         shell_main
+        utils_crc
 )

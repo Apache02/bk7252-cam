@@ -18,6 +18,6 @@ target_link_libraries(
 target_sources(
         utils INTERFACE
         panic.c
-        crc32.c
 )
 
+add_subdirectory(crc)

@@ -20,5 +20,5 @@ target_sources(
 target_link_libraries(
         shell_commands_common INTERFACE
         shell_main
-        utils
+        utils_crc
 )
