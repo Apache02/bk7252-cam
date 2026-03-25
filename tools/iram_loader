@@ -121,7 +121,7 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int
     Returns CRC32 reported by firmware.
     """
     size = len(data)
-    cmd = f"iram_load 0x{addr:08x} {size}"
+    cmd = f"iram_load 0x{addr:08x} {size} 0x{addr+size:08x}"
     log(f"Sending: {cmd}")
     ser.write((cmd + "\n").encode())
 

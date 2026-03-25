@@ -16,17 +16,23 @@ static bool valid_addr(uint32_t addr) {
 }
 
 int command_iram_load(int argc, const char *argv[]) {
-    if (argc != 3) {
-        printf(COLOR_RED("Usage: iram_load 0x<addr> <size>") "\r\n");
+    if (argc != 4) {
+        printf(COLOR_RED("Usage: iram_load 0x<addr> <size> <addr+size>") "\r\n");
         return 1;
     }
 
     uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
     uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
+    uint32_t check = static_cast<uint32_t>(take_int(argv[3]).ok_or(0));
 
     if (!valid_addr(addr) || size == 0) {
         printf(COLOR_RED("Invalid arguments") "\r\n");
         return 1;
+    }
+
+    if (addr + size != check) {
+        printf("Invalid checksum\r\n");
+        return 2;
     }
 
     uint8_t *dest = reinterpret_cast<uint8_t *>(addr);
