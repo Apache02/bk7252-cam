@@ -10,5 +10,7 @@ target_include_directories(
 target_sources(
         utils_crc INTERFACE
         crc32.c
+        crc16.c
+        crc8.c
 )
 
