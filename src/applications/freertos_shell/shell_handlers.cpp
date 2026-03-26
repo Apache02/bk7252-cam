@@ -46,6 +46,7 @@ const Shell::Handler shell_handlers[] = {
     {"cpu_speed", command_cpu_speed, nullptr},
     {"iram_load", command_iram_load, nullptr},
     {"iram_jump", command_iram_jump, nullptr},
+    {"loadx", command_iram_xmodem, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };

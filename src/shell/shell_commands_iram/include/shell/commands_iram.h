@@ -1,6 +1,8 @@
 #pragma once
 
-#include "shell/Shell.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Load binary data into memory region via serial port.
 // Usage: iram_load <addr_hex> <size>
@@ -15,3 +17,9 @@ int command_iram_load(int argc, const char *argv[]);
 // Disable interrupts and jump to address.
 // Usage: iram_jump <addr_hex>
 int command_iram_jump(int argc, const char *argv[]);
+
+int command_iram_xmodem(int argc, const char *argv[]);
+
+#ifdef __cplusplus
+}
+#endif

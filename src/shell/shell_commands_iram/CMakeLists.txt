@@ -14,6 +14,7 @@ file(
 
 target_sources(
         shell_commands_iram INTERFACE
+        commands/xmodem/xmodem.c
         ${COMMANDS}
 )
 
