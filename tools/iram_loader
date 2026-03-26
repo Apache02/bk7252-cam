@@ -31,17 +31,22 @@ import zlib
 def log(msg: str):
     print(f"  {msg}", flush=True)
 
+
 def log_ok(msg: str):
     print(f"  \033[32m✓\033[0m {msg}", flush=True)
+
 
 def log_debug(msg: str):
     print(f"  \033[34m#\033[0m {msg}", flush=True)
 
+
 def log_warn(msg: str):
     print(f"  \033[33m!\033[0m {msg}", flush=True)
 
+
 def log_err(msg: str):
     print(f"  \033[31m✗\033[0m {msg}", flush=True)
+
 
 def die(msg: str):
     log_err(msg)
@@ -51,6 +56,21 @@ def die(msg: str):
 # ---------------------------------------------------------------------------
 # Serial helpers
 # ---------------------------------------------------------------------------
+
+def serial_write_slow(ser: serial.Serial, data: bytes, byte_delay: float = 0.005) -> None:
+    """
+    Write *data* to the serial port one byte at a time with a short pause
+    between each byte.  Useful for commands where the receiver drops bytes
+    when the host sends a burst too fast.
+
+    byte_delay — seconds between bytes (default 5 ms).  Tune with
+                 --byte-delay if the default is too slow or still lossy.
+    """
+    for b in data:
+        ser.write(bytes([b]))
+        ser.flush()
+        time.sleep(byte_delay)
+
 
 def readline(ser: serial.Serial, timeout: float = 2.0) -> tuple[str, bool]:
     ser.timeout = 0.1
@@ -115,26 +135,46 @@ def step_ensure_prompt(ser: serial.Serial):
     ser.reset_input_buffer()
 
 
-def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float) -> int:
+def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float, max_cmd_retries: int = 3) -> int:
     """
     Send iram_load command, stream binary, verify DONE + CRC.
     Returns CRC32 reported by firmware.
+
+    The command line is sent byte-by-byte (byte_delay between each byte) to
+    avoid dropped characters on slower targets.  If the device replies with
+    "Invalid checksum" instead of "READY" the command is retried up to
+    max_cmd_retries times before giving up.
     """
     size = len(data)
-    cmd = f"iram_load 0x{addr:08x} {size} 0x{addr+size:08x}"
-    log(f"Sending: {cmd}")
-    ser.write((cmd + "\n").encode())
+    cmd = f"iram_load 0x{addr:08x} {size} 0x{addr + size:08x}"
 
-    # Read echo
-    echo, is_timeout = readline(ser, timeout)
-    if echo != cmd.strip():
-        log_warn(f"echo mismatch: {echo!r}")
+    for cmd_attempt in range(1, max_cmd_retries + 1):
+        if cmd_attempt > 1:
+            log_warn(f"Retrying iram_load command (attempt {cmd_attempt}/{max_cmd_retries})...")
+            ser.write(b"\x03")
+            ser.reset_input_buffer()
+            time.sleep(0.2)
 
-    # Wait for READY
-    ready, is_timeout = readline(ser, timeout)
-    if ready != "READY":
-        die(f"Expected READY, got: {ready!r}")
-    log_ok("Device is ready to receive data.")
+        log(f"Sending (slow): {cmd}")
+        serial_write_slow(ser, (cmd + "\n").encode())
+
+        # Read echo
+        echo, is_timeout = readline(ser, timeout)
+        if echo != cmd.strip():
+            log_warn(f"echo mismatch: {echo!r}")
+
+        # Wait for READY or error
+        ready, is_timeout = readline(ser, timeout)
+        if ready == "READY":
+            log_ok("Device is ready to receive data.")
+            break
+        elif "Invalid checksum" in ready:
+            log_warn(f"Device reported: {ready!r}")
+            if cmd_attempt < max_cmd_retries:
+                continue
+            die(f"iram_load rejected with '{ready}' after {max_cmd_retries} attempts.")
+        else:
+            die(f"Expected READY, got: {ready!r}")
 
     # Stream binary in chunks for progress reporting
     chunk_size = 256
@@ -175,8 +215,8 @@ def step_verify(data: bytes, fw_crc: int) -> bool:
 
 def step_jump(ser: serial.Serial, addr: int, timeout: float):
     cmd = f"iram_jump 0x{addr:08x}"
-    log(f"Sending: {cmd}")
-    ser.write((cmd + "\n").encode())
+    log(f"Sending (slow): {cmd}")
+    serial_write_slow(ser, (cmd + "\n").encode())
     # No prompt expected after jump — firmware takes over
     time.sleep(0.5)
     log_ok(f"Jump to 0x{addr:08x} issued.")
@@ -191,12 +231,12 @@ def parse_args():
         description="Load firmware binary into IRAM via shell commands."
     )
     parser.add_argument("binary", metavar="BINARY", help="Path to .bin file")
-    parser.add_argument("--port",    default="/dev/ttyUSB0", help="Serial port (default: /dev/ttyUSB0)")
-    parser.add_argument("--baud",    default=115200, type=int, help="Baud rate (default: 115200)")
-    parser.add_argument("--addr",    default="0x00900000", help="Load/jump address (default: 0x00900000)")
+    parser.add_argument("--port", default="/dev/ttyUSB0", help="Serial port (default: /dev/ttyUSB0)")
+    parser.add_argument("--baud", default=115200, type=int, help="Baud rate (default: 115200)")
+    parser.add_argument("--addr", default="0x00900000", help="Load/jump address (default: 0x00900000)")
     parser.add_argument("--no-reboot", action="store_true", help="Skip reboot, shell already running")
-    parser.add_argument("--no-jump",   action="store_true", help="Load only, do not jump")
-    parser.add_argument("--timeout",   default=10.0, type=float, help="Serial read timeout in seconds (default: 10)")
+    parser.add_argument("--no-jump", action="store_true", help="Load only, do not jump")
+    parser.add_argument("--timeout", default=10.0, type=float, help="Serial read timeout in seconds (default: 10)")
     return parser.parse_args()
 
 
