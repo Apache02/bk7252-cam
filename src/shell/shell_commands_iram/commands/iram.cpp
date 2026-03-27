@@ -17,7 +17,7 @@ static bool valid_addr(uint32_t addr) {
 
 int command_iram_load(int argc, const char *argv[]) {
     if (argc != 4) {
-        printf(COLOR_RED("Usage: iram_load 0x<addr> <size> <addr+size>") "\r\n");
+        printf(COLOR_RED("Usage: %s 0x<addr> <size> <addr+size>") "\r\n", argv[0]);
         return 1;
     }
 
@@ -57,7 +57,7 @@ int command_iram_load(int argc, const char *argv[]) {
 
 int command_iram_jump(int argc, const char *argv[]) {
     if (argc != 2) {
-        printf(COLOR_RED("Usage: iram_jump 0x<addr>") "\r\n");
+        printf(COLOR_RED("Usage: %s 0x<addr>") "\r\n", argv[0]);
         return 1;
     }
 

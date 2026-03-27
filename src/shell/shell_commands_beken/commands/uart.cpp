@@ -6,38 +6,72 @@
 #include "shell/Parser.h"
 
 
-#define MIN_BAUDRATE    (26000000/((1<<14) - 1))
-#define MAX_BAUDRATE    (26000000/2)
+#define UART_CLOCK_HZ       (26000000)
+#define MIN_BAUDRATE        (UART_CLOCK_HZ / ((1<<14) - 1))
+#define MAX_BAUDRATE        (UART_CLOCK_HZ / 2)
+#define DEFAULT_BAUDRATE    (115200)
 
-int command_uart_baudrate(int argc, const char *argv[]) {
-    if (argc < 2 || argc > 3) {
+
+static bool valid_baudrate(int baud) {
+    return baud > MIN_BAUDRATE && baud <= MAX_BAUDRATE;
+}
+
+static int take_baudrate(const char *baud) {
+    return take_int(baud).ok_or(0);
+}
+
+int command_uart1_baudrate(int argc, const char *argv[]) {
+    if (argc != 2) {
         printf(COLOR_RED("Invalid arguments") "\r\n");
         return 1;
     }
 
-    int index = take_int(argv[1]).ok_or(-1);
-    int baudrate = argc == 3
-                       ? take_int(argv[2]).ok_or(-1)
-                       : 115200;
-
-    if (baudrate < MIN_BAUDRATE || baudrate > MAX_BAUDRATE) {
+    int baudrate = take_baudrate(argv[1]);
+    if (!valid_baudrate(baudrate)) {
         printf(COLOR_RED("Invalid baudrate") "%d\r\n", baudrate);
+        return 2;
+    }
+
+    printf("OK %d\r\n", baudrate);
+    uart1_set_baudrate(baudrate);
+
+    return 0;
+}
+
+int command_uart2_baudrate(int argc, const char *argv[]) {
+    if (argc != 2) {
+        printf(COLOR_RED("Invalid arguments") "\r\n");
+        return 1;
+    }
+
+    int baudrate = take_baudrate(argv[1]);
+    if (!valid_baudrate(baudrate)) {
+        printf(COLOR_RED("Invalid baudrate") "%d\r\n", baudrate);
+        return 2;
+    }
+
+    printf("OK %d\r\n", baudrate);
+    uart2_set_baudrate(baudrate);
+
+    return 0;
+}
+
+int command_uart_baudrate(int argc, const char *argv[]) {
+    if (argc < 2 || argc > 3) {
+        printf(COLOR_RED("Invalid arguments") "\r\n");
         return 3;
     }
 
-    switch (index) {
-        case 1:
-            uart1_set_baudrate(baudrate);
-            break;
-        case 2:
-            uart2_set_baudrate(baudrate);
-            break;
-        default:
-            printf(COLOR_RED("Invalid uart number") "\r\n");
-            return 2;
+    if (argv[1][0] == '1' && argv[1][1] == '\0') {
+        const char *arguments[2] = {argv[0], argv[2]};
+        return command_uart1_baudrate(2, arguments);
     }
 
-    printf("Done\r\n");
+    if (argv[1][0] == '2' && argv[1][1] == '\0') {
+        const char *arguments[2] = {argv[0], argv[2]};
+        return command_uart2_baudrate(2, arguments);
+    }
 
-    return 0;
+    printf(COLOR_RED("Invalid uart number") "\r\n");
+    return 4;
 }

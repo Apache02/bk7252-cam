@@ -24,6 +24,10 @@ int command_cpu_speed(int argc, const char *argv[]);
 
 int command_uart_baudrate(int argc, const char *argv[]);
 
+int command_uart1_baudrate(int argc, const char *argv[]);
+
+int command_uart2_baudrate(int argc, const char *argv[]);
+
 #ifdef __cplusplus
 }
 
