@@ -1,7 +1,5 @@
 #pragma once
 
-int command_reboot(int argc, const char *argv[]);
-
 int command_watch_reg(int argc, const char *argv[]);
 
 int command_sys_clk_source(int argc, const char *argv[]);

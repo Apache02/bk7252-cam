@@ -78,5 +78,6 @@ target_link_libraries(
         FreeRTOS-Kernel-Core
         hardware_intc
         hardware_timer
+        hardware_time
 )
 

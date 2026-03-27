@@ -1,5 +1,6 @@
 #include "shell/commands_beken.h"
 #include <stdio.h>
+#include <stdint.h>
 
 
 #define FAL_PART_MAGIC_WORD         0x45503130

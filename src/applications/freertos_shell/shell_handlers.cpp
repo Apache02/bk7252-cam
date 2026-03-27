@@ -14,19 +14,13 @@ static int help(__unused int intc, __unused const char *argv[]) {
     return 0;
 }
 
-static int reboot(__unused int argc, __unused const char *argv[]) {
-    printf("\r\nreboot system\r\n");
-    wdt_reboot(100);
-    return 0;
-}
-
 extern int command_free(int argc, const char *argv[]);
 
 extern int command_blink(int argc, const char *argv[]);
 
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
-    {"reboot", reboot, nullptr},
+    {"reboot", command_reboot, nullptr},
     {"crc32", command_crc32, nullptr},
     {"echo", command_echo, nullptr},
     {"dump", command_dump, nullptr},
