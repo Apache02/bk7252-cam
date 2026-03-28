@@ -137,7 +137,7 @@ def step_ensure_prompt(ser: serial.Serial):
 
 def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float, max_cmd_retries: int = 3) -> int:
     """
-    Send iram_load command, stream binary, verify DONE + CRC.
+    Send loadi command, stream binary, verify DONE + CRC.
     Returns CRC32 reported by firmware.
 
     The command line is sent byte-by-byte (byte_delay between each byte) to
@@ -146,11 +146,11 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float, max_cm
     max_cmd_retries times before giving up.
     """
     size = len(data)
-    cmd = f"iram_load 0x{addr:08x} {size} 0x{addr + size:08x}"
+    cmd = f"loadi 0x{addr:08x} {size} 0x{addr + size:08x}"
 
     for cmd_attempt in range(1, max_cmd_retries + 1):
         if cmd_attempt > 1:
-            log_warn(f"Retrying iram_load command (attempt {cmd_attempt}/{max_cmd_retries})...")
+            log_warn(f"Retrying loadi command (attempt {cmd_attempt}/{max_cmd_retries})...")
             ser.write(b"\x03")
             ser.reset_input_buffer()
             time.sleep(0.2)
@@ -172,7 +172,7 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float, max_cm
             log_warn(f"Device reported: {ready!r}")
             if cmd_attempt < max_cmd_retries:
                 continue
-            die(f"iram_load rejected with '{ready}' after {max_cmd_retries} attempts.")
+            die(f"loadi rejected with '{ready}' after {max_cmd_retries} attempts.")
         else:
             die(f"Expected READY, got: {ready!r}")
 
@@ -214,7 +214,7 @@ def step_verify(data: bytes, fw_crc: int) -> bool:
 
 
 def step_jump(ser: serial.Serial, addr: int, timeout: float):
-    cmd = f"iram_jump 0x{addr:08x}"
+    cmd = f"go 0x{addr:08x}"
     log(f"Sending (slow): {cmd}")
     serial_write_slow(ser, (cmd + "\n").encode())
     # No prompt expected after jump — firmware takes over
@@ -287,7 +287,7 @@ def main():
             print()
             ser.write(b"\x03")
             ser.reset_input_buffer()
-            wait_for_prompt(ser, 2)
+            wait_for_prompt(ser, 0.5)
         else:
             die("Upload failed after 2 attempts.")
 

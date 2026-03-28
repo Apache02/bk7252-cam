@@ -46,7 +46,7 @@ int command_uart2_baudrate(int argc, const char *argv[]) {
 
     int baudrate = take_baudrate(argv[1]);
     if (!valid_baudrate(baudrate)) {
-        printf(COLOR_RED("Invalid baudrate") "%d\r\n", baudrate);
+        printf(COLOR_RED("Invalid baudrate") " %d\r\n", baudrate);
         return 2;
     }
 

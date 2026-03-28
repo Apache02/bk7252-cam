@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 // Load binary data into memory region via serial port.
-// Usage: iram_load <addr_hex> <size>
+// Usage: iram_load <addr_hex> <size> <addr+size>
 // Protocol:
 //   1. Command prints "READY\r\n"
 //   2. Host sends exactly <size> raw bytes
@@ -15,7 +15,7 @@ int command_iram_load(int argc, const char *argv[]);
 
 
 // Disable interrupts and jump to address.
-// Usage: iram_jump <addr_hex>
+// Usage: iram_jump 0x<addr_hex>
 int command_iram_jump(int argc, const char *argv[]);
 
 int command_iram_xmodem(int argc, const char *argv[]);
