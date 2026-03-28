@@ -12,4 +12,5 @@ target_sources(
         Shell.cpp
         Parser.cpp
         History.cpp
+        Table.cpp
 )
