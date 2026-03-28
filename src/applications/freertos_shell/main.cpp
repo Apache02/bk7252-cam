@@ -37,6 +37,7 @@ void vTaskWdt(__unused void *pvParams) {
 
 
 int main() {
+    wdt_down();
     platform_stdio_init();
     setvbuf(stdout, NULL, _IONBF, 0);
 

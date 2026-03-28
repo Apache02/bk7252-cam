@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "hardware/cpu.h"
+#include "hardware/wdt.h"
 #include "utils/crc32.h"
 #include "utils/busy_wait.h"
 
@@ -71,10 +72,15 @@ int command_iram_jump(int argc, const char *argv[]) {
     printf("Jumping to 0x%08lx\r\n", addr);
 
     // Give UART time to flush output before we kill interrupts
-    busy_wait_ms(100);
+    busy_wait_ms(500);
 
     portDISABLE_IRQ();
     portDISABLE_FIQ();
+
+    // Fallback by watchdog after 5 seconds
+    wdt_init();
+    wdt_set(5000);
+    wdt_up();
 
     // Jump — cast address to a plain void function pointer and call it.
     // The Reset handler at that address is responsible for re-initialising
