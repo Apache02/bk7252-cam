@@ -94,6 +94,8 @@ extern "C" {
 
 void intc_init();
 
+void intc_reset();
+
 bool intc_register_irq_handler(uint32_t source, interrupt_handler_cb *func);
 
 bool intc_register_fiq_handler(uint32_t source, interrupt_handler_cb *func);

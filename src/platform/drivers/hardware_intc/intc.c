@@ -51,10 +51,10 @@ void intc_init() {
 }
 
 static int find_handlers(
-        const struct handlers_collection_t *collection,
-        const uint32_t source,
-        interrupt_handler_cb **handlers,
-        const size_t length
+    const struct handlers_collection_t *collection,
+    const uint32_t source,
+    interrupt_handler_cb **handlers,
+    const size_t length
 ) {
     int count = 0;
 
@@ -223,4 +223,11 @@ void intc_enable_fiq_source(uint32_t source) {
 
 void intc_disable_fiq_source(uint32_t source) {
     icu_interrupt_enable_reg->v &= ~fiq_source_to_reg(source);
+}
+
+void intc_reset() {
+    icu_interrupt_enable_reg->v = 0;
+    icu_global_interrupt_enable_reg->v = 0;
+    icu_interrupt_raw_status_reg->v = icu_interrupt_raw_status_reg->v;
+    icu_interrupt_status_reg->v = icu_interrupt_status_reg->v;
 }

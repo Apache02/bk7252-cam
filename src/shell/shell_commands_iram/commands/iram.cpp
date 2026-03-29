@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "hardware/cpu.h"
+#include "hardware/intc.h"
 #include "hardware/wdt.h"
 #include "utils/crc32.h"
 #include "utils/busy_wait.h"
@@ -74,8 +75,8 @@ int command_iram_jump(int argc, const char *argv[]) {
     // Give UART time to flush output before we kill interrupts
     busy_wait_ms(500);
 
-    portDISABLE_IRQ();
-    portDISABLE_FIQ();
+    portDisableInt();
+    intc_reset();
 
     // Fallback by watchdog after 5 seconds
     wdt_init();

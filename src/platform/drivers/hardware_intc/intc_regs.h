@@ -23,7 +23,7 @@ typedef struct {
     _func_t *pabort;
     _func_t *dabort;
     _func_t *reserved;
-    _func_t *_pad;
+    uint32_t start_type;
 } ram_vectors_tbl_t;
 
 #define ram_vectors     ((volatile ram_vectors_tbl_t *)0x00400000)
