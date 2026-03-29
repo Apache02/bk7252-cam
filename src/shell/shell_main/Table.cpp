@@ -1,5 +1,9 @@
 #include "shell/Table.h"
 #include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+
 
 // ─── Row ─────────────────────────────────────────────────────────────────────
 
@@ -14,6 +18,27 @@ Table::Row::~Row() {
         if (cells_[i]) free(cells_[i]);
     }
     delete[] cells_;
+}
+
+Table::Row *Table::Row::set(const char *col_name, ...) {
+    int i = table_->find_col(col_name);
+    if (i < 0) return this;
+
+    const char *fmt = table_->cols_[i].format;
+
+    va_list args, args2;
+    va_start(args, col_name);
+    va_copy(args2, args);
+
+    int len = vsnprintf(nullptr, 0, fmt, args) + 1;
+    if (cells_[i]) free(cells_[i]);
+    cells_[i] = static_cast<char *>(malloc(len));
+    vsnprintf(cells_[i], len, fmt, args2);
+
+    va_end(args);
+    va_end(args2);
+
+    return this;
 }
 
 // ─── Table ───────────────────────────────────────────────────────────────────
@@ -68,9 +93,12 @@ int Table::find_col(const char *name) const {
 
 void Table::printSeparator() const {
     for (int i = 0; i < col_count_; i++) {
-        printf("+-");
+        putchar('+');
+        putchar('-');
         for (int j = 0; j < cols_[i].width; j++) putchar('-');
-        printf("-");
+        putchar('-');
     }
-    printf("+\r\n");
+    putchar('+');
+    putchar('\r');
+    putchar('\n');
 }

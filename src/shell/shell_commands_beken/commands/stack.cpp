@@ -5,7 +5,8 @@
 #include "shell/Table.h"
 
 
-#define count_of(a)  (sizeof(a) / sizeof((a)[0]))
+#undef count_of
+#define count_of(x)     (sizeof(x) / sizeof(x[0]))
 
 extern "C" uint8_t _stack_unused;
 extern "C" uint8_t _stack_svc;
@@ -64,6 +65,8 @@ int command_stack(__unused int argc, __unused const char *argv[]) {
     }
 
     delete table;
+
+    printf("\r\n");
 
     return 0;
 }

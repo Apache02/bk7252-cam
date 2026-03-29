@@ -2,6 +2,7 @@
 #include <task.h>
 #include <stdio.h>
 #include "shell/console_colors.h"
+#include "shell/Table.h"
 
 
 #undef count_of
@@ -21,6 +22,16 @@ static const char *get_task_state_label(unsigned int state) {
                ? TASK_STATE_LABEL_MAP[state]
                : "?";
 }
+
+static const Table::ColumnDef table_def[] = {
+    {"name", 16, "%s", Table::Align::Right},
+    {"state", 10, "%s", Table::Align::Right},
+    {"priority", 8, "%ld", Table::Align::Right},
+    {"addr", 10, "0x%08lx", Table::Align::Right},
+    {"free", 7, "%7ld", Table::Align::Right},
+    {"total", 7, "%s", Table::Align::Right},
+    {"cpu%", 7, "%s", Table::Align::Right},
+};
 
 // requires configUSE_TRACE_FACILITY
 int command_tasks(int argc, const char *argv[]) {
@@ -43,10 +54,8 @@ int command_tasks(int argc, const char *argv[]) {
         return 1;
     }
 
-    printf("| %16s | %10s | %8s | %10s | %7s | %7s | %7s |\r\n",
-           "name", "state", "priority", "addr", "free", "total", "cpu%");
-    printf("| %16s | %10s | %8s | %10s | %7s | %7s | %7s |\r\n",
-           "----------------", "----------", "--------", "----------", "-------", "-------", "-------");
+    auto *table = new Table(table_def, count_of(table_def));
+    table->printHeader();
 
     for (unsigned int i = 0; i < uxArraySize; i++) {
         const auto &t = pxTasksBuffer[i];
@@ -72,17 +81,23 @@ int command_tasks(int argc, const char *argv[]) {
             cpuPtr = cpuBuf;
         }
 
-        printf(
-            "| %16s | %10s | %8ld | 0x%08lx | %7ld | %7s | %7s |\r\n",
-            t.pcTaskName,
-            stateLabel,
-            t.uxCurrentPriority,
-            reinterpret_cast<unsigned long>(t.pxStackBase),
-            freeBytes,
-            stackTotalBuf,
-            cpuPtr
-        );
+        auto *row = table->createRow();
+        row->set("name", t.pcTaskName);
+        row->set("state", stateLabel);
+        row->set("priority", t.uxCurrentPriority);
+        row->set("addr", t.pxStackBase);
+        row->set("free", freeBytes);
+        row->set("total", stackTotalBuf);
+        row->set("cpu%", cpuPtr);
+
+        table->printRow(row);
+
+        delete row;
     }
+
+    delete table;
+
+    printf("\r\n");
 
     vPortFree(pxTasksBuffer);
 #else

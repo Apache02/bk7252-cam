@@ -1,7 +1,11 @@
 #include "shell/commands_beken.h"
+#include "shell/Table.h"
 #include <stdio.h>
 #include <stdint.h>
 
+
+#undef count_of
+#define count_of(x)     (sizeof(x) / sizeof(x[0]))
 
 #define FAL_PART_MAGIC_WORD         0x45503130
 #define FAL_DEV_NAME_MAX            24
@@ -30,17 +34,25 @@ static const fal_partition_t *find_partition_table() {
 
 static void format_size(char *buf, size_t buf_len, size_t size) {
     if (size >= 1024 * 1024) {
-        unsigned whole = size / (1024 * 1024);
-        unsigned frac  = (size % (1024 * 1024)) * 100 / (1024 * 1024);
+        const unsigned whole = size / (1024 * 1024);
+        const unsigned frac = (size % (1024 * 1024)) * 100 / (1024 * 1024);
         snprintf(buf, buf_len, "%u.%02u MB", whole, frac);
     } else if (size >= 1024) {
-        unsigned whole = size / 1024;
-        unsigned frac  = (size % 1024) * 100 / 1024;
+        const unsigned whole = size / 1024;
+        const unsigned frac = (size % 1024) * 100 / 1024;
         snprintf(buf, buf_len, "%u.%02u KB", whole, frac);
     } else {
-        snprintf(buf, buf_len, "%u B", (unsigned)size);
+        snprintf(buf, buf_len, "%u B", static_cast<unsigned int>(size));
     }
 }
+
+static const Table::ColumnDef table_def[] = {
+    {"name", 16, "%s", Table::Align::Right},
+    {"flash name", 16, "%s", Table::Align::Right},
+    {"addr", 10, "0x%08lx", Table::Align::Right},
+    {"size (hex)", 10, "0x%x", Table::Align::Right},
+    {"size", 10, "%s", Table::Align::Right},
+};
 
 int command_partitions(__unused int argc, __unused const char *argv[]) {
     const fal_partition_t *tbl = find_partition_table();
@@ -50,20 +62,28 @@ int command_partitions(__unused int argc, __unused const char *argv[]) {
         return 1;
     }
 
-    printf("| %16s | %16s | %10s | %10s | %10s |\r\n",
-           "name", "flash name", "addr", "size (hex)", "size"
-    );
-    printf("| ---------------- | ---------------- | ---------- | ---------- | ---------- |\r\n");
+    auto table = new Table(table_def, count_of(table_def));
 
-    char size_hex[16];
+    table->printHeader();
+
+
     char size_human[16];
     for (; tbl->magic_word == FAL_PART_MAGIC_WORD; tbl++) {
-        sprintf(size_hex, "0x%x", tbl->len);
         format_size(size_human, sizeof(size_human), tbl->len);
-        printf("| %16s | %16s | 0x%08lx | %10s | %10s |\r\n",
-               tbl->name, tbl->flash_name, tbl->offset, size_hex, size_human
-        );
+
+        auto *row = table->createRow();
+        row->set("name", tbl->name);
+        row->set("flash name", tbl->flash_name);
+        row->set("addr", tbl->offset);
+        row->set("size (hex)", tbl->len);
+        row->set("size", size_human);
+
+        table->printRow(row);
+        delete row;
     }
+    delete table;
+
+    printf("\r\n");
 
     return 0;
 }
