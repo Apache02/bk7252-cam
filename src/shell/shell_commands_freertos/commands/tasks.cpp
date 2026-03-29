@@ -24,12 +24,12 @@ static const char *get_task_state_label(unsigned int state) {
 }
 
 static const Table::ColumnDef table_def[] = {
-    {"name", 16, "%s", Table::Align::Right},
+    {"name", 16, "%s", Table::Align::Left},
     {"state", 10, "%s", Table::Align::Right},
     {"priority", 8, "%ld", Table::Align::Right},
     {"addr", 10, "0x%08lx", Table::Align::Right},
+    {"size", 7, "%s", Table::Align::Right},
     {"free", 7, "%7ld", Table::Align::Right},
-    {"total", 7, "%s", Table::Align::Right},
     {"cpu%", 7, "%s", Table::Align::Right},
 };
 
@@ -86,8 +86,8 @@ int command_tasks(int argc, const char *argv[]) {
         row->set("state", stateLabel);
         row->set("priority", t.uxCurrentPriority);
         row->set("addr", t.pxStackBase);
+        row->set("size", stackTotalBuf);
         row->set("free", freeBytes);
-        row->set("total", stackTotalBuf);
         row->set("cpu%", cpuPtr);
 
         table->printRow(row);

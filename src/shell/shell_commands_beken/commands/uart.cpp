@@ -4,6 +4,7 @@
 
 #include "shell/console_colors.h"
 #include "shell/Parser.h"
+#include "utils/busy_wait.h"
 
 
 #define UART_CLOCK_HZ       (26000000)
@@ -33,6 +34,7 @@ int command_uart1_baudrate(int argc, const char *argv[]) {
     }
 
     printf("OK %d\r\n", baudrate);
+    busy_wait_ms(100);
     uart1_set_baudrate(baudrate);
 
     return 0;
@@ -51,6 +53,7 @@ int command_uart2_baudrate(int argc, const char *argv[]) {
     }
 
     printf("OK %d\r\n", baudrate);
+    busy_wait_ms(100);
     uart2_set_baudrate(baudrate);
 
     return 0;

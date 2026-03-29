@@ -47,11 +47,12 @@ static void format_size(char *buf, size_t buf_len, size_t size) {
 }
 
 static const Table::ColumnDef table_def[] = {
-    {"name", 16, "%s", Table::Align::Right},
-    {"flash name", 16, "%s", Table::Align::Right},
-    {"addr", 10, "0x%08lx", Table::Align::Right},
+    {"name", 16, "%s", Table::Align::Left},
+    {"flash name", 16, "%s", Table::Align::Left},
+    {"start", 10, "0x%08lx", Table::Align::Right},
+    {"end", 10, "0x%08lx", Table::Align::Right},
     {"size (hex)", 10, "0x%x", Table::Align::Right},
-    {"size", 10, "%s", Table::Align::Right},
+    {"size (human)", 12, "%s", Table::Align::Right},
 };
 
 int command_partitions(__unused int argc, __unused const char *argv[]) {
@@ -74,9 +75,10 @@ int command_partitions(__unused int argc, __unused const char *argv[]) {
         auto *row = table->createRow();
         row->set("name", tbl->name);
         row->set("flash name", tbl->flash_name);
-        row->set("addr", tbl->offset);
+        row->set("start", tbl->offset);
+        row->set("end", tbl->offset + tbl->len - 1);
         row->set("size (hex)", tbl->len);
-        row->set("size", size_human);
+        row->set("size (human)", size_human);
 
         table->printRow(row);
         delete row;
