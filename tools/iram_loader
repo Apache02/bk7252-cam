@@ -3,7 +3,7 @@
 iram_flash.py — load a firmware binary into IRAM via shell commands.
 
 Usage:
-    python3 iram_flash.py [--port PORT] [--baud BAUD] [--addr ADDR] [--no-reboot] BINARY
+    python3 iram_flash.py [--port PORT] [--baud BAUD] [--speed SPEED] [--addr ADDR] [--no-reboot] BINARY
 
 Arguments:
     BINARY              Path to .bin file (e.g. build/freertos_shell--iram.bin)
@@ -11,6 +11,8 @@ Arguments:
 Options:
     --port PORT         Serial port (default: /dev/ttyUSB0)
     --baud BAUD         Baud rate   (default: 115200)
+    --speed SPEED       Switch to this baud rate before upload (e.g. 921600),
+                        then switch back after. Device must support 'speed' command.
     --addr ADDR         Load address in hex (default: 0x00900000)
     --no-reboot         Skip reboot step, assume shell is already running
     --no-jump           Load binary but do not jump to entry point
@@ -51,6 +53,10 @@ def log_err(msg: str):
 def die(msg: str):
     log_err(msg)
     sys.exit(1)
+
+
+def elapsed(t: float) -> str:
+    return f"{time.monotonic() - t:.1f}s"
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +141,46 @@ def step_ensure_prompt(ser: serial.Serial):
     ser.reset_input_buffer()
 
 
+def step_switch_speed(ser: serial.Serial, new_baud: int, timeout: float) -> bool:
+    """
+    Send 'speed <baud>' to the device and switch the host port to match.
+
+    The device responds with 'OK <baud>\\r\\n' at the OLD baud rate, then
+    immediately switches.  We read the response, then change ser.baudrate
+    on the host side.
+
+    Returns True on success, False if the command was rejected or timed out.
+    """
+    cmd = f"speed {new_baud}"
+    log(f"Switching baud rate: sending '{cmd}'")
+    serial_write_slow(ser, (cmd + "\n").encode())
+
+    # Echo
+    echo, is_timeout = readline(ser, timeout)
+    if echo != cmd:
+        log_warn(f"Echo mismatch: {echo!r} (expected {cmd!r})")
+
+    # Response: "OK <baud>"
+    response, is_timeout = readline(ser, timeout)
+    if is_timeout:
+        log_err("Timed out waiting for speed response.")
+        return False
+
+    expected = f"OK {new_baud}"
+    if response != expected:
+        log_err(f"Unexpected speed response: {response!r} (expected {expected!r})")
+        return False
+
+    # Device has switched — now switch the host port
+    ser.flush()
+    time.sleep(0.1)  # brief pause to let the device UART flush its TX
+    ser.baudrate = new_baud
+    time.sleep(0.1)  # let the port settle
+
+    log_ok(f"Baud rate switched to {new_baud}.")
+    return True
+
+
 def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float, max_cmd_retries: int = 3) -> int:
     """
     Send loadi command, stream binary, verify DONE + CRC.
@@ -151,9 +197,10 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float, max_cm
     for cmd_attempt in range(1, max_cmd_retries + 1):
         if cmd_attempt > 1:
             log_warn(f"Retrying loadi command (attempt {cmd_attempt}/{max_cmd_retries})...")
-            ser.write(b"\x03")
-            ser.reset_input_buffer()
-            time.sleep(0.2)
+
+        ser.write(b"\x03")
+        time.sleep(0.1)
+        ser.reset_input_buffer()
 
         log(f"Sending (slow): {cmd}")
         serial_write_slow(ser, (cmd + "\n").encode())
@@ -177,7 +224,7 @@ def step_load(ser: serial.Serial, addr: int, data: bytes, timeout: float, max_cm
             die(f"Expected READY, got: {ready!r}")
 
     # Stream binary in chunks for progress reporting
-    chunk_size = 256
+    chunk_size = 512
     sent = 0
     t_start = time.monotonic()
     while sent < size:
@@ -233,6 +280,10 @@ def parse_args():
     parser.add_argument("binary", metavar="BINARY", help="Path to .bin file")
     parser.add_argument("--port", default="/dev/ttyUSB0", help="Serial port (default: /dev/ttyUSB0)")
     parser.add_argument("--baud", default=115200, type=int, help="Baud rate (default: 115200)")
+    parser.add_argument("--speed", default=None, type=int,
+                        help="Switch to this baud rate before upload (e.g. 921600). "
+                             "Device must support the 'speed' shell command. "
+                             "The port is restored to --baud after the session.")
     parser.add_argument("--addr", default="0x00900000", help="Load/jump address (default: 0x00900000)")
     parser.add_argument("--no-reboot", action="store_true", help="Skip reboot, shell already running")
     parser.add_argument("--no-jump", action="store_true", help="Load only, do not jump")
@@ -254,9 +305,11 @@ def main():
     log(f"Binary: {args.binary} ({len(data)} bytes)")
     log(f"Load address: 0x{addr:08x}")
     log(f"Port: {args.port} @ {args.baud} baud")
+    if args.speed:
+        log(f"Upload speed: {args.speed} baud")
     print()
 
-    # Open serial port
+    # Open serial port at the initial baud rate (always 115200 after reset)
     try:
         ser = serial.Serial(args.port, args.baud, timeout=args.timeout)
     except serial.SerialException as e:
@@ -265,18 +318,29 @@ def main():
     time.sleep(0.1)  # let port settle
 
     try:
+        t_total = time.monotonic()
+
         # Step 1 — reboot and wait for shell
         if not args.no_reboot:
-            print("[ Step 1/3 ] Rebooting device...")
+            print("[ Step 1/4 ] Rebooting device...")
             step_reboot(ser, args.timeout)
         else:
-            print("[ Step 1/3 ] Skipping reboot, waiting for prompt...")
+            print("[ Step 1/4 ] Skipping reboot, waiting for prompt...")
             step_ensure_prompt(ser)
         print()
 
-        # Step 2 — upload binary
+        # Step 2 — optionally switch to faster baud rate
+        if args.speed and args.speed != args.baud:
+            print(f"[ Step 2/4 ] Switching to {args.speed} baud...")
+            if not step_switch_speed(ser, args.speed, args.timeout):
+                die("Failed to switch baud rate.")
+        else:
+            print("[ Step 2/4 ] No baud rate switch requested, skipping.")
+        print()
+
+        # Step 3 — upload binary
         for attempt in range(1, 3):
-            print(f"[ Step 2/3 ] Uploading {len(data)} bytes to 0x{addr:08x}...")
+            print(f"[ Step 3/4 ] Uploading {len(data)} bytes to 0x{addr:08x}...")
             fw_crc = step_load(ser, addr, data, args.timeout)
             if step_verify(data, fw_crc):
                 print()
@@ -291,11 +355,12 @@ def main():
         else:
             die("Upload failed after 2 attempts.")
 
-        # Step 3 — jump
+        # Step 4 — jump
         if not args.no_jump:
-            print(f"[ Step 3/3 ] Jumping to 0x{addr:08x}...")
+            print(f"[ Step 4/4 ] Jumping to 0x{addr:08x}...")
             step_jump(ser, addr, args.timeout)
-            log_ok("Done.")
+            log_ok(f"Done in {elapsed(t_total)}.")
+            print()
         else:
             log("--no-jump specified, skipping jump.")
 
