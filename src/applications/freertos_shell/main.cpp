@@ -6,16 +6,18 @@
 #include "utils/panic.h"
 #include "hardware/wdt.h"
 
+#include "net.h"
+
 
 #define count_of(x)     (sizeof(x) / sizeof(x[0]))
 
 
 /*-----------------------------------------------------------*/
 
-extern void vTaskShell(void *pvParams);
-
 static StaticTask_t shellTaskTCB;
 static StackType_t shellTaskStack[configMINIMAL_STACK_SIZE * 6];
+
+extern void vTaskShell(void *pvParams);
 
 /*-----------------------------------------------------------*/
 
@@ -41,6 +43,8 @@ int main() {
     platform_stdio_init();
     setvbuf(stdout, NULL, _IONBF, 0);
 
+    vPortHeapResetState();
+
     xTaskCreateStatic(
         vTaskShell,
         "shell",
@@ -61,7 +65,8 @@ int main() {
         &(wdtTaskTCB)
     );
 
-    vPortHeapResetState();
+    net_init();
+
     vTaskStartScheduler();
 
     panic("Scheduler complete\r\n");
@@ -69,3 +74,13 @@ int main() {
     return 0;
 }
 
+#if (configCHECK_FOR_STACK_OVERFLOW == 2)
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+    portENTER_CRITICAL();
+    // wdt_down();
+    printf("STACK OVERFLOW: %s\n", pcTaskName);
+    // wdt_up();
+    portEXIT_CRITICAL()
+    for (;;);
+}
+#endif

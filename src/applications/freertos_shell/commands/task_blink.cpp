@@ -45,7 +45,7 @@ int command_blink(int argc, const char *argv[]) {
         auto result = xTaskCreate(
             vTaskBlink,
             TASK_NAME,
-            configMINIMAL_STACK_SIZE,
+            32,
             NULL,
             configMAX_PRIORITIES - 2,
             &pxTaskBlink
