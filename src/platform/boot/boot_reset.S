@@ -1,6 +1,7 @@
 #include "boot.h"
 
-    .globl _start
+    .global _start
+    .global heap_init
 
 /* ========================================================================
  *                                Macros
@@ -77,7 +78,7 @@ boot_stack_len_SYS:
 /* ========================================================================
  * Function to handle reset vector
  */
-	.globl	boot_reset
+	.global	boot_reset
 
 boot_reset:
     // Disable IRQ and FIQ before starting anything
@@ -117,6 +118,9 @@ boot_reset:
     
     // Init the BSS section
     BL _sysboot_zi_init
+
+    // Init heap pools
+    BL heap_init
     
     // ==================
     // Clear Registers
