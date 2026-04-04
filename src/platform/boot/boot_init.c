@@ -10,8 +10,7 @@ void _sysboot_zi_init() {
     }
 }
 
-void _sysboot_copy_data_to_ram(void)
-{
+void _sysboot_copy_data_to_ram(void) {
     extern uint32_t _data_flash_begin;
     extern uint32_t _data_ram_begin;
     extern uint32_t _data_ram_end;
@@ -21,4 +20,7 @@ void _sysboot_copy_data_to_ram(void)
     while (dst < &_data_ram_end) {
         *dst++ = *src++;
     }
+}
+
+__attribute__((weak)) void heap_init() {
 }
