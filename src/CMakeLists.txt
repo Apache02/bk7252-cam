@@ -18,7 +18,6 @@ function(bk_firmware TARGET)
     target_link_options(
             ${TARGET} PUBLIC
             "LINKER:--script=${LINKER_DIR}/flash.lds"
-            "LINKER:--print-memory-usage"
     )
 
     add_custom_command(
@@ -63,7 +62,6 @@ function(bk_firmware_iram BASE_TARGET)
     target_link_options(
             ${RAM_TARGET} PUBLIC
             "LINKER:--script=${LINKER_DIR}/iram.lds"
-            "LINKER:--print-memory-usage"
     )
 
     add_custom_command(

@@ -15,6 +15,7 @@ set(COMPILER_OPTIONS " -Wall -Werror") # -Wpedantic
 set(CMAKE_C_FLAGS "${CPU_OPTIONS} ${COMPILER_OPTIONS} -mthumb -O2 --specs=nano.specs -nostartfiles -fno-exceptions")
 set(CMAKE_CXX_FLAGS "${CPU_OPTIONS} ${COMPILER_OPTIONS} -mthumb -O2 --specs=nano.specs -nostartfiles -fno-exceptions") #  -lstdc++ ??
 set(CMAKE_ASM_FLAGS "${CPU_OPTIONS} -x assembler-with-cpp")
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,--gc-sections,--print-memory-usage")
 
 #set(CMAKE_CROSSCOMPILING TRUE)
 
