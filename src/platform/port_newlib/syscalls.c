@@ -22,3 +22,11 @@ off_t _lseek(int fd, off_t ptr, int dir) {
 pid_t _getpid(void) {
     return 1;
 }
+
+__attribute__((weak)) int _write(int file, char *ptr, int len) {
+    return len;
+}
+
+__attribute__((weak)) int _read(int file, char *ptr, int len) {
+    return -1;
+}

@@ -1,3 +1,5 @@
+#include <errno.h>
+
 #undef UART_INIT
 #undef UART_WRITE_BYTE
 #undef UART_READ_BYTE
@@ -49,6 +51,7 @@ int _write(int file, char *ptr, int len) {
 int _read(int file, char *ptr, int len) {
     // stdin only
     if (file != 0) {
+        errno = EBADF;
         return -1;
     }
 

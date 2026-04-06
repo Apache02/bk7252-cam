@@ -4,4 +4,5 @@ target_sources(
         platform_port_newlib INTERFACE
         crt.c
         syscalls.c
+        sbrk.c
 )

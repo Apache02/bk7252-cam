@@ -4,7 +4,6 @@ target_sources(
         platform_nosys INTERFACE
         entry.c
         boot_handlers.S
-        sbrk.c
 )
 
 target_link_libraries(
