@@ -61,7 +61,6 @@ int main() {
         &(wdtTaskTCB)
     );
 
-    vPortHeapResetState();
     vTaskStartScheduler();
 
     panic("Scheduler complete\r\n");

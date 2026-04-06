@@ -16,5 +16,5 @@ target_link_libraries(
         platform_freertos
         hardware_gpio
         utils_busy_wait
-        FreeRTOS-Kernel-Heap4
+        FreeRTOS-Kernel-Heap5
 )

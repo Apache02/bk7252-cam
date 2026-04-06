@@ -17,3 +17,15 @@ __attribute__((weak)) void *_sbrk(ptrdiff_t incr) {
     heap_end += incr;
     return (void *) prev_heap_end;
 }
+
+typedef struct {
+    size_t used;
+    size_t total;
+} heap_stat_t;
+
+__attribute__((weak)) heap_stat_t newlib_heap_get_stat() {
+    return (heap_stat_t){
+        .used = (size_t) (heap_end - &_empty_ram),
+        .total = (size_t) (&_stack_unused - &_empty_ram),
+    };
+}

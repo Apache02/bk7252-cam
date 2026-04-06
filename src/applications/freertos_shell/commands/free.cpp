@@ -2,10 +2,17 @@
 #include <task.h>
 #include <stdio.h>
 
+
+typedef struct {
+    size_t used;
+    size_t total;
+} heap_stat_t;
+
+extern "C" heap_stat_t newlib_heap_get_stat();
+
 extern char _empty_ram;
 extern char _stack_unused;
 
-extern "C" void *_sbrk(ptrdiff_t incr);
 
 int command_free(__unused int argc, __unused const char *argv[]) {
     size_t xFreeHeapSizeCurrent = xPortGetFreeHeapSize();
@@ -17,16 +24,32 @@ int command_free(__unused int argc, __unused const char *argv[]) {
 
     if (xFreeHeapSizeCurrent == 0) {
         printf("Not available\r\n");
+        return 0;
     }
 
-    size_t xFreeHeapSizeMinimal = xPortGetMinimumEverFreeHeapSize();
 
-    printf("Free heap current (bytes): %d of %d\r\n", xFreeHeapSizeCurrent, configTOTAL_HEAP_SIZE);
-    printf("          minimum (bytes): %d\r\n", xFreeHeapSizeMinimal);
+    printf("\r\n");
 
-    size_t total = &_stack_unused - &_empty_ram;
-    size_t used = (char *) _sbrk(0) - &_empty_ram;
-    printf(" newlib heap used (bytes): %d of %d\r\n", used, total);
+    HeapStats_t xHeapStats;
+    vPortGetHeapStats(&xHeapStats);
+
+    printf("          Heap size: %d\r\n", (&_stack_unused - &_empty_ram));
+    printf("          available: %d\r\n", xHeapStats.xAvailableHeapSpaceInBytes);
+    printf("            minimum: %d\r\n", xHeapStats.xMinimumEverFreeBytesRemaining);
+    printf("      largest block: %d\r\n", xHeapStats.xSizeOfLargestFreeBlockInBytes);
+    printf("     smallest block: %d\r\n", xHeapStats.xSizeOfSmallestFreeBlockInBytes);
+    printf("   number of blocks: %d\r\n", xHeapStats.xNumberOfFreeBlocks);
+    printf("  allocations count: %d\r\n", xHeapStats.xNumberOfSuccessfulAllocations);
+    printf("        frees count: %d\r\n", xHeapStats.xNumberOfSuccessfulFrees);
+
+    printf("\r\n");
+
+    auto xNewlibStats = newlib_heap_get_stat();
+    printf("        newlib heap\r\n");
+    printf("               used: %d\r\n", xNewlibStats.used);
+    printf("              total: %d\r\n", xNewlibStats.total);
+
+    printf("\r\n");
 
     return 0;
 }

@@ -29,7 +29,7 @@ target_link_libraries(
         shell_commands_freertos
         shell_commands_beken
         shell_commands_iram
-        FreeRTOS-Kernel-Heap4
+        FreeRTOS-Kernel-Heap5
         hardware_wdt
         hardware_gpio
         hardware_efuse

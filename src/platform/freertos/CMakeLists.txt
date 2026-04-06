@@ -46,7 +46,11 @@ target_sources(FreeRTOS-Kernel-Heap4 INTERFACE ${FREERTOS_KERNEL_PATH}/portable/
 target_link_libraries(FreeRTOS-Kernel-Heap4 INTERFACE platform_freertos)
 
 add_library(FreeRTOS-Kernel-Heap5 INTERFACE)
-target_sources(FreeRTOS-Kernel-Heap5 INTERFACE ${FREERTOS_KERNEL_PATH}/portable/MemMang/heap_5.c)
+target_sources(
+        FreeRTOS-Kernel-Heap5 INTERFACE
+        ${FREERTOS_KERNEL_PATH}/portable/MemMang/heap_5.c
+        newlib_heap5.c
+)
 target_link_libraries(FreeRTOS-Kernel-Heap5 INTERFACE platform_freertos)
 
 
@@ -58,7 +62,6 @@ target_sources(
         port_asm.S
         entry.c
         stats.c
-        crt.cpp
 )
 
 if (NOT FREERTOS_CONFIG_FILE_DIRECTORY)
