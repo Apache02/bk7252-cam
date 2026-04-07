@@ -12,7 +12,7 @@ _vector_start = ORIGIN(IRAM);
 
 SECTIONS
 {
-    /* vectors go to start of IRAM */
+    /* vectors go to start */
     . = ORIGIN(IRAM);
     .vectors :
     {
@@ -22,7 +22,7 @@ SECTIONS
 
     /* instructions go to the text region*/
 
-    . = ALIGN(0x8);
+    . = ALIGN(8);
 
     .text :
     {
@@ -30,11 +30,32 @@ SECTIONS
         *(.text)
         *(.text.*)
         *(.stub)
+        /* .gnu.warning sections are handled specially by elf32.em.  */
         *(.gnu.warning)
         *(.gnu.linkonce.t*)
         *(.glue_7t) *(.glue_7)
 
         KEEP(*(.fini))
+
+        . = ALIGN(4);
+        PROVIDE_HIDDEN (__preinit_array_start = .);
+        KEEP(*(SORT(.preinit_array.*)))
+        KEEP(*(.preinit_array))
+        PROVIDE_HIDDEN (__preinit_array_end = .);
+
+        . = ALIGN(4);
+        PROVIDE_HIDDEN (__init_array_start = .);
+        KEEP(*(SORT(.init_array.*)))
+        KEEP(*(.init_array))
+        PROVIDE_HIDDEN (__init_array_end = .);
+
+        . = ALIGN(4);
+        PROVIDE_HIDDEN (__fini_array_start = .);
+        KEEP(*(SORT(.fini_array.*)))
+        KEEP(*(.fini_array))
+        PROVIDE_HIDDEN (__fini_array_end = .);
+
+        . = ALIGN(4);
     } > IRAM
 
     .rodata ALIGN(8):
@@ -57,29 +78,12 @@ SECTIONS
 
     __exidx_end = .;
 
-    /* .data VMA is in RAM, but LMA (load address) is in IRAM right after .rodata */
     .data : AT ( _begin_data )
     {
         *(.data .data.*)
         *(.sdata)
 
         . = ALIGN(4);
-        PROVIDE_HIDDEN (__preinit_array_start = .);
-        KEEP(*(.preinit_array))
-        PROVIDE_HIDDEN (__preinit_array_end = .);
-
-        . = ALIGN(4);
-        PROVIDE_HIDDEN (__init_array_start = .);
-        KEEP(*(SORT(.init_array.*)))
-        KEEP(*(.init_array))
-        PROVIDE_HIDDEN (__init_array_end = .);
-
-        . = ALIGN(4);
-        PROVIDE_HIDDEN (__fini_array_start = .);
-        KEEP(*(SORT(.fini_array.*)))
-        KEEP(*(.fini_array))
-        PROVIDE_HIDDEN (__fini_array_end = .);
-
         KEEP(*(.jcr*))
         . = ALIGN(4);
 
@@ -89,10 +93,12 @@ SECTIONS
 
     _end_data = .;
 
+    /* Loader will copy data from _flash_begin to _ram_begin..ram_end */
     _data_flash_begin = LOADADDR(.data);
     _data_ram_begin = ADDR(.data);
     _data_ram_end = .;
 
+    /* uninitialized data section - global   int i; */
     .bss ALIGN(8):
     {
         _bss_start = .;
@@ -102,7 +108,10 @@ SECTIONS
         *(.sbss)
         *(.dynbss)
         *(COMMON)
-        . = ALIGN(32 / 8);
+        /* Align here to ensure that the .bss section occupies space up to
+           _end.  Align after .bss to ensure correct alignment even if the
+           .bss section disappears because there are no input sections.  */
+        . = ALIGN(4);
         _bss_end = .;
         __bss_end__ = .;
     } > RAM
@@ -110,8 +119,13 @@ SECTIONS
     . = ALIGN (8);
     _empty_ram = .;
 
+    /* This symbol defines end of code/data sections. Heap starts here. */
     PROVIDE(end = .);
 
+    /* _stack symbol defines initial stack bottom addres. Stack grows to lower addresses.
+       Typically you set this to be top of your RAM. Note: code never checks, if stack
+       grows into heap area!
+    */
     PROVIDE(_stack_unused      = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0 - 0x10); /* 0x10*/
     PROVIDE(_stack_svc         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0); /* 0x3F0*/
     PROVIDE(_stack_irq         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0); /* 0xFF0*/

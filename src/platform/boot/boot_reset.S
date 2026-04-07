@@ -1,7 +1,6 @@
 #include "boot.h"
 
     .global _start
-    .global heap_init
 
 /* ========================================================================
  *                                Macros
@@ -119,9 +118,6 @@ boot_reset:
     // Init the BSS section
     BL _sysboot_zi_init
 
-    // Init heap pools
-    BL heap_init
-    
     // ==================
     // Clear Registers
     MOV R0, #0
