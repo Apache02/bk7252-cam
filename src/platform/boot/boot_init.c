@@ -1,7 +1,6 @@
 #include <stdint.h>
 
 
-
 void _sysboot_zi_init() {
     extern uint32_t _bss_start;
     extern uint32_t _bss_end;

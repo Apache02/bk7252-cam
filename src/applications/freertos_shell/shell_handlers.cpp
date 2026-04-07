@@ -18,6 +18,8 @@ extern int command_free(int argc, const char *argv[]);
 
 extern int command_blink(int argc, const char *argv[]);
 
+extern int command_test_net(int argc, const char *argv[]);
+
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
     {"reboot", command_reboot, nullptr},
@@ -41,6 +43,7 @@ const Shell::Handler shell_handlers[] = {
     {"loadi", command_iram_load, nullptr},
     {"loadx", command_iram_xmodem, nullptr},
     {"go", command_iram_jump, nullptr},
+    {"test_net", command_test_net, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };
