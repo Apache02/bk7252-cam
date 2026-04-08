@@ -29,6 +29,10 @@ target_include_directories(FreeRTOS-Kernel-Core INTERFACE ${FREERTOS_KERNEL_PATH
 #target_link_libraries(FreeRTOS-Kernel-Static INTERFACE platform_freertos)
 
 # FreeRTOS other
+add_library(FreeRTOS-newlib-allocator-adapter INTERFACE)
+target_sources(FreeRTOS-newlib-allocator-adapter INTERFACE newlib_adapter.c)
+target_link_libraries(FreeRTOS-newlib-allocator-adapter INTERFACE platform_freertos)
+
 add_library(FreeRTOS-Kernel-Heap1 INTERFACE)
 target_sources(FreeRTOS-Kernel-Heap1 INTERFACE ${FREERTOS_KERNEL_PATH}/portable/MemMang/heap_1.c)
 target_link_libraries(FreeRTOS-Kernel-Heap1 INTERFACE platform_freertos)
@@ -49,9 +53,12 @@ add_library(FreeRTOS-Kernel-Heap5 INTERFACE)
 target_sources(
         FreeRTOS-Kernel-Heap5 INTERFACE
         ${FREERTOS_KERNEL_PATH}/portable/MemMang/heap_5.c
-        newlib_heap5.c
+        heap5_init.c
 )
-target_link_libraries(FreeRTOS-Kernel-Heap5 INTERFACE platform_freertos)
+target_link_libraries(FreeRTOS-Kernel-Heap5 INTERFACE
+        platform_freertos
+        FreeRTOS-newlib-allocator-adapter
+)
 
 
 # platform_freertos

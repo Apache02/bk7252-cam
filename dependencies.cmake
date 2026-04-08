@@ -36,3 +36,16 @@ set(LWIP_INCLUDE_DIRS
         "${LWIP_DIR}/contrib/ports/freertos/include"
 )
 
+
+# tlsf
+message("Fetching tlsf ...")
+FetchContent_Declare(
+        tlsf
+        GIT_REPOSITORY  https://github.com/mattconte/tlsf.git
+        GIT_TAG         deff9ab509341f264addbd3c8ada533678591905
+        GIT_SHALLOW     TRUE
+)
+FetchContent_GetProperties(tlsf)
+if(NOT tlsf_POPULATED)
+    FetchContent_Populate(tlsf)
+endif()

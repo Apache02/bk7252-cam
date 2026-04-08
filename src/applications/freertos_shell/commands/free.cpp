@@ -1,14 +1,8 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <stdio.h>
+#include "heap.h"
 
-
-typedef struct {
-    size_t used;
-    size_t total;
-} heap_stat_t;
-
-extern "C" heap_stat_t newlib_heap_get_stat();
 
 extern char _empty_ram;
 extern char _stack_unused;

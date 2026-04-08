@@ -1,47 +1,31 @@
-#include <FreeRTOS.h>
 #include <string.h>
 #include <errno.h>
+#include "heap.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
-
-// Heap5
-
-extern char _empty_ram;
-extern char _stack_unused;
-
-void heap_init() {
-    vPortHeapResetState();
-
-    HeapRegion_t regions[] = {
-        {(uint8_t *) &_empty_ram, (size_t) (&_stack_unused - &_empty_ram)},
-        {NULL, 0}
-    };
-    vPortDefineHeapRegions(regions);
-}
-
-
-// newlib
 
 #ifndef NEWLIB_HEAP_SIZE
 #define NEWLIB_HEAP_SIZE        (4*1024)
 #endif
 
+
 static char newlib_heap[NEWLIB_HEAP_SIZE];
 static char *newlib_heap_end = newlib_heap;
 
+
 void *_sbrk(ptrdiff_t incr) {
+    vTaskSuspendAll();
     char *prev = newlib_heap_end;
     if (newlib_heap_end + incr > newlib_heap + NEWLIB_HEAP_SIZE) {
+        xTaskResumeAll();
         errno = ENOMEM;
         return (void *) -1;
     }
     newlib_heap_end += incr;
+    xTaskResumeAll();
     return (void *) prev;
 }
-
-typedef struct {
-    size_t used;
-    size_t total;
-} heap_stat_t;
 
 heap_stat_t newlib_heap_get_stat() {
     return (heap_stat_t){
@@ -61,11 +45,7 @@ void free(void *ptr) {
 }
 
 void *calloc(size_t n, size_t size) {
-    void *p = pvPortMalloc(n * size);
-    if (p) {
-        memset(p, 0, n * size);
-    }
-    return p;
+    return pvPortCalloc(n, size);
 }
 
 void *realloc(void *ptr, size_t size) {

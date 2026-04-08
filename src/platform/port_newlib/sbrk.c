@@ -1,4 +1,5 @@
 #include <errno.h>
+#include "heap.h"
 
 
 extern char _empty_ram;
@@ -17,11 +18,6 @@ __attribute__((weak)) void *_sbrk(ptrdiff_t incr) {
     heap_end += incr;
     return (void *) prev_heap_end;
 }
-
-typedef struct {
-    size_t used;
-    size_t total;
-} heap_stat_t;
 
 __attribute__((weak)) heap_stat_t newlib_heap_get_stat() {
     return (heap_stat_t){
