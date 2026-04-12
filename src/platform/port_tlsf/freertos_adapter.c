@@ -23,7 +23,7 @@ void *pvPortMalloc(size_t xWantedSize) {
         // update statistics
         xNumberOfSuccessfulAllocations++;
 
-        HeapStats_t s;
+        HeapStats_t s = {0};
         tlsf_walk_pool(g_pvTLSFPool, pool_walker, &s);
         if (g_xMinimumEverFreeBytesRemaining > s.xAvailableHeapSpaceInBytes) {
             g_xMinimumEverFreeBytesRemaining = s.xAvailableHeapSpaceInBytes;
@@ -61,7 +61,7 @@ void vPortFree(void *pv) {
 }
 
 size_t xPortGetFreeHeapSize(void) {
-    HeapStats_t s;
+    HeapStats_t s = {0};
 
     vTaskSuspendAll();
     tlsf_walk_pool(g_pvTLSFPool, pool_walker, &s);
@@ -84,7 +84,7 @@ static void pool_walker(__unused void *ptr, size_t size, int used, void *user) {
             s->xSizeOfLargestFreeBlockInBytes = size;
         }
         if (size < s->xSizeOfSmallestFreeBlockInBytes || s->xSizeOfSmallestFreeBlockInBytes == 0) {
-            s->xSizeOfLargestFreeBlockInBytes = size;
+            s->xSizeOfSmallestFreeBlockInBytes = size;
         }
     }
 }
