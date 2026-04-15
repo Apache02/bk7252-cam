@@ -9,10 +9,14 @@ set(FETCHCONTENT_BASE_DIR ${CMAKE_SOURCE_DIR}/libs CACHE PATH "" FORCE)
 include(dependencies.cmake)
 
 # python tools
-set(TOOLS_DIR ${CMAKE_CURRENT_LIST_DIR}/tools)
+set(TOOLS_DIR ${CMAKE_SOURCE_DIR}/tools)
+set(SRC_ROOT_DIR ${CMAKE_SOURCE_DIR}/src)
+set(LINKER_DIR ${SRC_ROOT_DIR}/linker)
 
 # Init toolchain
-include(toolchain.cmake)
+include(cmake/toolchain.cmake)
+include(cmake/firmware.cmake)
+
 add_compile_options(-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}=.)
 
 add_subdirectory(src)
