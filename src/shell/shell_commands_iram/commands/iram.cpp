@@ -17,6 +17,10 @@ static bool valid_addr(uint32_t addr) {
     return addr >= IRAM_START && addr < (IRAM_START + IRAM_SIZE);
 }
 
+static bool inline valid_checksum(uint32_t addr, uint32_t size, uint32_t checksum) {
+    return addr + size == checksum;
+}
+
 int command_iram_load(int argc, const char *argv[]) {
     if (argc != 4) {
         printf(COLOR_RED("Usage: %s 0x<addr> <size> <addr+size>") "\r\n", argv[0]);
@@ -27,12 +31,17 @@ int command_iram_load(int argc, const char *argv[]) {
     uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
     uint32_t check = static_cast<uint32_t>(take_int(argv[3]).ok_or(0));
 
-    if (!valid_addr(addr) || size == 0) {
-        printf(COLOR_RED("Invalid arguments") "\r\n");
-        return 1;
+    if (!valid_addr(addr)) {
+        printf(COLOR_RED("Invalid address") "\r\n");
+        return 2;
     }
 
-    if (addr + size != check) {
+    if (size == 0) {
+        printf(COLOR_RED("Invalid size") "\r\n");
+        return 2;
+    }
+
+    if (!valid_checksum(addr, size, check)) {
         printf("Invalid checksum\r\n");
         return 2;
     }
