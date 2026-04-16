@@ -44,6 +44,7 @@ const Shell::Handler shell_handlers[] = {
     {"loadx", command_iram_xmodem, nullptr},
     {"go", command_iram_jump, nullptr},
     {"test_net", command_test_net, nullptr},
+    {"probe_ram", command_probe_ram, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };
