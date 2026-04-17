@@ -73,7 +73,7 @@ static const id_name_map mclk_name_map[] = {
 };
 
 static const char *get_name_by_id(const id_name_map *map, int id) {
-    for (int i = 0; map[i].id == -1; i++) {
+    for (int i = 0; map[i].id != -1; i++) {
         if (map[i].id == id) {
             return map[i].name;
         }
@@ -91,7 +91,7 @@ static int get_id_by_name(const id_name_map *map, const char *name) {
 }
 
 int command_mclk(int argc, const char *argv[]) {
-    if (strcmp(argv[0], "--help") == 0) {
+    if (argc > 1 && strcmp(argv[1], "--help") == 0) {
         printf("\r\n");
         printf("Usage:\r\n");
         printf("    %s <source> [divider]\r\n", argv[0]);
