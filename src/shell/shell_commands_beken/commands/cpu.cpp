@@ -69,46 +69,43 @@ static const id_name_map mclk_name_map[] = {
     {MCLK_FIELD_26M_XTAL, "26M_XTAL"},
     {MCLK_FIELD_DPLL, "DPLL"},
     {MCLK_FIELD_LPO, "LPO"},
-    {-1, "unknown"},
+    {-1, ""},
 };
 
 static const char *get_name_by_id(const id_name_map *map, int id) {
-    for (int i = 0;; i++) {
-        if (map[i].id == id || map[i].id == -1) {
+    for (int i = 0; map[i].id == -1; i++) {
+        if (map[i].id == id) {
             return map[i].name;
         }
     }
 
-    return "error";
+    return "unknown";
 }
 
 static int get_id_by_name(const id_name_map *map, const char *name) {
-    for (int i = 0;; i++) {
-        if (strcasecmp(name, map[i].name) == 0) return i;
-        if (map[i].id == -1) break;
+    for (int i = 0; map[i].id != -1; i++) {
+        if (strcasecmp(name, map[i].name) == 0) return map[i].id;
     }
 
     return -1;
 }
 
 int command_mclk(int argc, const char *argv[]) {
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0) {
-            printf("\r\n");
-            printf("Usage:\r\n");
-            printf("    %s <source> [divider]\r\n", argv[0]);
-            printf("\r\n");
-            printf(
-                "    source: %s %s %s %s\r\n",
-                mclk_name_map[0].name,
-                mclk_name_map[1].name,
-                mclk_name_map[2].name,
-                mclk_name_map[3].name
-            );
-            printf("\r\n");
+    if (strcmp(argv[0], "--help") == 0) {
+        printf("\r\n");
+        printf("Usage:\r\n");
+        printf("    %s <source> [divider]\r\n", argv[0]);
+        printf("\r\n");
+        printf(
+            "    source: %s %s %s %s\r\n",
+            mclk_name_map[0].name,
+            mclk_name_map[1].name,
+            mclk_name_map[2].name,
+            mclk_name_map[3].name
+        );
+        printf("\r\n");
 
-            return 0;
-        }
+        return 0;
     }
 
     typeof(hw_sctrl->control) tmp;
@@ -143,7 +140,6 @@ int command_mclk(int argc, const char *argv[]) {
     }
 
     if (set_source != -1 || set_divider != -1) {
-        tmp.v = hw_sctrl->control.v;
         if (set_source != -1) {
             tmp.mclk_source = set_source;
         }
