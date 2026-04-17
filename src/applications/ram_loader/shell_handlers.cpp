@@ -26,6 +26,10 @@ const Shell::Handler shell_handlers[] = {
     {"loadx", command_iram_xmodem, nullptr},
     {"go", command_iram_jump, nullptr},
 
+    {"cpu_speed", command_cpu_speed, nullptr},
+    {"mclk_source", command_mclk_source, nullptr},
+    {"mclk_divider", command_mclk_divider, nullptr},
+
     // required at the end
     {nullptr, nullptr, nullptr},
 };

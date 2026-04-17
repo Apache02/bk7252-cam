@@ -40,6 +40,8 @@ const Shell::Handler shell_handlers[] = {
     {"timer_delay", command_time_delay, nullptr},
     {"uptime", command_uptime, nullptr},
     {"cpu_speed", command_cpu_speed, nullptr},
+    {"mclk_source", command_mclk_source, nullptr},
+    {"mclk_divider", command_mclk_divider, nullptr},
     {"loadi", command_iram_load, nullptr},
     {"loadx", command_iram_xmodem, nullptr},
     {"go", command_iram_jump, nullptr},

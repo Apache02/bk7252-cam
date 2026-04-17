@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "hardware/time.h"
 #include "hardware/sys_counter.h"
-#include "hardware/cpu.h"
 
 
 static char *sprint_time(char *buf, uint64_t us) {
@@ -40,15 +39,6 @@ int command_time_delay(int argc, const char *argv[]) {
     return 0;
 }
 
-static inline void busy_wait_at_least_cycles(unsigned long minimum_cycles) {
-    __asm volatile(
-        ".syntax unified\n"
-        "1: subs %0, #3\n"
-        "bcs 1b\n"
-        : "+l" (minimum_cycles) : : "cc", "memory"
-    );
-}
-
 int command_uptime(__unused int argc, __unused const char *argv[]) {
     uint32_t total = sys_counter_get_count();
     int days, hours, minutes, seconds;
@@ -71,25 +61,6 @@ int command_uptime(__unused int argc, __unused const char *argv[]) {
     } else {
         printf("uptime: %d seconds\r\n", seconds);
     }
-
-    return 0;
-}
-
-int command_cpu_speed(int argc, const char *argv[]) {
-    int count = argc == 2
-                    ? take_int(argv[1]).ok_or(1000000)
-                    : 1000;
-
-    GLOBAL_INT_DECLARATION();
-    GLOBAL_INT_DISABLE();
-    absolute_time_t start = get_absolute_time();
-    busy_wait_at_least_cycles(count);
-    int64_t us_spend = absolute_time_diff_us(start, get_absolute_time());
-    GLOBAL_INT_RESTORE();
-
-    printf("Instructions: %d\r\n", count);
-    printf("It took %lu us\r\n", (uint32_t) us_spend);
-    printf("CPU freq: %lu Hz\r\n", (uint32_t) (count / (us_spend / 1000000.0)));
 
     return 0;
 }
