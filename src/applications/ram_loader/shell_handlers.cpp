@@ -27,8 +27,7 @@ const Shell::Handler shell_handlers[] = {
     {"go", command_iram_jump, nullptr},
 
     {"cpu_speed", command_cpu_speed, nullptr},
-    {"mclk_source", command_mclk_source, nullptr},
-    {"mclk_divider", command_mclk_divider, nullptr},
+    {"mclk", command_mclk, nullptr},
 
     // required at the end
     {nullptr, nullptr, nullptr},

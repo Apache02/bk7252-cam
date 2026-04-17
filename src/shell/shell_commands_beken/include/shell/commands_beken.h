@@ -22,9 +22,7 @@ int command_uptime(int argc, const char *argv[]);
 
 int command_cpu_speed(int argc, const char *argv[]);
 
-int command_mclk_source(int argc, const char *argv[]);
-
-int command_mclk_divider(int argc, const char *argv[]);
+int command_mclk(int argc, const char *argv[]);
 
 int command_uart_baudrate(int argc, const char *argv[]);
 

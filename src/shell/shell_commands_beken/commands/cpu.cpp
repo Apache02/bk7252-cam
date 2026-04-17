@@ -2,6 +2,7 @@
 #include "shell/console_colors.h"
 #include "shell/Parser.h"
 #include <stdio.h>
+#include <string.h>
 #include "hardware/time.h"
 #include "hardware/cpu.h"
 #include "hardware/sctrl_regs.h"
@@ -52,58 +53,108 @@ int command_cpu_speed(int argc, const char *argv[]) {
     return 0;
 }
 
-static const char *mclk_source_name(uint32_t s) {
-    switch (s) {
-        case 0: return "DCO";
-        case 1: return "26M_XTAL";
-        case 2: return "DPLL";
-        case 3: return "LPO";
-        default: return "?";
+
+#define MCLK_FIELD_DCO                      (0x0)
+#define MCLK_FIELD_26M_XTAL                 (0x1)
+#define MCLK_FIELD_DPLL                     (0x2)
+#define MCLK_FIELD_LPO                      (0x3)
+
+struct id_name_map {
+    int id;
+    const char *name;
+};
+
+static const id_name_map mclk_name_map[] = {
+    {MCLK_FIELD_DCO, "DCO"},
+    {MCLK_FIELD_26M_XTAL, "26M_XTAL"},
+    {MCLK_FIELD_DPLL, "DPLL"},
+    {MCLK_FIELD_LPO, "LPO"},
+    {-1, "unknown"},
+};
+
+static const char *get_name_by_id(const id_name_map *map, int id) {
+    for (int i = 0;; i++) {
+        if (map[i].id == id || map[i].id == -1) {
+            return map[i].name;
+        }
     }
+
+    return "error";
 }
 
-int command_mclk_source(int argc, const char *argv[]) {
-    if (argc < 2) {
-        uint32_t s = hw_sctrl->control.mclk_source;
-        printf("MCLK source: %lu (%s)\r\n", static_cast<unsigned long>(s), mclk_source_name(s));
-        printf("  0=DCO  1=26M_XTAL  2=DPLL  3=LPO\r\n");
-        return 0;
+static int get_id_by_name(const id_name_map *map, const char *name) {
+    for (int i = 0;; i++) {
+        if (strcasecmp(name, map[i].name) == 0) return i;
+        if (map[i].id == -1) break;
     }
 
-    int v = take_int(argv[1]).ok_or(-1);
-    if (v < 0 || v > 3) {
-        printf(COLOR_RED("Error: source must be 0..3 (0=DCO, 1=26M_XTAL, 2=DPLL, 3=LPO)") "\r\n");
-        return 1;
-    }
-
-    // Read-modify-write the full 32-bit word — never poke individual bit-fields on a volatile reg.
-    typeof(hw_sctrl->control) tmp;
-    tmp.v = hw_sctrl->control.v;
-    tmp.mclk_source = static_cast<uint32_t>(v);
-    hw_sctrl->control.v = tmp.v;
-
-    printf("MCLK source set to %d (%s)\r\n", v, mclk_source_name(static_cast<uint32_t>(v)));
-    return 0;
+    return -1;
 }
 
-int command_mclk_divider(int argc, const char *argv[]) {
-    if (argc < 2) {
-        uint32_t d = hw_sctrl->control.divider;
-        printf("MCLK divider: %lu\r\n", static_cast<unsigned long>(d));
-        return 0;
-    }
+int command_mclk(int argc, const char *argv[]) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--help") == 0) {
+            printf("\r\n");
+            printf("Usage:\r\n");
+            printf("    %s <source> [divider]\r\n", argv[0]);
+            printf("\r\n");
+            printf(
+                "    source: %s %s %s %s\r\n",
+                mclk_name_map[0].name,
+                mclk_name_map[1].name,
+                mclk_name_map[2].name,
+                mclk_name_map[3].name
+            );
+            printf("\r\n");
 
-    int v = take_int(argv[1]).ok_or(-1);
-    if (v < 0 || v > 15) {
-        printf(COLOR_RED("Error: divider must be 0..15") "\r\n");
-        return 1;
+            return 0;
+        }
     }
 
     typeof(hw_sctrl->control) tmp;
     tmp.v = hw_sctrl->control.v;
-    tmp.divider = static_cast<uint32_t>(v);
-    hw_sctrl->control.v = tmp.v;
 
-    printf("MCLK divider set to %d\r\n", v);
+    int set_source = -1;
+    if (argc > 1) {
+        set_source = get_id_by_name(mclk_name_map, argv[1]);
+
+        if (set_source < 0) {
+            printf(COLOR_RED("Error: unknown source") "\r\n");
+            printf(
+                "Expected: %s %s %s %s\r\n",
+                mclk_name_map[0].name,
+                mclk_name_map[1].name,
+                mclk_name_map[2].name,
+                mclk_name_map[3].name
+            );
+
+            return 1;
+        }
+    }
+
+    int set_divider = -1;
+    if (argc > 2) {
+        set_divider = take_int(argv[2]).ok_or(-1);
+
+        if (set_divider < 0 || set_divider > 15) {
+            printf(COLOR_RED("Error: divider must be in range 0..15") "\r\n");
+            return 2;
+        }
+    }
+
+    if (set_source != -1 || set_divider != -1) {
+        tmp.v = hw_sctrl->control.v;
+        if (set_source != -1) {
+            tmp.mclk_source = set_source;
+        }
+        if (set_divider != -1) {
+            tmp.divider = set_divider;
+        }
+        hw_sctrl->control.v = tmp.v;
+    }
+
+    printf("   source:  %d (%s)\r\n", tmp.mclk_source, get_name_by_id(mclk_name_map, tmp.mclk_source));
+    printf("  divider: %d\r\n", tmp.divider);
+
     return 0;
 }
