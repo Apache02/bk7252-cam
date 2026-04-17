@@ -1,5 +1,5 @@
-#ifndef _PLATFORM_UTILS_PANIC_H
-#define _PLATFORM_UTILS_PANIC_H
+#ifndef _PLATFORM_PANIC_H
+#define _PLATFORM_PANIC_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,4 +13,4 @@ void panic_blink(int count);
 }
 #endif
 
-#endif // _PLATFORM_UTILS_PANIC_H
+#endif // _PLATFORM_PANIC_H

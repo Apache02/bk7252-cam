@@ -1,4 +1,4 @@
-#include "utils/panic.h"
+#include "platform/panic.h"
 
 
 void bk_trap_udef() {

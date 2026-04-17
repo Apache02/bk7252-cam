@@ -4,7 +4,7 @@
 #include "hardware/icu.h"
 #include "hardware/intc.h"
 #include "hardware/cpu.h"
-#include "utils/assert.h"
+#include "platform/assert.h"
 
 
 typedef struct {

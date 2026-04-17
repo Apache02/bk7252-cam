@@ -11,5 +11,4 @@ target_link_libraries(
         platform_boot
         platform_port_newlib
         hardware_intc
-        utils
 )

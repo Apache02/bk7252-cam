@@ -1,5 +1,5 @@
 #include "hardware/intc.h"
-#include "utils/panic.h"
+#include "platform/panic.h"
 #include <stdio.h>
 #include <string.h>
 

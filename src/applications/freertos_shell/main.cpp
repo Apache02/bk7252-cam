@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include "platform/stdio.h"
-#include "utils/panic.h"
+#include "platform/panic.h"
 #include "hardware/wdt.h"
 
 #include "net.h"

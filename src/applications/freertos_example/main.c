@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 #include "platform/stdio.h"
-#include "utils/panic.h"
+#include "platform/panic.h"
 
 #include "utils/busy_wait.h"
 
