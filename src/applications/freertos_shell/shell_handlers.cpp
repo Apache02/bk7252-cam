@@ -20,6 +20,12 @@ extern int command_blink(int argc, const char *argv[]);
 
 extern int command_test_net(int argc, const char *argv[]);
 
+extern int command_sha1(int argc, const char *argv[]);
+
+extern int command_sha256(int argc, const char *argv[]);
+
+// extern int command_sha224(int argc, const char *argv[]);
+
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
     {"reboot", command_reboot, nullptr},
@@ -46,6 +52,9 @@ const Shell::Handler shell_handlers[] = {
     {"go", command_iram_jump, nullptr},
     {"test_net", command_test_net, nullptr},
     {"probe_ram", command_probe_ram, nullptr},
+    {"sha1", command_sha1, nullptr},
+    {"sha256", command_sha256, nullptr},
+    // {"sha224", command_sha224, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };
