@@ -12,7 +12,9 @@ void *sha1_create_context();
 
 void *sha256_create_context();
 
-// void *sha224_create_context();
+void *sha224_create_context();
+
+void *sha512_create_context();
 
 void sha_destroy_context(void *ctx);
 
