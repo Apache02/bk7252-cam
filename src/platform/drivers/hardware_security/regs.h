@@ -71,7 +71,7 @@ typedef volatile struct {
             uint32_t ready: 1;
             uint32_t valid: 1;
             uint32_t int_flag: 1;
-            uint32_t reserved_4_31: 29;
+            uint32_t reserved_3_31: 29;
         };
 
         uint32_t v;

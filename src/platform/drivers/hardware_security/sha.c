@@ -1,13 +1,13 @@
 #include "regs.h"
 #include "hardware/sha.h"
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 
-typedef enum {
-    STEP_INIT = 0,
-    STEP_NEXT = 1,
-} SHA_STEP;
+#define SHA_BLOCK_SIZE_SMALL  64   // SHA-1/224/256
+#define SHA_BLOCK_SIZE_LARGE  128  // SHA-384/512 family
+
 
 typedef enum {
     SHA1 = 0,
@@ -21,32 +21,40 @@ typedef enum {
 
 // Per-mode sizes in bits, indexed by SHA_MODE (slots 0..7).
 // state_bits drives register layout (block + digest base); digest_bits is the output length.
-static const uint16_t sha_state_bits[8]  = {
+static const uint16_t sha_state_bits[8] = {
     [SHA1] = 160,
-    [SHA224] = 256, [SHA256] = 256,
-    [SHA384] = 512, [SHA512] = 512,
-    [SHA512_224] = 512, [SHA512_256] = 512,
+    [SHA224] = 256,
+    [SHA256] = 256,
+    [SHA384] = 512,
+    [SHA512_224] = 512,
+    [SHA512_256] = 512,
+    [SHA512] = 512,
 };
 static const uint16_t sha_digest_bits[8] = {
     [SHA1] = 160,
-    [SHA224] = 224, [SHA256] = 256,
-    [SHA384] = 384, [SHA512] = 512,
-    [SHA512_224] = 224, [SHA512_256] = 256,
+    [SHA224] = 224,
+    [SHA256] = 256,
+    [SHA384] = 384,
+    [SHA512] = 512,
+    [SHA512_224] = 224,
+    [SHA512_256] = 256,
 };
 
 typedef struct {
     SHA_MODE mode;
-    SHA_STEP step;
+    bool first_block;
     uint32_t block_size;         // 64 for SHA-1/224/256, 128 for SHA-384/512
     uint64_t total;              // bytes accumulated so far
     uint32_t buffer_len;         // bytes currently in buffer
-    unsigned char buffer[128];   // max block size
+    unsigned char buffer[SHA_BLOCK_SIZE_LARGE];
 } sha_context_t;
 
 
 static inline uint32_t load_be32(const uint8_t *p) {
-    return ((uint32_t) p[0] << 24) | ((uint32_t) p[1] << 16)
-         | ((uint32_t) p[2] << 8)  | ((uint32_t) p[3]);
+    return ((uint32_t) p[0] << 24)
+           | ((uint32_t) p[1] << 16)
+           | ((uint32_t) p[2] << 8)
+           | ((uint32_t) p[3]);
 }
 
 static inline void store_be32(uint8_t *p, uint32_t w) {
@@ -64,7 +72,7 @@ static void process_block(sha_context_t *c) {
     // Block layout (empirical, BK7252):
     //   message word 0 sits at the tail of the register file at block_31to0[32 - block_words].
     //   SHA-1/224/256 (16 words) use block_31to0[16..31]; SHA-384/512 (32 words) use [0..31].
-    int block_words = (int) (c->block_size / 4);
+    int block_words = (int) (c->block_size / sizeof(uint32_t));
     int base = 32 - block_words;
 
     for (int i = 0; i < block_words; i++) {
@@ -73,9 +81,9 @@ static void process_block(sha_context_t *c) {
 
     // INIT (bit 0) for the first block: resets state to H0 and processes.
     // NEXT (bit 1) for subsequent blocks: continues from current state.
-    if (c->step == STEP_INIT) {
+    if (c->first_block) {
         hw_sha->control.init = 1;
-        c->step = STEP_NEXT;
+        c->first_block = false;
     } else {
         hw_sha->control.next = 1;
     }
@@ -88,8 +96,8 @@ void *sha_create_context(SHA_MODE mode) {
 
     memset(ctx, 0, sizeof(sha_context_t));
     ctx->mode = mode;
-    ctx->step = STEP_INIT;
-    ctx->block_size = (mode <= SHA256) ? 64 : 128;
+    ctx->first_block = true;
+    ctx->block_size = (mode <= SHA256) ? SHA_BLOCK_SIZE_SMALL : SHA_BLOCK_SIZE_LARGE;
 
     hw_sha->config.enable = 1;
     hw_sha->config.mode = mode;
@@ -97,7 +105,7 @@ void *sha_create_context(SHA_MODE mode) {
     return ctx;
 }
 
-void *sha1_create_context()   { return sha_create_context(SHA1); }
+void *sha1_create_context() { return sha_create_context(SHA1); }
 void *sha224_create_context() { return sha_create_context(SHA224); }
 void *sha256_create_context() { return sha_create_context(SHA256); }
 void *sha512_create_context() { return sha_create_context(SHA512); }
@@ -134,7 +142,7 @@ void sha_finish(void *ctx, uint8_t *sum) {
     uint64_t total_bits = c->total * 8;
 
     // Length field: 8 bytes for SHA-1/224/256, 16 bytes for SHA-384/512.
-    size_t length_size = (c->block_size == 128) ? 16 : 8;
+    size_t length_size = (c->block_size == SHA_BLOCK_SIZE_LARGE) ? 16 : 8;
     size_t padding_end = c->block_size - length_size;
 
     c->buffer[c->buffer_len++] = 0x80;
