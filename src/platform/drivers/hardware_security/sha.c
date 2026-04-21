@@ -90,7 +90,7 @@ static void process_block(sha_context_t *c) {
     wait_ready();
 }
 
-void *sha_create_context(SHA_MODE mode) {
+static void *sha_create_context(SHA_MODE mode) {
     sha_context_t *ctx = (sha_context_t *) malloc(sizeof(sha_context_t));
     if (!ctx) return NULL;
 
@@ -104,11 +104,6 @@ void *sha_create_context(SHA_MODE mode) {
 
     return ctx;
 }
-
-void *sha1_create_context() { return sha_create_context(SHA1); }
-void *sha224_create_context() { return sha_create_context(SHA224); }
-void *sha256_create_context() { return sha_create_context(SHA256); }
-void *sha512_create_context() { return sha_create_context(SHA512); }
 
 void sha_destroy_context(void *ctx) {
     if (!ctx) return;
@@ -143,19 +138,19 @@ void sha_finish(void *ctx, uint8_t *sum) {
 
     // Length field: 8 bytes for SHA-1/224/256, 16 bytes for SHA-384/512.
     size_t length_size = (c->block_size == SHA_BLOCK_SIZE_LARGE) ? 16 : 8;
-    size_t padding_end = c->block_size - length_size;
 
     c->buffer[c->buffer_len++] = 0x80;
 
     // If the length field doesn't fit in this block, flush a zero-padded block first.
-    if (c->buffer_len > padding_end) {
+    if (c->buffer_len + length_size > c->block_size) {
         memset(c->buffer + c->buffer_len, 0, c->block_size - c->buffer_len);
         process_block(c);
         c->buffer_len = 0;
     }
-    memset(c->buffer + c->buffer_len, 0, padding_end - c->buffer_len);
+    // Zero the rest of the block including the full length field (high half of SHA-384/512's
+    // 128-bit length stays zero; low 8 bytes are overwritten with total_bits below).
+    memset(c->buffer + c->buffer_len, 0, c->block_size - c->buffer_len);
 
-    // SHA-384/512 length is 128-bit; high 8 bytes are zero since total fits in 64 bits.
     uint8_t *len_tail = c->buffer + c->block_size - 8;
     for (int i = 0; i < 8; i++) {
         len_tail[i] = (uint8_t) (total_bits >> ((7 - i) * 8));
@@ -173,3 +168,25 @@ void sha_finish(void *ctx, uint8_t *sum) {
 
     sha_destroy_context(c);
 }
+
+void *sha1_create_context() { return sha_create_context(SHA1); }
+void *sha224_create_context() { return sha_create_context(SHA224); }
+void *sha256_create_context() { return sha_create_context(SHA256); }
+void *sha384_create_context() { return sha_create_context(SHA384); }
+void *sha512_create_context() { return sha_create_context(SHA512); }
+void *sha512_224_create_context() { return sha_create_context(SHA512_224); }
+void *sha512_256_create_context() { return sha_create_context(SHA512_256); }
+
+static void sha_oneshot(SHA_MODE mode, const unsigned char *input, size_t length, uint8_t *sum) {
+    void *ctx = sha_create_context(mode);
+    sha_update(ctx, input, length);
+    sha_finish(ctx, sum);
+}
+
+void sha1(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA1, input, length, sum); }
+void sha224(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA224, input, length, sum); }
+void sha256(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA256, input, length, sum); }
+void sha384(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA384, input, length, sum); }
+void sha512(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA512, input, length, sum); }
+void sha512_224(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA512_224, input, length, sum); }
+void sha512_256(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA512_256, input, length, sum); }
