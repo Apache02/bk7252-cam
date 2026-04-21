@@ -27,13 +27,8 @@ int command_sha1(int argc, const char *argv[]) {
     }
 
     const char *input = argv[1];
-    auto length = strlen(input);
-
-    auto ctx = sha1_create_context();
-    sha_update(ctx, reinterpret_cast<const uint8_t *>(input), length);
-
     uint8_t hash[5 * sizeof(uint32_t)] = {0};
-    sha_finish(ctx, hash);
+    sha1(reinterpret_cast<const uint8_t *>(input), strlen(input), hash);
 
     char hash_string[(sizeof(hash) * 2) + 1];
     hash_to_string(hash, sizeof(hash), hash_string);
@@ -50,13 +45,8 @@ int command_sha256(int argc, const char *argv[]) {
     }
 
     const char *input = argv[1];
-    auto length = strlen(input);
-
-    auto ctx = sha256_create_context();
-    sha_update(ctx, reinterpret_cast<const uint8_t *>(input), length);
-
     uint8_t hash[8 * sizeof(uint32_t)] = {0};
-    sha_finish(ctx, hash);
+    sha256(reinterpret_cast<const uint8_t *>(input), strlen(input), hash);
 
     char hash_string[(sizeof(hash) * 2) + 1];
     hash_to_string(hash, sizeof(hash), hash_string);
@@ -73,13 +63,8 @@ int command_sha224(int argc, const char *argv[]) {
     }
 
     const char *input = argv[1];
-    auto length = strlen(input);
-
-    auto ctx = sha224_create_context();
-    sha_update(ctx, reinterpret_cast<const uint8_t *>(input), length);
-
     uint8_t hash[7 * sizeof(uint32_t)] = {0};
-    sha_finish(ctx, hash);
+    sha224(reinterpret_cast<const uint8_t *>(input), strlen(input), hash);
 
     char hash_string[(sizeof(hash) * 2) + 1];
     hash_to_string(hash, sizeof(hash), hash_string);
@@ -96,13 +81,8 @@ int command_sha512(int argc, const char *argv[]) {
     }
 
     const char *input = argv[1];
-    auto length = strlen(input);
-
-    auto ctx = sha512_create_context();
-    sha_update(ctx, reinterpret_cast<const uint8_t *>(input), length);
-
     uint8_t hash[16 * sizeof(uint32_t)] = {0};
-    sha_finish(ctx, hash);
+    sha512(reinterpret_cast<const uint8_t *>(input), strlen(input), hash);
 
     char hash_string[(sizeof(hash) * 2) + 1];
     hash_to_string(hash, sizeof(hash), hash_string);
