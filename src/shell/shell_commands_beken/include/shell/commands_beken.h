@@ -30,6 +30,15 @@ int command_uart1_baudrate(int argc, const char *argv[]);
 
 int command_uart2_baudrate(int argc, const char *argv[]);
 
+int command_sha1(int argc, const char *argv[]);
+
+int command_sha224(int argc, const char *argv[]);
+
+int command_sha256(int argc, const char *argv[]);
+
+int command_sha512(int argc, const char *argv[]);
+
+
 #ifdef __cplusplus
 }
 
