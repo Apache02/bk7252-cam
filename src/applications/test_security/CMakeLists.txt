@@ -1,6 +1,9 @@
 add_executable(
         test_security
         main.cpp
+        helpers.c
+        test_sha.cpp
+        test_aes.cpp
 )
 
 target_link_libraries(
