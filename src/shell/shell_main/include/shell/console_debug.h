@@ -15,9 +15,10 @@
 #define LOG_W(fmt, ...)      printf(COLOR_YELLOW(LOG_PREFIX("W") fmt) "\r\n", ##__VA_ARGS__)
 #define LOG_E(fmt, ...)      printf(COLOR_RED   (LOG_PREFIX("E") fmt) "\r\n", ##__VA_ARGS__)
 
-#define LOG_REG(x)           LOG_D("%-32s @ %p = 0x%08lx", #x,        \
-                                   (const void *) &(x),               \
-                                   (unsigned long) (uint32_t) (x))
+#define LOG_REG(x)           LOG_D("%p | [%-32s] = 0x%08lx",        \
+                                    (const void *) &(x),            \
+                                    #x,                             \
+                                    (unsigned long) (uint32_t) (x))
 
 #else
 
