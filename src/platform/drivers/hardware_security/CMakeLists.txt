@@ -5,3 +5,8 @@ target_sources(
         sha.c
         rsa.c
 )
+
+#target_link_libraries(
+#        hardware_security INTERFACE
+#        shell_main
+#)

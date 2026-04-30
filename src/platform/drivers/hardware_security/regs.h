@@ -88,29 +88,79 @@ typedef volatile struct {
     } config;
 } hw_security_sha_reg_t;
 
+typedef struct {
+    volatile uint32_t ptr_reset;
+    volatile uint32_t mem_data;
+} cyclic_memory_bank_t;
+
 typedef volatile struct {
-    uint32_t config;            // 0x80
-    uint32_t state;             // 0x81
-    uint32_t no_prime_l;        // 0x82
-    uint32_t no_prime_h;        // 0x83
-    uint32_t length;            // 0x84
+    union {
+        struct _register_bits {
+            uint32_t init: 1;
+            uint32_t next: 1;
+            uint32_t enable: 1;        // hypothesis, maybe its encode/decode flag
+            uint32_t reserved_3_31: 29;
+        };
+
+        uint32_t v;
+    } control;
+
+    union {
+        struct _register_bits {
+            uint32_t ready: 1;
+            uint32_t enabled: 1;        // hypothesis, maybe its valid flag
+            uint32_t int_flag: 1;       // hypothesis, not tested
+            uint32_t reserved_3_31: 29;
+        };
+
+        uint32_t v;
+    } status;
+
+    // 0x82, 0x83
+    uint32_t no_prime_l;
+    uint32_t no_prime_h;
+
+    // 0x84 — operation size / mode selector (purpose still under investigation).
+    //
+    // Field layout:
+    //   bit  0       — ignored (writing 0/1 produces identical behavior)
+    //   bits 1..6    — significant: this 6-bit field controls operation size
+    //                  and dominates compute duration (~quadratic growth)
+    //   bit  7       — ignored for hardware semantics, but readback returns
+    //                  whatever was written
+    //   bits 8..31   — not stored (writing 0x100 reads back 0x00)
+    //
+    // The exact unit encoded in bits [1..6] is unknown. Originally hypothesized
+    // as a mode selector (16/64/128 = RSA-512/2048/4096) but no valid RSA
+    // result has been produced for any value tested. The leading hypothesis
+    // is that this is operand length in some unit (words / half-words / bits),
+    // possibly with bit 0 acting as an alignment requirement that the hardware
+    // silently masks off.
+    uint32_t config;
 
     uint32_t reserved_0x85;
     uint32_t reserved_0x86;
     uint32_t reserved_0x87;
 
-    uint32_t n_rst;             // 0x88
-    uint32_t n_mem_data;        // 0x89
-    uint32_t e_rst;             // 0x8A
-    uint32_t e_mem_data;        // 0x8B
-    uint32_t m_rst;             // 0x8C
-    uint32_t m_mem_data;        // 0x8D
-    uint32_t r_rst;             // 0x8E
-    uint32_t r_mem_data;        // 0x8F
-    uint32_t t_rst;             // 0x90
-    uint32_t t_mem_data;        // 0x91
-    uint32_t c_rst;             // 0x92
-    uint32_t c_mem_data;        // 0x93
+    // Memory banks: 128 32-bit words each, accessed via *_rst (pointer
+    // reset to 0) and *_mem_data (RW with auto-increment, wraps at 128).
+    cyclic_memory_bank_t n;      // RW | used as mod N on init | 0 and 1 => infinite cycle
+    cyclic_memory_bank_t e;      // RW | rounds count on init  | 0 => infinite cycle
+    cyclic_memory_bank_t m;      // RW | used as M*T on init   |
+    cyclic_memory_bank_t r;      // RW | unknown
+    cyclic_memory_bank_t t;      // RW | used as M*T on init
+    cyclic_memory_bank_t c;      // RO bank | result?
+
+    // M = f(no_prime_l, no_prime_h, E, R, M*T) mod N
+    // C = g(M, E, T) mod N
+
+    // C(R) = 86 * R^4 mod 101                  (when N=101, E=3, M=7, T=0x44)
+    // M[0] = 10·T mod 101                      (when N=101, E=3, M=7, R=1)
+    // C[0] = 95 · M_in^3 · T^3 · R^4 mod N     (when N=101, E=3)
+    // M[0] = 88 · M_in · T · R^2 mod N         (when N=101, E=3, 88 = R_mont mod N)
+    // C[0] = M^E · T^E · R^(2^msb(E)) · 2^(44E - 28·2^msb(E)) mod N
+
+
 } hw_security_rsa_reg_t;
 
 

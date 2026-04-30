@@ -20,6 +20,8 @@ extern int command_blink(int argc, const char *argv[]);
 
 extern int command_test_net(int argc, const char *argv[]);
 
+extern int command_rsa(int argc, const char *argv[]);
+
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
     {"reboot", command_reboot, nullptr},
@@ -50,6 +52,7 @@ const Shell::Handler shell_handlers[] = {
     {"sha224", command_sha224, nullptr},
     {"sha256", command_sha256, nullptr},
     {"sha512", command_sha512, nullptr},
+    {"rsa", command_rsa, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };
