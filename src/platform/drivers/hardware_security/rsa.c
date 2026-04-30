@@ -323,9 +323,9 @@ void action_scan_pack_m() {
 }
 
 void action_test_rsa() {
-    unsigned int public_e = 3,
-                 public_n = 33,
-                 private_d = 7;
+    unsigned int public_e = 83,
+                 public_n = 1037,
+                 private_d = 347;
 
     printf("== RSA TEST\r\n");
     printf("  public key (e; n)         = (%u; %u)\r\n", public_e, public_n);
@@ -334,18 +334,18 @@ void action_test_rsa() {
     // no_prime = -n^(-1) mod 2^64
     // R = 2^28 mod n
     // T = 2^(-44) mod n
-    unsigned long computed_no_prime_l = 0xc1f07c1f;
-    unsigned long computed_no_prime_h = 0xf07c1f07;
-    unsigned long computed_t = 31;
-    unsigned long computed_r = 25;
+    unsigned long computed_no_prime_l = 0x21d2153b;
+    unsigned long computed_no_prime_h = 0x196d5c93;
+    unsigned long computed_t = 815;
+    unsigned long computed_r = 747;
 
     printf("  computed no_prime (l; h)  = (0x%08lx; 0x%08lx)\r\n", computed_no_prime_l, computed_no_prime_h);
     printf("  computed T                = 0x%08lx\r\n", computed_t);
     printf("  computed R                = 0x%08lx\r\n", computed_r);
     printf("\r\n");
 
-    unsigned long message = 4;
-    unsigned long encrypted = 31;
+    unsigned long message = 341;
+    unsigned long encrypted = 188;
     unsigned long value;
 
     hw_rsa->config = 2;
@@ -367,6 +367,10 @@ void action_test_rsa() {
     hw_rsa->c.ptr_reset = 0;
     value = hw_rsa->c.mem_data;
     printf("  encrypted = %lu | expected = %lu - [%s]\r\n", value, encrypted, value == encrypted ? " OK " : COLOR_RED("FAIL"));
+    if (value != encrypted) {
+        dump_bank(&hw_rsa->c, "C");
+        dump_bank(&hw_rsa->m, "M");
+    }
 
 
     printf("+ decryption\r\n");
@@ -380,6 +384,10 @@ void action_test_rsa() {
     hw_rsa->c.ptr_reset = 0;
     value = hw_rsa->c.mem_data;
     printf("  decrypted = %lu | expected = %lu - [%s]\r\n", value, message, value == message ? " OK " : COLOR_RED("FAIL"));
+    if (value != message) {
+        dump_bank(&hw_rsa->c, "C");
+        dump_bank(&hw_rsa->m, "M");
+    }
 }
 
 // ===========================================================================
