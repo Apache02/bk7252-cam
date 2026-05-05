@@ -1,4 +1,4 @@
-#include "regs.h"
+#include "security_regs.h"
 #include "hardware/aes.h"
 #include <stdbool.h>
 #include <stdlib.h>

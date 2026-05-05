@@ -110,7 +110,7 @@ typedef volatile struct {
     uint32_t t_rst;             // 0x90
     uint32_t t_mem_data;        // 0x91
     uint32_t c_rst;             // 0x92
-    uint32_t c_mem_data;        // 0x93
+    const uint32_t c_mem_data;  // 0x93
 } hw_security_rsa_reg_t;
 
 
