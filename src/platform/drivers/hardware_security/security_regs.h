@@ -14,7 +14,7 @@ typedef volatile struct {
     uint32_t key_0to7[8];
 
     union {
-        struct _register_bits {
+        struct {
             uint32_t init: 1;
             uint32_t next: 1;
             uint32_t auteo: 1;
@@ -26,7 +26,7 @@ typedef volatile struct {
     } control;
 
     union {
-        struct _register_bits {
+        struct {
             uint32_t ready: 1;
             uint32_t valid: 1;
             uint32_t int_flag: 1;
@@ -37,7 +37,7 @@ typedef volatile struct {
     } status;
 
     union {
-        struct _register_bits {
+        struct {
             uint32_t encode: 1;
             uint32_t mode: 2;
             uint32_t reserved_3_31: 29;
@@ -57,7 +57,7 @@ typedef volatile struct {
     uint32_t digest_15to0[16];
 
     union {
-        struct _register_bits {
+        struct {
             uint32_t init: 1;
             uint32_t next: 1;
             uint32_t reserved_2_31: 30;
@@ -67,7 +67,7 @@ typedef volatile struct {
     } control;
 
     union {
-        struct _register_bits {
+        struct {
             uint32_t ready: 1;
             uint32_t valid: 1;
             uint32_t int_flag: 1;
@@ -78,7 +78,7 @@ typedef volatile struct {
     } status;
 
     union {
-        struct _register_bits {
+        struct {
             uint32_t mode: 3;
             uint32_t enable: 1;
             uint32_t reserved_4_31: 28;

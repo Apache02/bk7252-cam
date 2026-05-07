@@ -9,7 +9,7 @@
 typedef volatile struct {
     union {
         uint32_t v;
-        struct _register_bits {
+        struct {
             uint32_t enable: 1;
             uint32_t reserved_1_31: 31;
         };

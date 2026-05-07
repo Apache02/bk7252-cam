@@ -41,7 +41,7 @@
 
 typedef volatile struct {
     union {
-        struct _register_bits {
+        struct {
             uint32_t input: 1;              // [0]
             uint32_t output: 1;             // [1]
             uint32_t input_enable: 1;       // [2]

@@ -38,7 +38,7 @@ typedef enum
 typedef struct {
     union operate_sw_u {
         uint32_t v;
-        struct _register_bits {
+        struct {
             uint32_t addr: 24;                  // [0:23]
             uint32_t op_type_sw: 5;             // [24:28]
             uint32_t op_sw: 1;                  // [29]
@@ -55,7 +55,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct _register_bits {
+        struct {
             uint32_t sr: 8;                     // [0:7]
             uint32_t error_count: 8;            // [8:15]
             uint32_t data_flash_sw: 3;          // [16:18]

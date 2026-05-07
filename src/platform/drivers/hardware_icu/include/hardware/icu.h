@@ -53,7 +53,7 @@ typedef volatile struct {
     // peripheral clock select
     union {
         uint32_t v;
-        struct _register_bits {
+        struct {
             peri_clk_t uart1: 1;                // [0]
             peri_clk_t uart2: 1;                // [1]
             peri_clk_t i2c1: 1;                 // [2]      I2C1 clock select, 1-CLK_26M, 0-DCO Divided clk_mux
@@ -81,7 +81,7 @@ typedef volatile struct {
     // clock power down for peripheral unit
     union {
         uint32_t v;
-        struct _register_bits {
+        struct {
             uint32_t uart1: 1;                  // [0]
             uint32_t uart2: 1;                  // [1]
             uint32_t i2c1: 1;                   // [2]
@@ -114,7 +114,7 @@ typedef volatile struct {
     // AHB/APB clock gating disable for periphral unit
     union {
         uint32_t v;
-        struct _register_bits {
+        struct {
             uint32_t icu: 1;                    // [0]
             uint32_t uart1: 1;                  // [1]
             uint32_t uart2: 1;                  // [2]
@@ -140,7 +140,7 @@ typedef volatile struct {
     // clocks power down 2
     union {
         uint32_t v;
-        struct _register_bits {
+        struct {
             uint32_t tl410: 1;                  // [0]
             uint32_t ble: 1;                    // [1]
             uint32_t reserved_2_31: 30;         // [2:31]
