@@ -1,7 +1,0 @@
-add_subdirectory(hello)
-add_subdirectory(blink)
-add_subdirectory(shell)
-add_subdirectory(freertos_example)
-add_subdirectory(freertos_shell)
-add_subdirectory(random_test)
-add_subdirectory(ram_loader)
