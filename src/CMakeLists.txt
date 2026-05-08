@@ -6,3 +6,6 @@ add_subdirectory(shell)
 
 # applications
 add_subdirectory(applications)
+
+# tests
+add_subdirectory(tests)
