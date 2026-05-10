@@ -1,6 +1,6 @@
 add_executable(
         test_security
-        main.cpp
+        test_security.cpp
         helpers.c
         test_sha.cpp
         test_aes.cpp

@@ -1,14 +1,14 @@
 add_executable(
-        random_test
-        random_test.cpp
+        test_random
+        test_random.cpp
 )
 
-bk_firmware(random_test)
-
 target_link_libraries(
-        random_test PRIVATE
+        test_random PRIVATE
         platform_nosys
         platform_stdio_uart2
         utils_busy_wait
         hardware_random
 )
+
+bk_firmware_iram(test_random)
