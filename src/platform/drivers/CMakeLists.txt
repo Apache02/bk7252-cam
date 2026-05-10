@@ -16,4 +16,5 @@ add_subdirectory(hardware_flash)
 add_subdirectory(hardware_random)
 add_subdirectory(hardware_time)
 add_subdirectory(hardware_security)
+add_subdirectory(hardware_gdma)
 
