@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include "platform/stdio.h"
 #include "hardware/gpio.h"
-#include "hardware/intc.h"
-#include "hardware/timer.h"
 #include "hardware/wdt.h"
 #include "utils/busy_wait.h"
 #include "shell_handlers.h"
@@ -14,9 +12,6 @@
 
 
 static void init_hardware() {
-    intc_init();
-    timer_init();
-
     platform_stdio_init();
 
     gpio_config(LED_PIN, GPIO_OUT);

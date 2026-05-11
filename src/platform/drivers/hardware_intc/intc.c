@@ -1,5 +1,6 @@
 #include "hardware/intc.h"
 #include "platform/panic.h"
+#include "platform/init.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -29,7 +30,7 @@ static inline void init_ram_vectors() {
     ram_vectors->reserved = do_reserved;
 }
 
-void intc_init() {
+static void intc_init(void) {
     memset(&intc_manager, 0, sizeof(intc_manager));
 
     init_ram_vectors();
@@ -49,6 +50,8 @@ void intc_init() {
 
     icu_global_interrupt_enable_reg->v = GINTR_IRQ_EN | GINTR_FIQ_EN;
 }
+
+INIT_AT(intc_init, 01);
 
 static int find_handlers(
     const struct handlers_collection_t *collection,

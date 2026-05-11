@@ -5,6 +5,7 @@
 #include "hardware/intc.h"
 #include "hardware/cpu.h"
 #include "platform/assert.h"
+#include "platform/init.h"
 
 
 typedef struct {
@@ -77,7 +78,25 @@ static int find_free_timer(uint32_t freq) {
     return -1;
 }
 
-static void register_sys_counter() {
+static void timer_init(void) {
+    hw_timer_bank0->ctl.enable = 0;
+    hw_timer_bank0->ctl.irq_status = 0;
+    hw_timer_bank0->ctl.clk_divider = 0;
+
+    hw_timer_bank1->ctl.enable = 0;
+    hw_timer_bank1->ctl.irq_status = 0;
+    hw_timer_bank1->ctl.clk_divider = 0;
+
+    hw_icu->peri_clk_pwd.timer_26m = 0;
+    hw_icu->peri_clk_pwd.timer_32k = 0;
+
+    intc_register_irq_handler(IRQ_SOURCE_TIMER, timer_irq_handler);
+    intc_enable_irq_source(IRQ_SOURCE_TIMER);
+}
+
+INIT_AT(timer_init, 02);
+
+static void register_sys_counter(void) {
     int timer_num = find_free_timer(1);
     const int timer_clock_freq = get_timer_frequency(timer_num);
     const int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
@@ -91,23 +110,8 @@ static void register_sys_counter() {
     bank->ctl.enable |= (1 << timer_num_in_bank);
 }
 
-void timer_init() {
-    hw_timer_bank0->ctl.enable = 0;
-    hw_timer_bank0->ctl.irq_status = 0;
-    hw_timer_bank0->ctl.clk_divider = 0;
+INIT_AT(register_sys_counter, 03);
 
-    hw_timer_bank1->ctl.enable = 0;
-    hw_timer_bank1->ctl.irq_status = 0;
-    hw_timer_bank1->ctl.clk_divider = 0;
-
-    hw_icu->peri_clk_pwd.timer_26m = 0;
-    hw_icu->peri_clk_pwd.timer_32k = 0;
-
-    register_sys_counter();
-
-    intc_register_irq_handler(IRQ_SOURCE_TIMER, timer_irq_handler);
-    intc_enable_irq_source(IRQ_SOURCE_TIMER);
-}
 
 int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     GLOBAL_INT_DECLARATION();

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "platform/init.h"
 
 
 void _sysboot_zi_init() {
@@ -26,5 +27,4 @@ void _sysboot_copy_data_to_ram(void) {
 __attribute__((weak)) void heap_init() {
 }
 
-__attribute__((section(".preinit_array"), used))
-static void (*__preinit_heap_init_ptr)() = heap_init;
+PREINIT(heap_init);

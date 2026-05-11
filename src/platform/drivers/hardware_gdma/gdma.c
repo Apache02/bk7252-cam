@@ -1,5 +1,6 @@
 #include "hardware/gdma.h"
 #include "hardware/intc.h"
+#include "platform/init.h"
 #include "gdma_regs.h"
 
 #include <stdio.h>
@@ -31,7 +32,7 @@ static void gdma_reset() {
     }
 }
 
-static void init(void) {
+static void gdma_init(void) {
     gdma_reset();
 
     // ack any leftover interrupt flags (write-1-to-clear)
@@ -45,12 +46,12 @@ static void init(void) {
     intc_enable_irq_source(IRQ_SOURCE_GDMA);
 }
 
-static void fini(void) {
+static void gdma_fini(void) {
     gdma_reset();
 }
 
-__attribute__((section(".init_array"), used)) static typeof(init) *init_p = init;
-__attribute__((section(".fini_array"), used)) static typeof(fini) *fini_p = fini;
+INIT_AT(gdma_init, 03);
+FINI_AT(gdma_fini, 03);
 
 
 // ============================================================================

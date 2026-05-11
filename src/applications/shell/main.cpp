@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include "platform/stdio.h"
 #include "hardware/gpio.h"
-#include "hardware/intc.h"
 #include "hardware/cpu.h"
-#include "hardware/timer.h"
 #include "utils/busy_wait.h"
 #include "shell_handlers.h"
 #include "shell/console_colors.h"
@@ -15,10 +13,8 @@
 
 
 static void init_hardware() {
-    intc_init();
     portENABLE_IRQ();
     portENABLE_FIQ();
-    timer_init();
 
     platform_stdio_init();
 

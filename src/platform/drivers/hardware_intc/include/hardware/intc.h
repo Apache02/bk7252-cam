@@ -92,8 +92,6 @@ typedef void interrupt_handler_cb(void);
 extern "C" {
 #endif
 
-void intc_init();
-
 void intc_reset();
 
 bool intc_register_irq_handler(uint32_t source, interrupt_handler_cb *func);
