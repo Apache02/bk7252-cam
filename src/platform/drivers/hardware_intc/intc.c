@@ -35,18 +35,15 @@ static void intc_init(void) {
 
     init_ram_vectors();
 
-    icu_interrupt_enable_reg->v = 0;
-
-    icu_interrupt_enable_reg->fiq_mac_general = 1;
-    icu_interrupt_enable_reg->fiq_mac_prot_trigger = 1;
-
-    icu_interrupt_enable_reg->fiq_mac_tx_trigger = 1;
-    icu_interrupt_enable_reg->fiq_mac_rx_trigger = 1;
-
-    icu_interrupt_enable_reg->fiq_mac_tx_rx_misc = 1;
-    icu_interrupt_enable_reg->fiq_mac_tx_rx_timer = 1;
-
-    icu_interrupt_enable_reg->fiq_modem = 1;
+    hw_write_fields(*icu_interrupt_enable_reg,
+        .fiq_mac_general = 1,
+        .fiq_mac_prot_trigger = 1,
+        .fiq_mac_tx_trigger = 1,
+        .fiq_mac_rx_trigger = 1,
+        .fiq_mac_tx_rx_misc = 1,
+        .fiq_mac_tx_rx_timer = 1,
+        .fiq_modem = 1,
+    );
 
     icu_global_interrupt_enable_reg->v = GINTR_IRQ_EN | GINTR_FIQ_EN;
 }

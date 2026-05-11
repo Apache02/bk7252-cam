@@ -1,9 +1,11 @@
+add_subdirectory(common)
+
 function(simple_drivers_library NAME)
     add_library(${NAME} INTERFACE)
     target_include_directories(${NAME} INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
+    target_link_libraries(${NAME} INTERFACE hardware_common)
 endfunction()
 
-add_subdirectory(common_defs)
 add_subdirectory(hardware_icu)
 add_subdirectory(hardware_wdt)
 add_subdirectory(hardware_gpio)

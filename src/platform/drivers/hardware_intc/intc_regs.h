@@ -1,5 +1,8 @@
 #pragma once
 
+#include "register_defs.h"
+
+
 #define ICU_BASE                            (0x00802000)
 #define ICU_INTERRUPT_ENABLE                (ICU_BASE + 16 * 4)
 #define ICU_INT_IRQ_MASK                    (0x0000FFFF)
@@ -32,7 +35,7 @@ typedef struct {
 typedef struct {
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t irq_uart1: 1;                  // [0]
             uint32_t irq_uart2: 1;                  // [1]
             uint32_t irq_i2c1: 1;                   // [2]
@@ -72,7 +75,7 @@ typedef struct {
 typedef struct {
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t irq: 1;
             uint32_t fiq: 1;
         };

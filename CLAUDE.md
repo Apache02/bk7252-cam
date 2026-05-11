@@ -49,7 +49,7 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
   - `panic/` — panic handler.
   - `freertos/` (`platform_freertos`) — FreeRTOS kernel wrapper + port for this CPU.
   - `port_newlib/`, `port_lwip/`, `port_tlsf/` — adapters between the upstream library (fetched in `dependencies.cmake`: FreeRTOS-Kernel V11.1.0, lwIP STABLE-2_2_0, tlsf) and this firmware (locks, allocators, OS shim).
-  - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_gdma`, `hardware_gpio`, `hardware_icu`, `hardware_intc`, `hardware_mpb`, `hardware_random`, `hardware_rc`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`, plus `common_defs` (shared register-base/utility headers used by the drivers).
+  - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_gdma`, `hardware_gpio`, `hardware_icu`, `hardware_intc`, `hardware_mpb`, `hardware_random`, `hardware_rc`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`, plus `hardware_common` (shared register-base/utility headers used by the drivers; lives in `drivers/common/`).
   - `stdio/` — `printf`/`getchar` backends bound to a chosen UART (e.g. `platform_stdio_uart2`). Note: `printf` is built without float (see README).
 
 - `src/shell/` — interactive UART shell, split so an app can pick which command groups it ships:

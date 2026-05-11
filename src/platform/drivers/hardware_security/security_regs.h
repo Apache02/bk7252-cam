@@ -17,6 +17,9 @@ typedef volatile struct {
         struct {
             uint32_t init: 1;
             uint32_t next: 1;
+            // "auteo" is intentional: the SDK uses this misspelling instead of
+            // "auto" (which is a C++ keyword). Renaming was tried and breaks
+            // SDK compatibility, so it stays.
             uint32_t auteo: 1;
             uint32_t int_en: 1;
             uint32_t reserved_4_31: 28;

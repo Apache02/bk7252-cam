@@ -118,30 +118,21 @@ int gdma_configure(int channel, const gdma_config_t *cfg) {
     hw_gdma->channels[channel].dst_loop_start_addr = 0;
     hw_gdma->channels[channel].dst_loop_end_addr = 0;
 
-    typeof(hw_gdma->channels[channel].mux_reqs) request = {
+    hw_write_fields(hw_gdma->channels[channel].mux_reqs,
         .src_req = cfg->src.mode,
         .dst_req = cfg->dst.mode,
-        .dtcm_wr_wait_word = 0,
-        .src_rd_intval = 0,
-        .dst_wr_intval = 0,
-    };
-    hw_gdma->channels[channel].mux_reqs = request;
+    );
 
-    typeof(hw_gdma->channels[channel].config) config = {
-        .enable = 0,                              // started separately via gdma_start
+    // enable bit is left zero here; channel is started separately via gdma_start.
+    // transfer_length stores (size - 1) per the model in gdma_regs.h.
+    hw_write_fields(hw_gdma->channels[channel].config,
         .fin_int_enable = 1,
-        .half_fin_int_enable = 0,
-        .repeat_mode = 0,
         .src_data_width = cfg->src.dw,
         .dst_data_width = cfg->dst.dw,
         .src_addr_inc = cfg->src.incr,
         .dst_addr_inc = cfg->dst.incr,
-        .src_addr_loop = 0,
-        .dst_addr_loop = 0,
-        .channel_priority = 0,
-        .transfer_length = cfg->size - 1,         // hw stores (size - 1); see model in gdma_regs.h
-    };
-    hw_gdma->channels[channel].config = config;
+        .transfer_length = cfg->size - 1,
+    );
 
     return 0;
 }

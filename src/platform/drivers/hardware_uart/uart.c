@@ -20,23 +20,25 @@
 static void uart_init(volatile hw_uart_t *uart) {
     const uint32_t baud_div = DEFAULT_CLK_HZ / DEFAULT_BAUDRATE;
 
-    uart->config.tx_enable = 1;
-    uart->config.rx_enable = 1;
-    uart->config.irda = 0;
-    uart->config.parity_enable = 0;
-    uart->config.parity_odd_mode = 0;
-    uart->config.stop_length_2 = 0;
-    uart->config.clk_divid = baud_div;
+    hw_write_fields(uart->config,
+        .tx_enable = 1,
+        .rx_enable = 1,
+        .clk_divid = baud_div,
+    );
 
-    uart->fifo_config.tx_fifo_threshold = TX_FIFO_THRD;
-    uart->fifo_config.rx_fifo_threshold = RX_FIFO_THRD;
-    uart->fifo_config.rx_stop_detect_time = RX_STOP_DETECT_TIME32;
+    hw_write_fields(uart->fifo_config,
+        .tx_fifo_threshold = TX_FIFO_THRD,
+        .rx_fifo_threshold = RX_FIFO_THRD,
+        .rx_stop_detect_time = RX_STOP_DETECT_TIME32,
+    );
 
     uart->flow_config.v = 0;
     uart->wakeup_config.v = 0;
 
-    uart->irq_enable.rx_need_read = 1;
-    uart->irq_enable.rx_stop_end = 1;
+    hw_write_fields(uart->irq_enable,
+        .rx_need_read = 1,
+        .rx_stop_end = 1,
+    );
 }
 
 static int uart_read_byte(volatile hw_uart_t *uart) {

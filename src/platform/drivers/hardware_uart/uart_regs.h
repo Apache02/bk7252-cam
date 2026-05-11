@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stdint.h>
-#include <sys/cdefs.h>
+#include "register_defs.h"
 
 
 #define UART1_BASE_ADDR                 (0x0802100)
@@ -10,7 +9,7 @@
 typedef struct {
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t tx_enable: 1;                  // [0]
             uint32_t rx_enable: 1;                  // [1]
             uint32_t irda: 1;                       // [2]
@@ -25,7 +24,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t tx_fifo_threshold: 8;          // [0:7]
             uint32_t rx_fifo_threshold: 8;          // [8:15]
             uint32_t rx_stop_detect_time: 2;        // [16:17]
@@ -35,7 +34,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t tx_fifo_count: 8;              // [0:7]
             uint32_t rx_fifo_count: 8;              // [8:15]
             uint32_t tx_full: 1;                    // [16]
@@ -50,7 +49,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t tx: 8;                         // [0:7]
             uint32_t rx: 8;                         // [8:15]
             uint32_t reserved_16_31: 16;            // [16:31]
@@ -59,7 +58,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t tx_need_write: 1;              // [0]
             uint32_t rx_need_read: 1;               // [1]
             uint32_t rx_overflow: 1;                // [2]
@@ -74,7 +73,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t tx_need_write: 1;              // [0]
             uint32_t rx_need_read: 1;               // [1]
             uint32_t rx_overflow: 1;                // [2]
@@ -89,7 +88,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t low_cnt: 8;                    // [0:7]
             uint32_t high_cnt: 8;                   // [8:15]
             uint32_t enable: 1;                     // [16]
@@ -101,7 +100,7 @@ typedef struct {
 
     union {
         uint32_t v;
-        struct __attribute__((aligned(4))) __packed {
+        struct {
             uint32_t wake_count: 10;                // [0:9]
             uint32_t txd_wait_count: 10;            // [10:19]
             uint32_t rxd_wake_enable: 1;            // [20]

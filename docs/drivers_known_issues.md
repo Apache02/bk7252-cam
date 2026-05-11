@@ -1,0 +1,294 @@
+# Drivers — known issues and follow-ups
+
+This file tracks issues found during the May 2026 review of `src/platform/drivers/`
+that were *not* fixed inline in commit `a7cebc0` (`fix: drivers bugfixes and refactor`).
+Each entry describes the issue, why it was deferred, and a concrete fix outline.
+
+The entries are grouped by impact. "Functional" can cause silently wrong behaviour;
+"API / contract" can blow up in user code; "Cosmetic" is for naming and clarity.
+"Architectural" are larger pieces that need a design decision before code changes.
+
+---
+
+## Functional
+
+### F1. AES / SHA engines have a single hardware state — multi-context is unsafe
+
+Files: `hardware_security/aes.c`, `hardware_security/sha.c`.
+
+The driver exposes `*_create_context()` / `_update()` / `_destroy_context()`
+as if each context were independent. The on-chip AES and SHA engines have only
+one set of key / hash state registers, so the moment a second context is created
+(or `process_block` is run on a different context), the previously loaded state
+is overwritten. The "first" context now produces incorrect output without any
+diagnostic.
+
+Today this is masked because the only callers are the one-shot helpers
+(`aes128_encrypt`, `sha256`, …) and the shell test commands — they never
+interleave contexts.
+
+Fix options:
+- (a) Document the single-context contract and `assert` that only one context
+  is live at a time.
+- (b) Serialise across contexts: on every `*_update`, reload the key schedule
+  (AES) or hash state (SHA) from the in-RAM context, run the block, copy the
+  state back. Slower but matches the API as currently advertised.
+- (c) Hide multi-context entirely: remove `*_create_context` from the public
+  header, expose only the one-shot helpers.
+
+Recommendation: (c) until a real caller needs streaming.
+
+### F2. `timer_irq_handler` RMW races against W1C `irq_status`
+
+File: `hardware_timer/timer.c`, function `timer_irq_handler`.
+
+`bank->ctl.enable &= ~(1 << timer_num_in_bank)` (disabling a one-shot timer
+from inside the IRQ handler) is a read-modify-write on the *whole* `ctl`
+register. The `irq_status` field within that register is write-1-to-clear:
+the RMW reads back current `irq_status` bits (1 for any timer whose IRQ has
+fired in the meantime), then writes them back as part of the same word — which
+silently *clears* the W1C bits. Newly arrived IRQs in the same bank can be
+swallowed.
+
+The trailing `do { bank->ctl.irq_status = status0; } while (...)` partially
+masks the problem for the bits the handler already saw, but a timer that
+fires *after* the snapshot but *before* the disable can lose its flag.
+
+Fix: build the new ctl value with the desired `enable`, the unchanged
+`clk_divider`, and `irq_status = 0`, then write through `.v` once. Writing 0
+to a W1C bit is a no-op for the hardware, so it does not corrupt other
+in-flight flags.
+
+Sketch:
+```c
+typeof(bank->ctl) tmp = { 0 };
+tmp.enable = bank->ctl.enable & ~(1u << n);
+tmp.clk_divider = bank->ctl.clk_divider;
+bank->ctl.v = tmp.v;
+```
+
+### F3. `intc_init` enables MAC FIQ sources before any handler exists
+
+File: `hardware_intc/intc.c`, function `intc_init`.
+
+`INIT_AT(intc_init, 01)` unconditionally enables seven `fiq_*` sources
+(`fiq_mac_general`, `fiq_mac_*_trigger`, `fiq_modem`, …). At that moment no
+handlers are registered, so any spurious FIQ goes through `intc_fiq()` →
+`find_handlers` returns 0 → silent return. If the source is "sticky" the
+unhandled IRQ will keep firing in a hot loop.
+
+These bits look like a leftover from the SDK that the camera firmware doesn't
+even use. Either:
+- delete the seven assignments and let each subsystem `intc_enable_fiq_source`
+  itself when ready, or
+- move them out of `intc_init` and into a `wifi/mac` init step gated by board /
+  feature config.
+
+### F4. `wdt_set(unsigned long)` silently truncates to 16 bits
+
+File: `hardware_wdt/wdt.c` and `include/hardware/wdt.h`.
+
+`void wdt_set(unsigned long period)` stores the argument into
+`uint16_t g_period`. All current call sites pass values that fit, but the API
+invites a future bug.
+
+Fix: change the parameter type to `uint16_t` in both the header and the
+implementation. All current callers (grep'd) already pass small literals.
+
+### F5. `trng_disable` writes the data register
+
+File: `hardware_random/random.c`, function `trng_disable`.
+
+```c
+hw_trng->data = 0x1234;
+```
+
+`hw_trng->data` is the random-output read register. Writing to it either has
+no effect (silent hardware NACK) or some undocumented side effect copied from
+SDK boilerplate. Either way it lacks a rationale in code.
+
+Fix: remove the line, or replace with a comment citing the data-sheet section
+that requires it.
+
+### F6. `trng_enable` busy-waits a magic 32 µs
+
+File: `hardware_random/random.c`, function `trng_enable`.
+
+```c
+busy_wait_us(32); // time to accumulate entropy?
+```
+
+The 32 µs figure is a guess (note the question mark). If the TRNG has a
+ready / valid status bit (likely sitting in the `ctrl` register's reserved
+space), polling that is safer than a magic timeout.
+
+Fix: confirm with the data-sheet whether such a status bit exists; if yes,
+poll it; if no, replace the comment with a citation and keep the delay.
+
+---
+
+## API / contract
+
+### A1. `intc_manager` is `static` in a header
+
+File: `hardware_intc/intc_manager.h`.
+
+```c
+static struct { ... } intc_manager;
+```
+
+Defining `static` storage in a header means every translation unit that
+includes it gets its own copy. Today only `intc.c` includes the header so the
+hazard is dormant, but adding any second user (a test, a shell command that
+inspects the table, a debug dump) would silently get an empty `intc_manager`
+and break `intc_register_*` from outside `intc.c`.
+
+Fix: declare `extern` in the header, define once in `intc.c`. While at it,
+consider moving `intc_manager.h` content into the `.c` since nothing else
+needs it.
+
+### A2. `intc_register_*_handler` return value is uninformative
+
+File: `hardware_intc/intc.c`, also `intc_manager.h::register_handler`.
+
+`register_handler` returns `true` unconditionally; the only way it ever
+returns `false` is the explicit `count >= MAX_HANDLERS` check in
+`intc_register_irq_handler` / `intc_register_fiq_handler`. Bad input
+(`func == NULL`, `source == 0`, duplicate registration) is silently accepted.
+
+Fix: validate inputs in `register_handler` itself and return `false` on
+unrecognised cases. Update the callers to surface the failure (currently the
+return is mostly ignored).
+
+### A3. `timer_read` is marked "not working" in source
+
+File: `hardware_timer/timer.c`, function `timer_read`.
+
+```c
+// not working
+int timer_read(int timer_num) { ... }
+```
+
+The function is exported in `include/hardware/timer.h` and called from
+`src/applications/shell/commands/timers_test.cpp:41`. Either:
+- fix the read-back sequence (the `read_op` / `read_index` / `read_value`
+  handshake; investigate whether the `read_value` needs a particular alignment
+  or whether the bank's `clk_divider` masks the read), or
+- remove the function from the public header and from `timers_test.cpp`.
+
+### A4. `flash_read` has no error reporting
+
+File: `hardware_flash/flash.c`.
+
+`flash_read` is `void`-returning. It silently succeeds with garbage if:
+- `addr + count` walks past the end of the flash (no upper bound check),
+- the hardware reports an error in `sr_data_crc_cnt.error_count`,
+- the flash is in deep-power-down mode.
+
+For consumers that need integrity (firmware loaders, OTA, config blob load),
+silent corruption is a real risk.
+
+Fix: return `int` with a meaningful error code, validate `addr + count`,
+check `sr_data_crc_cnt.error_count` after the operation.
+
+---
+
+## Cosmetic
+
+### C1. `GPIO_SECOND_FUNC_PULLUP` is named "pullup" but configures pulldown
+
+File: `hardware_gpio/include/hardware/gpio.h` and `hardware_gpio/gpio.c`.
+
+The enum sets `GPIO_PULL_MODE_BIT = 1` in addition to `GPIO_PULL_ENABLE_BIT`.
+By the convention used elsewhere in the same driver (`GPIO_IN_PULLUP` =
+`pull_mode = 0`, `GPIO_IN_PULLDOWN` = `pull_mode = 1`) this combination is
+pulldown, not pullup.
+
+It is currently used only for UART RX pins (where pulldown is wrong on its
+own, but the second-function override may make it irrelevant), so the actual
+electrical behaviour might be correct by accident. Worth verifying with a
+scope before renaming, because:
+- if behaviour is actually pulldown but desired is pullup, the bit is wrong;
+- if behaviour is pullup, the BK convention for `pull_mode` differs from the
+  comments in this file.
+
+Action: either rename the enum to `GPIO_SECOND_FUNC_PULLDOWN` or flip the
+`GPIO_PULL_MODE_BIT` value to match the name — but first measure on hardware
+to know which side of the contradiction to trust.
+
+### C2. RSA driver is a placeholder, no implementation planned
+
+Files: `hardware_security/rsa.c`, `hardware_security/include/hardware/rsa.h`.
+
+`rsa.c` only includes its headers; `rsa.h` is an empty stub with a `TODO`
+comment. Register layout for the RSA engine is documented in
+`security_regs.h` (`hw_rsa`), but no driver code is planned. Treat the
+header as reserved — do not add stubbed functions or sample callers; if
+RSA is ever needed, design the API from scratch then.
+
+---
+
+## Architectural follow-ups
+
+These are larger pieces that require a design pass, not a patch.
+
+### Arch1. Audit remaining register-write call sites
+
+The `hw_write_fields` helper in `register_defs.h` is the project-wide idiom
+for atomic multi-field MMIO writes. Known multi-field call sites (`efuse`,
+`gdma`, `intc::intc_init`, `uart::uart_init`) have been converted. Future
+drivers should follow the same shape; existing single-bit RMW writes
+(`sctrl`, `random`, `wdt`'s `wdt_up`/`wdt_down` toggle) are correct as-is
+— they intentionally preserve the other fields and should NOT be rewritten
+through the helper.
+
+### Arch2. Uniform error coding across drivers
+
+Today each driver invents its own return scheme:
+
+| Driver | Style |
+| --- | --- |
+| `efuse` | `-1`, `-2`, `-3` (no names) |
+| `gdma`  | named `GDMA_ERROR_*` enum |
+| `gpio`  | no error reporting |
+| `flash` | no error reporting |
+| `timer` | `-1` for everything |
+| `aes` / `sha` | `-1` for everything |
+| `wdt` | no error reporting |
+| `intc` | `bool` |
+
+Pick one of:
+- Per-driver named enums (current `gdma` style) for everything.
+- A single `enum driver_status { OK = 0, ERR_INVAL = -1, ERR_BUSY = -2, ... }`
+  in `register_defs.h`.
+
+### Arch3. Uniform init lifecycle
+
+Some drivers use `INIT_AT(...)` (gdma, intc, timer), the rest expect the
+application to call `<driver>_init()` manually (uart, wdt, flash, gpio,
+efuse, sctrl, security). Pick one model; the `INIT_AT` macro plus
+`FINI_AT` (already used in `gdma`) is the cleaner option since each driver
+declares its own ordering.
+
+---
+
+## Index of fixed issues
+
+For traceability — these were fixed in commit `a7cebc0`:
+
+| # | Description                                         |
+| --- | ------------------------------------------------- |
+| 1 | `register_handler` left interrupts disabled        |
+| 2 | `intc.c` used `|=` to clear W1C status            |
+| 3 | `ICU_INT_*_MASK` macros had trailing `;`          |
+| 5 | `flash_read` mis-handled unaligned addresses       |
+| 6 | `get_absolute_time` torn 64-bit read               |
+| 7 | `sha_finish` auto-destroyed the context            |
+| 9 | `g_sys_counter` was not `volatile`                 |
+| 11 | `icu.h` used `inline` instead of `static inline`  |
+| 12 | `flash.c` `min` macro replaced with inline fn     |
+| 13 | `efuse.c` three RMW ctrl writes → one `.v` write  |
+| 14 | `gpio_{get,put,toggle}` lacked range check        |
+| 15 | `get_gpio_reg` macro → `static inline`            |
+| 16 | `GPIO_HIGH_IMPENDANCE` → `GPIO_HIGH_IMPEDANCE`    |
+| 23 | `register_sys_counter` had no IRQ-disable guard   |

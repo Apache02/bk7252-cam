@@ -5,16 +5,12 @@
 int efuse_read_byte(uint8_t addr) {
     if (addr > 0x1F) return -1;
 
-    // Build the full ctrl word in one shot so the hardware sees addr/dir/en
-    // latched together. Three separate bitfield assignments would emit three
-    // RMW transactions, exposing intermediate values to the controller.
-    typeof(hw_efuse->ctrl) ctrl = {
+    // Single store latches addr/dir/en together; field-by-field writes would
+    // emit three RMW transactions and expose intermediate values to the hw.
+    hw_write_fields(hw_efuse->ctrl,
         .en = 1,
-        .dir = 0,
         .addr = addr,
-        .wr_data = 0,
-    };
-    hw_efuse->ctrl.v = ctrl.v;
+    );
 
     // wait for read
     for (int timeout = 1000; hw_efuse->ctrl.en; timeout--) {
