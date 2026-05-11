@@ -2,7 +2,7 @@
 #include <sys/cdefs.h>
 
 
-static uint32_t g_sys_counter = 0;
+static volatile uint32_t g_sys_counter = 0;
 
 void sys_counter_tick(__unused int timer_num) {
     g_sys_counter++;

@@ -26,4 +26,5 @@ target_link_libraries(
         hardware_random
         hardware_time
         hardware_uart
+        hardware_security
 )

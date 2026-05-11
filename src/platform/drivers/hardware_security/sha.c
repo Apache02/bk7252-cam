@@ -165,8 +165,6 @@ void sha_finish(void *ctx, uint8_t *sum) {
     for (int i = 0; i < result_words; i++) {
         store_be32(sum + i * 4, hw_sha->digest_15to0[base + i]);
     }
-
-    sha_destroy_context(c);
 }
 
 void *sha1_create_context() { return sha_create_context(SHA1); }
@@ -181,6 +179,7 @@ static void sha_oneshot(SHA_MODE mode, const unsigned char *input, size_t length
     void *ctx = sha_create_context(mode);
     sha_update(ctx, input, length);
     sha_finish(ctx, sum);
+    sha_destroy_context(ctx);
 }
 
 void sha1(const unsigned char *input, size_t length, uint8_t *sum) { sha_oneshot(SHA1, input, length, sum); }

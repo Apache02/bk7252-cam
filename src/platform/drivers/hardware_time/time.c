@@ -23,8 +23,20 @@ uint32_t get_us_counter() {
 }
 
 absolute_time_t get_absolute_time() {
+    // 64-bit counter split across two 32-bit MMIO words. Read high, low, high
+    // again; if the high half changed, the low half wrapped between the two
+    // reads — re-read the low half against the new high half.
+    // Note: register named timerawl actually holds the HIGH 32 bits and
+    // timerawh holds the LOW 32 bits (see *_HI/_LO addresses).
+    uint32_t hi1, hi2, lo;
+    do {
+        hi1 = hw_nxmac_counter->timerawl;
+        lo  = hw_nxmac_counter->timerawh;
+        hi2 = hw_nxmac_counter->timerawl;
+    } while (hi1 != hi2);
+
     absolute_time_t time;
-    time.time_raw = (((uint64_t) hw_nxmac_counter->timerawl) << 32) | hw_nxmac_counter->timerawh;
+    time.time_raw = ((uint64_t) hi2 << 32) | lo;
     return time;
 }
 

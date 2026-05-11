@@ -3,11 +3,16 @@
 #include "hardware/flash.h"
 
 
-#define min(a, b)               (a<b ? a : b)
-#define count_of(x)             (sizeof(x) / sizeof(x[0]))
+#define FLASH_READ_BLOCK            (32u)
+#define FLASH_READ_BLOCK_MASK       (FLASH_READ_BLOCK - 1u)
+#define FLASH_READ_WORDS_COUNT      (FLASH_READ_BLOCK / sizeof(uint32_t))
 
 
-inline void wait_busy_bit() {
+static inline uint32_t min_u32(uint32_t a, uint32_t b) {
+    return a < b ? a : b;
+}
+
+static inline void wait_busy_bit() {
     while (hw_flash->operate_sw.busy);
 }
 
@@ -16,25 +21,29 @@ uint32_t flash_id() {
 }
 
 void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
-    uint32_t buf[8];
+    uint32_t buf[FLASH_READ_WORDS_COUNT];
 
     wait_busy_bit();
 
     while (count > 0) {
-        hw_flash->operate_sw.addr = addr & ~(0x1f);
+        const uint32_t aligned_addr = addr & ~FLASH_READ_BLOCK_MASK;
+        const uint32_t block_offset = addr - aligned_addr;
+        const uint32_t available = FLASH_READ_BLOCK - block_offset;
+
+        hw_flash->operate_sw.addr = aligned_addr;
         hw_flash->operate_sw.op_type_sw = FLASH_OPCODE_READ;
         hw_flash->operate_sw.op_sw = 1;
         wait_busy_bit();
 
-        addr += 8 * sizeof(uint32_t);
-
-        for (int i = 0; i < count_of(buf); i++) {
+        for (uint32_t i = 0; i < FLASH_READ_WORDS_COUNT; i++) {
             buf[i] = hw_flash->data_flash_sw;
         }
 
-        uint32_t c = min(sizeof(buf), count);
-        memcpy(dst, buf, c);
-        count -= c;
+        const uint32_t c = min_u32(available, count);
+        memcpy(dst, ((const uint8_t *) buf) + block_offset, c);
+
+        addr += c;
         dst += c;
+        count -= c;
     }
 }

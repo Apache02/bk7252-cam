@@ -82,7 +82,7 @@ void intc_irq(void) {
     }
 
     // clear status
-    icu_interrupt_status_reg->v |= status.v;
+    icu_interrupt_status_reg->v = status.v;
 
     uint32_t source = 0;
     if (status.irq_uart1) source |= IRQ_SOURCE_UART1;
@@ -121,7 +121,7 @@ void intc_fiq(void) {
     }
 
     // clear status
-    icu_interrupt_status_reg->v |= status.v;
+    icu_interrupt_status_reg->v = status.v;
 
     uint32_t source = 0;
     if (status.fiq_modem) source |= FIQ_SOURCE_MODEM;

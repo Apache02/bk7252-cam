@@ -168,59 +168,59 @@ extern "C" {
 #endif
 
 
-inline void icu_peri_clk_uart1(peri_clk_t clk) {
+static inline void icu_peri_clk_uart1(peri_clk_t clk) {
     hw_icu->peri_clk_mux.uart1 = clk;
 }
 
-inline void icu_peri_clk_uart2(peri_clk_t clk) {
+static inline void icu_peri_clk_uart2(peri_clk_t clk) {
     hw_icu->peri_clk_mux.uart2 = clk;
 }
 
-inline void icu_peri_clk_i2c1(peri_clk_t clk) {
+static inline void icu_peri_clk_i2c1(peri_clk_t clk) {
     hw_icu->peri_clk_mux.i2c1 = clk;
 }
 
-inline void icu_peri_clk_i2c2(peri_clk_t clk) {
+static inline void icu_peri_clk_i2c2(peri_clk_t clk) {
     hw_icu->peri_clk_mux.i2c2 = clk;
 }
 
-inline void icu_peri_clk_irda(peri_clk_t clk) {
+static inline void icu_peri_clk_irda(peri_clk_t clk) {
     hw_icu->peri_clk_mux.irda = clk;
 }
 
-inline void icu_peri_clk_saradc(peri_clk_t clk) {
+static inline void icu_peri_clk_saradc(peri_clk_t clk) {
     hw_icu->peri_clk_mux.saradc = clk;
 }
 
-inline void icu_peri_clk_saradc_aud(peri_clk_t clk) {
+static inline void icu_peri_clk_saradc_aud(peri_clk_t clk) {
     hw_icu->peri_clk_mux.saradc_aud = clk;
 }
 
-inline void icu_peri_clk_spi(peri_clk_t clk) {
+static inline void icu_peri_clk_spi(peri_clk_t clk) {
     hw_icu->peri_clk_mux.spi = clk;
 }
 
-inline void icu_peri_clk_pwms(peri_clk_t clk) {
+static inline void icu_peri_clk_pwms(peri_clk_t clk) {
     hw_icu->peri_clk_mux.pwms = clk;
 }
 
-inline void icu_peri_clk_sdio(peri_clk_t clk) {
+static inline void icu_peri_clk_sdio(peri_clk_t clk) {
     hw_icu->peri_clk_mux.sdio = clk;
 }
 
-inline void icu_qspi_clk(qspi_clk_t clk) {
+static inline void icu_qspi_clk(qspi_clk_t clk) {
     hw_icu->peri_clk_mux.qspi = clk;
 }
 
-inline void icu_dco_divider(dco_divider_t divider) {
+static inline void icu_dco_divider(dco_divider_t divider) {
     hw_icu->peri_clk_mux.dco_clk_div = divider;
 }
 
-inline void icu_i2c1_power_up() {
+static inline void icu_i2c1_power_up() {
     hw_icu->peri_clk_pwd.i2c1 = 0;
 }
 
-inline void icu_i2c1_power_down() {
+static inline void icu_i2c1_power_down() {
     hw_icu->peri_clk_pwd.i2c1 = 1;
 }
 

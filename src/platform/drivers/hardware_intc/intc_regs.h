@@ -2,8 +2,8 @@
 
 #define ICU_BASE                            (0x00802000)
 #define ICU_INTERRUPT_ENABLE                (ICU_BASE + 16 * 4)
-#define ICU_INT_IRQ_MASK                    (0x0000FFFF);
-#define ICU_INT_FIQ_MASK                    (0xFFFF0000);
+#define ICU_INT_IRQ_MASK                    (0x0000FFFF)
+#define ICU_INT_FIQ_MASK                    (0xFFFF0000)
 
 #define ICU_GLOBAL_INT_EN                   (ICU_BASE + 17 * 4)
 #define GINTR_FIQ_EN                        (1 << 1)

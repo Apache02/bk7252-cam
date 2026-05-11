@@ -30,7 +30,7 @@ void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
             // 0x78
             reg_value = GPIO_FUNCTION_ENABLE_BIT | GPIO_OUTPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT | GPIO_PULL_MODE_BIT;
             break;
-        case GPIO_HIGH_IMPENDANCE:
+        case GPIO_HIGH_IMPEDANCE:
             // 0x08
             reg_value = GPIO_OUTPUT_ENABLE_BIT;
             break;
@@ -43,16 +43,19 @@ void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
 }
 
 uint8_t gpio_get(gpio_num_t gpio) {
+    if (gpio > GPIO_NUM_MAX) return 0;
     volatile hw_gpio_reg_t *reg = get_gpio_reg(gpio);
     return reg->input != 0;
 }
 
 void gpio_put(gpio_num_t gpio, bool value) {
+    if (gpio > GPIO_NUM_MAX) return;
     volatile hw_gpio_reg_t *reg = get_gpio_reg(gpio);
     reg->output = value;
 }
 
 void gpio_toggle(gpio_num_t gpio) {
+    if (gpio > GPIO_NUM_MAX) return;
     volatile hw_gpio_reg_t *reg = get_gpio_reg(gpio);
     reg->output = !reg->output;
 }

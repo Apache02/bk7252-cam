@@ -35,6 +35,7 @@ register_handler(struct handlers_collection_t *collection, uint32_t source, inte
     for (int i = 0; i < collection->count; i++) {
         if (collection->handlers[i].handler == func) {
             collection->handlers[i].source |= source;
+            restore_interrupts();
             return true;
         }
     }

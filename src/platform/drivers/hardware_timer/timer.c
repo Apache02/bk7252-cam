@@ -97,6 +97,9 @@ static void timer_init(void) {
 INIT_AT(timer_init, 02);
 
 static void register_sys_counter(void) {
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+
     int timer_num = find_free_timer(1);
     const int timer_clock_freq = get_timer_frequency(timer_num);
     const int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
@@ -108,6 +111,8 @@ static void register_sys_counter(void) {
     bank->counter[timer_num_in_bank] = timer_clock_freq;
     bank->ctl.irq_status &= ~(1 << timer_num_in_bank); // start after 1 second
     bank->ctl.enable |= (1 << timer_num_in_bank);
+
+    GLOBAL_INT_RESTORE();
 }
 
 INIT_AT(register_sys_counter, 03);
