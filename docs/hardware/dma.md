@@ -1,10 +1,10 @@
 # BK7252 General DMA
 
 The general DMA controller at `0x00809000` (`GDMA_BASE_ADDR`) provides six
-independent channels. Each channel performs a sequence of word-sized read and
-write transactions between two endpoints, with a small internal accumulator
-adapting between the source and destination peripheral-side widths. End-of-
-transfer events are signalled through `IRQ_SOURCE_GDMA`.
+independent channels. Each channel transfers a specified number of bytes between
+two endpoints, reading source words and writing destination words through an
+internal byte accumulator that adapts between the source and destination widths.
+End-of-transfer events are signalled through `IRQ_SOURCE_GDMA`.
 
 Endpoints can be plain DTCM memory (`mode = DTCM`) or a peripheral request line
 (HSSPI, AUDIO, SDIO, UART1/2, I2S, GSPI, JPEG, PSRAM); only `DTCM` has been
@@ -52,7 +52,7 @@ characterised in detail.
 | `[10]`    | `src_addr_loop`       | Enable source loop wrap                 |
 | `[11]`    | `dst_addr_loop`       | Enable destination loop wrap            |
 | `[13:12]` | `channel_priority`    | 0..3, consulted only when `prio_mode.fixed_priority = 1` |
-| `[31:16]` | `transfer_length`     | hw performs `transfer_length + 1` dst writes |
+| `[31:16]` | `transfer_length`     | Total bytes to transfer minus 1; hw transfers `transfer_length + 1` bytes |
 
 ### `mux_reqs` bits
 
@@ -80,13 +80,32 @@ characterised in detail.
 **This is not described in the SDK — without it, hardware behaviour appears
 random. The model below was derived empirically and matches every test case.**
 
-A channel performs exactly **`config.transfer_length + 1`** dst writes. The
-value `transfer_length = 0` therefore yields one write, not zero — there is no
-way to express "zero writes" in hardware.
+A channel transfers exactly **`config.transfer_length + 1` bytes**. The value
+`transfer_length = 0` therefore transfers one byte, not zero — there is no way
+to express "zero bytes" in hardware.
 
-Each dst write commits `2^dst_data_width` bytes via a byte-enable mask into the
-low lanes of a 32-bit word at the dst address, then **advances the dst address
-by +4 regardless of width**:
+**`transfer_length` counts bytes, not reads or writes.** The number of dst
+writes is `ceil((transfer_length + 1) / 2^dst_data_width)`; the number of src
+reads is `ceil((transfer_length + 1) / 2^src_data_width)`.
+
+### Source reads
+
+Each src read fetches a full 32-bit word from the src address, but only the
+**low `2^src_data_width` bytes** are placed into the internal accumulator;
+upper bytes are discarded. The src address always advances by +4 per read when
+`src_addr_inc = 1`.
+
+| `src_dw` | Useful bytes per read |
+| -------- | --------------------- |
+| `0` (8b) | 1 (byte 0 only)       |
+| `1` (16b)| 2 (bytes 1:0)         |
+| `2` (32b)| 4 (bytes 3:0)         |
+
+### Destination writes
+
+Each dst write drains `2^dst_data_width` bytes from the accumulator and commits
+them via byte-enable mask into the low lanes of a 32-bit word at the dst
+address. The dst address always advances by +4 per write when `dst_addr_inc = 1`.
 
 | `dst_dw` | BE mask  | Useful bytes per write |
 | -------- | -------- | ---------------------- |
@@ -94,54 +113,56 @@ by +4 regardless of width**:
 | `1` (16b)| `0011`   | 2                      |
 | `2` (32b)| `1111`   | 4                      |
 
-Each src read fetches a 32-bit word at the src address but only places the
-**low `2^src_data_width` bytes** into the internal accumulator (upper bytes
-discarded). The src address advances by +4 per read when `src_addr_inc = 1`,
-and stays put otherwise.
+### Internal Accumulator
 
-The accumulator behaves as a shift FIFO: reads append bytes from the bottom,
-writes drain `2^dst_data_width` bytes from the bottom. A new read is issued
-when the next planned write would find fewer than `2^dst_data_width` bytes in
-the accumulator.
+The accumulator is a 32-bit shift FIFO. Src reads append bytes at the top; dst
+writes drain bytes from the bottom. A new src read is issued whenever the
+accumulator holds fewer bytes than the next dst write requires.
 
-**The SDK names `8BIT` / `16BIT` / `32BIT` describe peripheral-side lane width,
-not memory throughput.** For memory the relationship is inverse: the wider the
-`dw`, the more useful bytes per bus cycle.
+**`src_dw` and `dst_dw` are independent.** Any combination is valid:
 
-### Throughput implication
+- `src_dw=2, dst_dw=0`: one read fills the accumulator with 4 bytes; four writes
+  drain them one byte at a time.
+- `src_dw=0, dst_dw=2`: four reads each contribute 1 byte to the accumulator;
+  one write drains all four bytes in a single 32-bit store.
+- `src_dw=1, dst_dw=1`: one read, one write; 2 bytes transferred per cycle.
 
-For memory-to-memory copy, `src_dw = dst_dw = 32BIT` (BE = `1111` both sides,
-+4 increment with all 4 lanes active) gives full bus utilisation:
-`ceil(N / 4)` reads and `ceil(N / 4)` writes for N bytes. Using `8BIT/8BIT`
-runs roughly 4× slower and leaves three-byte gaps in dst between meaningful
-bytes.
+### Throughput
+
+For memory-to-memory copy, `src_dw = dst_dw = 2` (32-bit both sides) gives
+full bus utilisation: `ceil(N / 4)` reads and `ceil(N / 4)` writes for N
+bytes. Using `src_dw = dst_dw = 0` runs roughly 4× slower — each bus cycle
+moves one useful byte, and dst has three-byte gaps between meaningful bytes.
 
 ### Tail artefact
 
 For some sizes the last dst write contains a trailing zero byte — e.g.
 `src_dw = dst_dw = 2` with `size = 2` produces `aa aa aa 00` rather than
-`aa aa aa aa`. Hypothesis: the accumulator is under-filled on the final
-transaction. Not investigated further; does not occur in the `dw = 8 / 8`
-memcpy case.
+`aa aa aa aa`. The accumulator is under-filled on the final transaction;
+the DMA always issues a full-width write with the available BE mask
+(0001/0011/1111), so unfilled accumulator bytes are committed as 0x00.
+
+
 
 ### Address alignment
 
-Behaviour with unaligned src / dst addresses at `dw = 32` is not characterised
-— hw may mask the low address bits, write to unintended bytes, or behave
-unpredictably. All verified tests used 4-byte-aligned buffers.
+Behaviour with unaligned src / dst addresses at `dw = 2` (32-bit) is not
+characterised — hardware may mask the low address bits, write to unintended
+bytes, or behave unpredictably. Use 4-byte-aligned buffers.
 
 ## Operation sequence
 
 1. Reserve a channel index `n` in `0..5`.
-2. Optionally clear `config = 0` to drop any residual enable.
-3. Program endpoint addresses: `src_start_addr` and `dst_start_addr`.
+2. Optionally write `config = 0` to drop any residual enable.
+3. Write `src_start_addr` and `dst_start_addr`.
    Loop addresses can be left at `0` for single-shot mode.
-4. Program `mux_reqs` with `src_req` / `dst_req` (use `0` for DTCM on either
+4. Write `mux_reqs` with `src_req` / `dst_req` (use `0` for DTCM on either
    side).
-5. Program `config` with desired widths, increments, `fin_int_enable`,
-   `transfer_length = writes_needed - 1`, and `enable = 1` (or write `enable`
-   separately in a follow-up store to start the transfer).
-6. Wait for completion. Two equivalent ways:
+5. Write `config` with desired widths, increments, `fin_int_enable`,
+   `transfer_length = byte_count - 1`, and `enable = 1` to start the transfer.
+   Alternatively write `config` with `enable = 0` to program without starting,
+   then write `enable = 1` separately to trigger.
+6. Wait for completion — two equivalent ways:
     - Poll `channels[n].config.enable` — hw clears it to `0` on the final write.
     - Wait for the channel's bit in `int_status.fin_status` and write 1 to clear.
 
@@ -160,31 +181,25 @@ keeps `IRQ_SOURCE_GDMA` high.
 
 ## Notes
 
-- The hardware compresses the "configure" and "start" actions into the
-  `enable` bit. Writing `config` with `enable = 1` in one store starts the
-  transfer immediately; writing it with `enable = 0` programs the channel
-  without starting it, and a subsequent store that sets `enable = 1`
-  triggers the transfer using the previously programmed values.
 - `enable` is self-clearing on completion. No additional acknowledgement is
   required to ready the channel for reuse beyond optionally clearing
   `int_status.fin_status[n]`.
 - `int_counts[n].fin_count` (bits 24..27) and `half_fin_count` (bits 28..31)
-  are sticky 4-bit IRQ counters — incremented by hw on each finish/half-
-  finish, never auto-cleared, wrap at 16. Useful for debug, not for driver
-  logic.
+  are sticky 4-bit IRQ counters — incremented by hw on each finish/half-finish,
+  never auto-cleared, wrap at 16. Useful for debug, not for driver logic.
 - `int_counts[n].remain_len` (bits 0..16) reports the number of dst writes
-  remaining, in units of `2^dst_data_width` bytes.
+  remaining.
 - `src_rd_addr[n]` and `dst_wr_addr[n]` are internal counters with a
   hardware-specific encoding; they do not map to the current source/dest
   address in a straightforward way. Useful for debug only.
 - `src_pause_addr[n]` and `dst_pause_addr[n]` capture addresses at pause
   events; not exercised.
-- `prio_mode.fixed_priority = 0` selects round-robin arbitration and is
-  the most useful default; in that mode `channel_priority` in `config` is
-  ignored. With `fixed_priority = 1`, channels with higher
-  `channel_priority` (0..3) are serviced first.
+- `prio_mode.fixed_priority = 0` selects round-robin arbitration and is the
+  most useful default; in that mode `channel_priority` in `config` is ignored.
+  With `fixed_priority = 1`, channels with higher `channel_priority` (0..3)
+  are serviced first.
 - Loop mode (`repeat_mode = 1` with `*_addr_loop = 1` and the four
-  `*_loop_*_addr` registers) was not exercised; it is intended for
-  continuous peripheral streaming (e.g. DVP → JPEG → RAM).
-- `mux_reqs.src_rd_intval` and `dst_wr_intval` (rate-limit dividers, per
-  SDK) and `dtcm_wr_wait_word` have not been characterised.
+  `*_loop_*_addr` registers) was not exercised; it is intended for continuous
+  peripheral streaming (e.g. DVP → JPEG → RAM).
+- `mux_reqs.src_rd_intval`, `dst_wr_intval`, and `dtcm_wr_wait_word` have not
+  been characterised. Leave at `0`.
