@@ -23,6 +23,7 @@ static void uart_init(volatile hw_uart_t *uart) {
     hw_write_fields(uart->config,
         .tx_enable = 1,
         .rx_enable = 1,
+        .data_length = 3,
         .clk_divid = baud_div,
     );
 
@@ -71,21 +72,23 @@ static void uart_set_baudrate(volatile hw_uart_t *uart, unsigned long baudrate) 
 }
 
 void uart1_init() {
-    hw_icu->peri_clk_pwd.uart1 = 0;
-    hw_icu->peri_clk_mux.uart1 = DEFAULT_CLK_SOURCE;
-
+    hw_icu->peri_clk_pwd.uart1 = 1;
     gpio_config_function(GPIO_FUNC_UART1);
 
     uart_init(hw_uart1);
+
+    hw_icu->peri_clk_mux.uart1 = DEFAULT_CLK_SOURCE;
+    hw_icu->peri_clk_pwd.uart1 = 0;
 }
 
 void uart2_init() {
-    hw_icu->peri_clk_pwd.uart2 = 0;
-    hw_icu->peri_clk_mux.uart2 = DEFAULT_CLK_SOURCE;
-
+    hw_icu->peri_clk_pwd.uart2 = 1;
     gpio_config_function(GPIO_FUNC_UART2);
 
     uart_init(hw_uart2);
+
+    hw_icu->peri_clk_mux.uart2 = DEFAULT_CLK_SOURCE;
+    hw_icu->peri_clk_pwd.uart2 = 0;
 }
 
 bool uart1_is_tx_active() {

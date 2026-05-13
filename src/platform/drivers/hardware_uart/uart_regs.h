@@ -13,7 +13,7 @@ typedef struct {
             uint32_t tx_enable: 1;                  // [0]
             uint32_t rx_enable: 1;                  // [1]
             uint32_t irda: 1;                       // [2]
-            uint32_t data_length: 2;                // [3:4]
+            uint32_t data_length: 2;                // [3:4]  0=5bit 1=6bit 2=7bit 3=8bit
             uint32_t parity_enable: 1;              // [5]
             uint32_t parity_odd_mode: 1;            // [6]
             uint32_t stop_length_2: 1;              // [7]
