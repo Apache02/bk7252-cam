@@ -15,6 +15,7 @@ const struct id_name_map chip_id_map[] = {
     {0x7221a, "BK7251"},
     {0x7231a, "BK7231U"},
     {0x7238, "BK7238"},
+    {0x7252a, "BK7252N"},
     {0, "unknown"},
 };
 
@@ -35,6 +36,8 @@ const struct id_name_map device_id_map[] = {
     {0x18521020, "BK7231U_A"},
     {0x21128000, "BK7238_MPW"},
     {0x22068000, "BK7238_A"},
+    {0x23A18000, "BK7252N_MPW"},
+    {0x24318000, "BK7252N_MP"},
     {0, "unknown"},
 };
 
