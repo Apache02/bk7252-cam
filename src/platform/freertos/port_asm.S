@@ -17,14 +17,10 @@
     .global bk_trap_pabt
     .global bk_trap_dabt
     .global bk_trap_resv
+
     .global vTaskSwitchContext
 
     .align  4
-
-/* ========================================================================
- Context save and restore macro definitions
- * ======================================================================== */
-/* ========================================================================
 
 /* ========================================================================
  *                                Functions
@@ -80,13 +76,13 @@ do_reserved:
     .text
     .align  4
 
-    .globl vPortStartFirstTask
+    .global vPortStartFirstTask
     .type vPortStartFirstTask, %function
 vPortStartFirstTask:
     portRESTORE_CONTEXT
 
 
-    .globl vPortYield
+    .global vPortYield
     .type vPortYield, %function
 vPortYield:
     SVC 0

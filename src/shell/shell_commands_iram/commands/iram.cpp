@@ -3,7 +3,7 @@
 #include "shell/console_colors.h"
 #include <stdio.h>
 #include <stdint.h>
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 #include "hardware/intc.h"
 #include "hardware/wdt.h"
 #include "utils/crc32.h"

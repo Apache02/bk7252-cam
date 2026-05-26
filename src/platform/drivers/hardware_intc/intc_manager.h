@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 
 
 #define disable_interrupts()            GLOBAL_INT_DECLARATION(); GLOBAL_INT_DISABLE()

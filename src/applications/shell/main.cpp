@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "platform/stdio.h"
 #include "hardware/gpio.h"
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 #include "utils/busy_wait.h"
 #include "shell_handlers.h"
 #include "shell/console_colors.h"

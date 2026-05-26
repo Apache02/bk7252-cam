@@ -1,7 +1,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include "hardware/timer.h"
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 
 #include <sys/cdefs.h>
 

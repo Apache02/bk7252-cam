@@ -1,63 +1,24 @@
-	.globl intc_irq
-	.globl intc_fiq
-	.globl do_irq
-	.globl do_fiq
-	.globl do_swi
-	.globl do_undefined
-	.globl do_pabort
-	.globl do_dabort
-	.globl do_reserved
-    .globl bk_trap_swi
-    .globl bk_trap_udef
-    .globl bk_trap_pabt
-    .globl bk_trap_dabt
-    .globl bk_trap_resv
+#include "portmacro.inc"
 
+;/* exports */
+	.global do_irq
+	.global do_fiq
+	.global do_swi
+	.global do_undefined
+	.global do_pabort
+	.global do_dabort
+	.global do_reserved
 
-/* ========================================================================
- Context save and restore macro definitions
- * ======================================================================== */
-/* ========================================================================
-/**
- * Push SVC reg
- */
-    .macro PUSH_SVC_REG
-        SUB     SP, SP, #17 * 4
-        STMIA   SP, {R0 - R12}
-        MOV     R0, SP
-        MRS     R6, SPSR
-        STR     LR, [R0, #15*4]
-        STR     R6, [R0, #16*4]
-        STR     SP, [R0, #13*4]
-        STR     LR, [R0, #14*4]
-    .endm
+;/* imports */
+	.global intc_irq
+	.global intc_fiq
+    .global bk_trap_swi
+    .global bk_trap_udef
+    .global bk_trap_pabt
+    .global bk_trap_dabt
+    .global bk_trap_resv
 
-/* ========================================================================*/
-	.macro   portSAVE_CONTEXT 
-	// Push R0 as we are going to use the register.
-	STMDB	SP!, {R0}	
-	
-	LDMIA  SP!, {R0}
-	
-	STMDB	SP!, {r0-r12,r14}
-	NOP
-	NOP
-	SUB SP, SP, #8
-
-	MOV R0, R0
-	.endm
-		
-/* ========================================================================*/
-	.macro   portRESTORE_CONTEXT 
-		
-	ADD SP, SP,#0x8
-
-	LDMIA	SP!, {r0-r12,r14}
-	NOP
-	NOP	
-		
-	SUBS    PC, LR, #0x4
-	.endm
+    .align  4
 
 /* ========================================================================
  *                                Functions

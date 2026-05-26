@@ -1,5 +1,5 @@
 #include "string.h"
-#include "hardware/flash_regs.h"
+#include "flash_regs.h"
 #include "hardware/flash.h"
 
 

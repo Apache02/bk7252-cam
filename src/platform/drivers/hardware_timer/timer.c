@@ -3,7 +3,7 @@
 #include "sys_counter.h"
 #include "hardware/icu.h"
 #include "hardware/intc.h"
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 #include "platform/assert.h"
 #include "platform/init.h"
 
@@ -25,7 +25,7 @@ static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 #define assert_timer_number(i)       assert_true((i >= 0) && (i < TIMERS_TOTAL), "Invalid timer number")
 
 
-static void timer_irq_handler() {
+static void timer_isr() {
     uint32_t status0 = hw_timer_bank0->ctl.irq_status;
     uint32_t status1 = hw_timer_bank1->ctl.irq_status;
     uint32_t status_all = status0 | (status1 << TIMERS_IN_BANK);
@@ -90,7 +90,7 @@ static void timer_init(void) {
     hw_icu->peri_clk_pwd.timer_26m = 0;
     hw_icu->peri_clk_pwd.timer_32k = 0;
 
-    intc_register_irq_handler(IRQ_SOURCE_TIMER, timer_irq_handler);
+    intc_register_irq_handler(IRQ_SOURCE_TIMER, timer_isr);
     intc_enable_irq_source(IRQ_SOURCE_TIMER);
 }
 

@@ -2,7 +2,7 @@
 #include "shell/console_colors.h"
 #include <stdio.h>
 #include <stdint.h>
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 #include "utils/busy_wait.h"
 
 

@@ -1,13 +1,16 @@
 #include "arm.h"
 
-
 .text
     .align  4
 
-;/*
-; * void portENABLE_IRQ( void );
-; */
-    .globl portENABLE_IRQ
+.code 32
+
+/* ************************ */
+
+/*
+ *  int portENABLE_IRQ( void );
+ */
+    .global portENABLE_IRQ
     .type portENABLE_IRQ, %function
 portENABLE_IRQ:
     MRS     R0, CPSR
@@ -15,10 +18,10 @@ portENABLE_IRQ:
     MSR     CPSR_c, R1
     BX      LR
 
-;/*
-; * int portDISABLE_IRQ( void );
-; */
-    .globl portDISABLE_IRQ
+/*
+ * int portDISABLE_IRQ( void );
+ */
+    .global portDISABLE_IRQ
     .type portDISABLE_IRQ, %function
 portDISABLE_IRQ:
     MRS     R2, CPSR
@@ -28,10 +31,10 @@ portDISABLE_IRQ:
     BX      LR
 
 
-;/*
-; * void portENABLE_FIQ( void );
-; */
-    .globl portENABLE_FIQ
+/*
+ * int portENABLE_FIQ( void );
+ */
+    .global portENABLE_FIQ
     .type portENABLE_FIQ, %function
 portENABLE_FIQ:
     MRS     R0, CPSR
@@ -39,10 +42,10 @@ portENABLE_FIQ:
     MSR     CPSR_c, R1
     BX      LR
 
-;/*
-; * int portDISABLE_FIQ( void );
-; */
-    .globl portDISABLE_FIQ
+/*
+ * int portDISABLE_FIQ( void );
+ */
+    .global portDISABLE_FIQ
     .type portDISABLE_FIQ, %function
 portDISABLE_FIQ:
     MRS     R2, CPSR
@@ -52,10 +55,10 @@ portDISABLE_FIQ:
     BX      LR
 
 
-;/*
-; * int portDisableInt(void);
-; */
-    .globl portDisableInt
+/*
+ * int portDisableInt(void);
+ */
+    .global portDisableInt
     .type portDisableInt, %function
 portDisableInt:
     MRS     R2, CPSR
@@ -64,10 +67,10 @@ portDisableInt:
     AND     R0, R2, #CPU_FIQ_IRQ_MASK
     BX      LR
 
-;/*
-; * void portRestoreInt( int state );
-; */
-    .globl portRestoreInt
+/*
+ * void portRestoreInt( int state );
+ */
+    .global portRestoreInt
     .type portRestoreInt, %function
 portRestoreInt:
     MRS     R2, CPSR
@@ -76,10 +79,10 @@ portRestoreInt:
     MSR     CPSR_c, R1
     BX      LR
 
-;/*
-; * int portIsInIRQ( void );
-; */
-    .globl portIsInIRQ
+/*
+ * int portIsInIRQ( void );
+ */
+    .global portIsInIRQ
     .type portIsInIRQ, %function
 portIsInIRQ:
     MRS     R0, CPSR
@@ -89,10 +92,10 @@ portIsInIRQ:
     MOVNE   R0, #0
     BX      LR
 
-;/*
-; * int portIsInFIQ( void );
-; */
-    .globl portIsInFIQ
+/*
+ * int portIsInFIQ( void );
+ */
+    .global portIsInFIQ
     .type portIsInFIQ, %function
 portIsInFIQ:
     MRS     R0, CPSR
@@ -101,3 +104,39 @@ portIsInFIQ:
     MOVEQ   R0, #1
     MOVNE   R0, #0
     BX      LR
+
+
+/*
+ * void WFI( void );
+ */
+    .global WFI
+    .type WFI, %function
+WFI:
+    MOV     R0, #0
+    MCR     p15, 0, R0, c7, c0, 4
+    BX      LR
+
+
+/*
+ * void arm9_enable_alignfault( void );
+ */
+    .global arm9_enable_alignfault
+    .type arm9_enable_alignfault, %function
+arm9_enable_alignfault:
+    MRC     p15, 0, R0, c1, c0, 0
+    ORR     R0, R0, #0x02
+    MCR     p15, 0, R0, c1, c0, 0
+    BX      LR
+
+/*
+ * void arm9_disable_alignfault( void );
+ */
+    .global arm9_disable_alignfault
+    .type arm9_disable_alignfault, %function
+arm9_disable_alignfault:
+    MRC     p15, 0, R0, c1, c0, 0
+    BIC     R0, R0, #0x02
+    MCR     p15, 0, R0, c1, c0, 0
+    BX      LR
+
+/* EOF */

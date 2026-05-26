@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "hardware/time.h"
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 #include "hardware/sctrl_regs.h"
 
 

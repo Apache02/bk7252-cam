@@ -1,5 +1,5 @@
-#ifndef _HARDWARE_CPU_H
-#define _HARDWARE_CPU_H
+#ifndef _PLATFORM_CPU_H
+#define _PLATFORM_CPU_H
 
 
 #define GLOBAL_INT_DECLARATION()        int __int_state
@@ -12,8 +12,8 @@ extern "C" {
 #endif
 
 
-void portENABLE_IRQ(void);
-void portENABLE_FIQ(void);
+int portENABLE_IRQ(void);
+int portENABLE_FIQ(void);
 int portDISABLE_IRQ(void);
 int portDISABLE_FIQ(void);
 
@@ -29,4 +29,4 @@ int portIsInFIQ(void);
 #endif
 
 
-#endif // _HARDWARE_CPU_H
+#endif // _PLATFORM_CPU_H

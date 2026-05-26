@@ -224,18 +224,16 @@ typedef volatile struct {
 #define SCTRL_BLOCK_ENABLE_WRITE_KEY    (0xA5C)
 
 
-static inline void sctrl_block_enable_temprature_sensor() {
-    typeof(hw_sctrl->block_enable) tmp;
-    tmp.v = hw_sctrl->block_enable.v;
-    tmp.temprature_sensor = 1;
-    tmp.write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY;
-    hw_sctrl->block_enable.v = tmp.v;
+__unused static inline void sctrl_block_enable_temprature_sensor() {
+    hw_write_fields(hw_sctrl->block_enable,
+        .temprature_sensor = 1,
+        .write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY,
+    );
 }
 
-static inline void sctrl_block_disable_temprature_sensor() {
-    typeof(hw_sctrl->block_enable) tmp;
-    tmp.v = hw_sctrl->block_enable.v;
-    tmp.temprature_sensor = 0;
-    tmp.write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY;
-    hw_sctrl->block_enable.v = tmp.v;
+__unused static inline void sctrl_block_disable_temprature_sensor() {
+    hw_write_fields(hw_sctrl->block_enable,
+        .temprature_sensor = 0,
+        .write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY,
+    );
 }

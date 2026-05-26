@@ -3,7 +3,7 @@
 
 #include "utils/busy_wait.h"
 #include "hardware/intc.h"
-#include "hardware/cpu.h"
+#include "platform/cpu.h"
 
 
 #define TRACE(var)                          printf(#var " = 0x%x\r\n", var)
