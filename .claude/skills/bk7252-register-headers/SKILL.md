@@ -9,6 +9,8 @@ Translate Beken vendor SDK register descriptions into the project's canonical `*
 
 Output is a single C header that mirrors the on-chip memory layout via a `volatile struct` with bit-field unions. Behavioural documentation — operation model, edge cases, transfer invariants — does NOT live in this file; it goes in `docs/hardware/<block>.md` (see the `hardware-block-reference` skill).
 
+**REQUIRED SUB-SKILL:** Use `bk7252-sdk-reading` first — it covers chip identity, CFG_SOC_NAME branch resolution, SDK source layout, register encoding patterns (`_POSI`/`_MASK`), and SDK reliability. This skill covers only the output format.
+
 ## When this skill applies
 
 Two distinct triggers; the workflow differs.
@@ -22,57 +24,6 @@ Two distinct triggers; the workflow differs.
 
 - Phrase like "bring `<file>_regs.h` to canon" / "fix `<file>_regs.h` style".
 - Do NOT refactor existing `*_regs.h` opportunistically when editing it for other reasons — refactor only on explicit ask.
-
-## SDK input — pattern catalogue
-
-Beken SDK encodes registers as flat preprocessor constants. The shapes to recognise:
-
-| SDK pattern | Meaning |
-|---|---|
-| `#define <BLOCK>_BASE  (0x00......)` | Block base address |
-| `#define <REG>  (<BLOCK>_BASE + N * 4)` | Register address at word offset `N` |
-| `#define <FIELD>  (0x01UL << N)` or `(1 << N)` | Single-bit flag at bit `N` |
-| `#define <FIELD>_POSI  (N)` | Multi-bit field, start bit |
-| `#define <FIELD>_MASK  (M)` | Multi-bit field, width-as-mask |
-| `#define <VALUE_NAME>  (0xN)` | Numeric enum value for a multi-bit field |
-| `#define <REG>` with no further constants | Plain data register (no bit-fields) |
-
-**Mask-to-width conversion table** (masks are always low-bit-contiguous in Beken SDK):
-
-| MASK | Width | MASK | Width |
-|---|---|---|---|
-| `0x1` | 1 | `0xff` | 8 |
-| `0x3` | 2 | `0xfff` | 12 |
-| `0x7` | 3 | `0xffff` | 16 |
-| `0xf` | 4 | `0x1ffff` | 17 |
-| `0x1f` | 5 | `0xfffff` | 20 |
-| `0x3f` | 6 | `0xffffff` | 24 |
-| `0x7f` | 7 | `0xffffffff` | 32 |
-
-If a SDK mask is NOT a contiguous low-bit run (e.g. `0x6`, `0x14`) — that's either a SDK bug or an exotic non-contiguous field. Stop and read the surrounding driver `.c` to figure out what's going on; do not translate blindly.
-
-## CFG_SOC_NAME — which SDK branches are active
-
-The BK7252 SDK target is `SOC_BK7221U`:
-
-```c
-#define CFG_SOC_NAME  SOC_BK7221U
-```
-
-A branch is **active** iff the preprocessor expression evaluates true when `CFG_SOC_NAME` is substituted with `SOC_BK7221U`. Common cases:
-
-| SDK gate | Active for BK7252? |
-|---|---|
-| `#if CFG_SOC_NAME == SOC_BK7221U` | ✅ yes |
-| `#if CFG_SOC_NAME == SOC_BK7231` | ❌ no |
-| `#if CFG_SOC_NAME != SOC_BK7231` | ✅ yes |
-| `#if CFG_SOC_NAME != SOC_BK7221U` | ❌ no |
-| `#if CFG_SOC_NAME == SOC_BK7221U \|\| CFG_SOC_NAME == SOC_BK7252` | ✅ yes |
-| `#if CFG_SOC_NAME == SOC_BK7231 \|\| CFG_SOC_NAME == SOC_BK7231U` | ❌ no |
-
-Resolve `#elif` / `#else` in sequence — the first matching arm wins; later arms are inactive even if also true. Apply the rule recursively to nested `#if`s.
-
-When translating, **discard inactive branches entirely**. Do not carry forward `#ifdef`s into the output `*_regs.h`. The output is BK7252-specific and assumes `SOC_BK7221U`.
 
 ## Output canon
 
@@ -137,11 +88,11 @@ The header carries hardware layout. Nothing else.
 ## Workflow — generation
 
 1. Read the SDK fragment (file or pasted content).
-2. **Resolve `#if CFG_SOC_NAME` gating.** Walk the source, keeping only branches active for `SOC_BK7221U`. Use the gate table above. Inactive branches are discarded — do not carry them into the output.
+2. **Resolve `#if CFG_SOC_NAME` gating** using `bk7252-sdk-reading`. Keep only branches active for `SOC_BK7221U`; discard inactive branches — do not carry them into the output.
 3. **Identify the base address** and the **register offsets** (word indices `N` in `BASE + N * 4`). Build a flat list: `(offset, name, kind)` where `kind ∈ {bit-field register, data register, gap}`.
 4. **Translate each bit-field register**:
     - Group together every `<REG>_<FIELD>_POSI` / `_MASK` pair AND every `(1<<N)` flag that belongs to this register.
-    - Convert mask → bit-width via the table above.
+    - Convert mask → bit-width via the mask table in `bk7252-sdk-reading`.
     - Lay out bit-fields in ascending `POSI` order inside a `union { uint32_t v; struct { ... }; }`.
     - Insert `reserved_<lo>_<hi>` for unallocated bit ranges so every union totals 32.
     - Add inline `// [bits]` + semantic comment per field (rule #3).
@@ -170,17 +121,6 @@ Common legacy deltas to fix:
 - `#include <stdint.h>` next to `#include "register_defs.h"` → drop the redundant stdint include.
 
 When refactoring, never break existing field names or change struct member offsets without a clear reason — call sites compile against them. Field renames need a sweep through callers.
-
-## Known SDK pitfalls
-
-The Beken SDK has been compiled and run on this exact silicon — most of it is correct. The exceptions cluster around **exotic functionality without working SDK examples**: blocks where the SDK ships constants but no `*.c` actually exercising them.
-
-Specific cases observed in this project:
-
-- **Security RSA engine** (`security_regs.h`, RSA portion): SDK ships only constants, no driver `.c` that uses them. Register names and bit layouts for `status` and `config` in the SDK were wrong on initial inspection. Base address and register offsets were correct. When translating RSA-class blocks, expect to verify status/config layouts against the silicon before trusting them.
-- **Timer "read current counter" register** (`timer_regs.h` `read_ctl` / `read_value`): SDK describes a mechanism to read the current count of a running timer. The silicon does not honour it — the timer counts, divides, and fires interrupts correctly, but the readback path returns garbage. Mark the read-counter fields `(NOT FUNCTIONAL IN SILICON)`; keep the layout so the SDK description is preserved, but flag the gotcha.
-
-**Default rule:** trust the SDK. **Suspect specifically when:** the block has no usage examples in any SDK `.c`, OR the field is debug/telemetry rather than control, OR the user explicitly says they haven't exercised it.
 
 ## Real examples from this project
 
