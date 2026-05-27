@@ -1,0 +1,224 @@
+# BK7252 Memory Map
+
+ARM968E-S, 32-bit address space. All addresses are byte addresses; the bus is
+little-endian. Flash appears twice (XIP window + mirror); RAM appears in two
+physically separate blocks.
+
+---
+
+## Address Space Summary
+
+| Range                       | Size   | Region                              |
+|-----------------------------|--------|-------------------------------------|
+| `0x00000000`–`0x0000FFFF`   | 64 KiB | Flash XIP — Bootloader / ROM        |
+| `0x00010000`–`0x0012FFFF`   | ~1.1 MiB | Flash XIP — Application           |
+| `0x00130000`–`0x001FFFFF`   | ~832 KiB | Flash XIP — OTA / reserved         |
+| `0x00200000`–`0x003FFFFF`   | 2 MiB  | Flash mirror (raw, alias of 0x0…)   |
+| `0x00400000`–`0x0043FFFF`   | 256 KiB | RAM Block 1 (main firmware RAM)    |
+| `0x00440000`–`0x007FFFFF`   | —      | RAM Block 1 mirrors                 |
+| `0x00800000`–`0x008FFFFF`   | 1 MiB  | Peripheral bus                      |
+| `0x00900000`–`0x0093FFFF`   | 256 KiB | RAM Block 2 (IRAM / coprocessor)   |
+| `0x01000000`                | —      | MDM / AGC (modem + baseband AGC)    |
+| `0x01050000`                | —      | RC (RF transceiver control)         |
+| `0x01060000`                | —      | MPB (MAC PHY Bypass)                |
+| `0x10910000`                | —      | INTC (NX coprocessor interrupt controller) |
+| `0x10E00000`                | —      | LA (logic analyzer)                 |
+| `0xC0000000`–`0xC001006C`   | —      | NXMAC (MAC core + PL + PTA)         |
+
+---
+
+## Flash (XIP)
+
+Physical capacity: 2 MiB (one built-in SPI flash device).
+
+### CRC interleaving
+
+The flash controller operates in a CRC-aware XIP mode for the application
+region. Every 32 bytes of logical data is stored as 34 physical bytes: 32 data
+bytes followed by a 2-byte CRC16-CCITT (polynomial `0x8005`, initial value
+`0xFFFF`, big-endian). The controller strips the CRC bytes on read.
+
+Mapping from logical byte offset `n` to physical flash byte offset:
+
+```
+physical = (n / 32) * 34 + (n % 32)
+```
+
+Consequence: logical `0x00010000` (linker `ORIGIN`) maps to physical flash byte
+`0x00011000` (programmed by the flasher at `--startaddr 0x11000`).
+
+### Flash segment layout
+
+| Logical range               | Physical flash  | Content                                  |
+|-----------------------------|-----------------|------------------------------------------|
+| `0x00000000`–`0x0000FFFF`   | `0x000000`      | Bootloader, ARM exception vectors, RF/MAC firmware |
+| `0x00010000`–`0x0012FFFF`   | `0x011000`      | Application (CRC-interleaved)            |
+| `0x00130000`–`0x001FFFFF`   | —               | OTA / reserved                           |
+
+Flasher segment names (`uartprogram --segment <name>`):
+
+| Name         | Physical start  | Physical length | Notes                              |
+|--------------|-----------------|-----------------|------------------------------------|
+| `bootloader` | `0x000000`      | `0x010000`      | Write-protected after factory programming |
+| `app`        | `0x011000`      | `0x119000`      | CRC-wrapped `app_crc.bin`          |
+
+### Flash mirror
+
+The 2 MiB physical flash is aliased into the upper half of the 4 MiB window.
+The mirror is accessed raw (without CRC decoding) at `0x00200000`–`0x003FFFFF`.
+`uartreader --segment full` reads from physical `0x200000`, length `0x200000`
+to capture a complete raw flash dump.
+
+---
+
+## RAM Block 1
+
+Base: `0x00400000`.  Size: 256 KiB (`0x00400000`–`0x0043FFFF`).
+
+The block is mirrored at `0x00440000`–`0x007FFFFF` (7 additional 256 KiB
+aliases). Firmware uses the canonical `0x004xxxxx` range; mirrors are not used.
+
+### Hook table
+
+`0x00400000`–`0x0040001F` (32 bytes). Written by the bootloader before handing
+control to the application. The application re-writes these slots at init time
+(`boot_init.c`) to redirect exceptions to its own handlers.
+
+| Address        | Symbol                   | Exception            |
+|----------------|--------------------------|----------------------|
+| `0x00400000`   | `hook_IRQ`               | IRQ                  |
+| `0x00400004`   | `hook_FIQ`               | FIQ                  |
+| `0x00400008`   | `hook_SWI`               | Software interrupt   |
+| `0x0040000C`   | `hook_undefined`         | Undefined instruction |
+| `0x00400010`   | `hook_pabort`            | Prefetch abort       |
+| `0x00400014`   | `hook_dabort`            | Data abort           |
+| `0x00400018`   | `hook_reserved`          | Reserved             |
+| `0x0040001C`   | —                        | Unused / padding     |
+
+### Firmware RAM layout (flash build)
+
+| Address range               | Section              | Notes                                 |
+|-----------------------------|----------------------|---------------------------------------|
+| `0x00400020`–end of `.bss`  | `.data` + `.bss`     | Linker `RAM` region; `.data` copied from flash at startup |
+| end of `.bss` → bottom of stack | Heap             | `end` symbol; grows upward            |
+| `0x43E030`–`0x43FFFF`       | Mode stacks          | See table below; grows downward       |
+
+### Mode stack layout
+
+Stacks sit at the top of RAM Block 1. Each mode's stack is filled with a
+canary pattern at boot; overflow detection reads the first word.
+
+| Address range               | Mode    | Size   | Canary       |
+|-----------------------------|---------|--------|--------------|
+| `0x43FC10`–`0x43FFFF`       | SYS     | 0x3F0  | `0xEEEEEEEE` |
+| `0x43F420`–`0x43FC0F`       | FIQ     | 0x7F0  | `0xDDDDDDDD` |
+| `0x43E430`–`0x43F41F`       | IRQ     | 0xFF0  | `0xCCCCCCCC` |
+| `0x43E040`–`0x43E42F`       | SVC     | 0x3F0  | `0xBBBBBBBB` |
+| `0x43E030`–`0x43E03F`       | UNUSED  | 0x010  | `0xAAAAAAAA` |
+
+ABT and UND modes share the UNUSED stack (they are not expected to trigger in
+normal operation).
+
+---
+
+## RAM Block 2 (IRAM)
+
+Base: `0x00900000`.  Size: 256 KiB (`0x00900000`–`0x0093FFFF`).
+
+Idle state is `0xAA`-filled. Used by the IRAM build variant (`iram.lds`):
+vectors and code load and run from this block, allowing fast firmware iteration
+without writing flash. Under normal flash-boot operation this block may be
+reserved for RF/MAC or a hardware coprocessor; its use by that subsystem is not
+fully characterised.
+
+IRAM firmware is loaded via `tools/iram_loader` over UART and entered directly
+at `0x00900000`.
+
+---
+
+## Peripheral Bus (`0x00800000`–`0x008FFFFF`)
+
+All peripheral registers are 32-bit word-aligned. Byte and halfword accesses
+to peripheral registers are not supported unless noted.
+
+### Peripheral base addresses
+
+| Base address   | Peripheral    | Driver header              | Notes                                              |
+|----------------|---------------|----------------------------|----------------------------------------------------|
+| `0x00800000`   | SCTRL         | `hardware/sctrl_regs.h`    | System control: clocks, power, PLL, resets         |
+| `0x00800074`   | eFuse         | `hardware/efuse.h`         | Embedded in SCTRL register space (`SCTRL + 0x1D×4`) |
+| `0x00802000`   | ICU / INTC    | `hardware/icu.h`, `hardware/intc.h` | Interrupt Controller Unit; clock gating and interrupt routing share this block |
+| `0x00802100`   | UART1         | `hardware/uart.h`          | —                                                  |
+| `0x00802200`   | UART2         | `hardware/uart.h`          | —                                                  |
+| `0x00802300`   | I2C1          | `hardware/i2c.h`           | —                                                  |
+| `0x00802480`   | TRNG          | `hardware/random.h`        | True Random Number Generator                       |
+| `0x00802600`   | I2C2          | `hardware/i2c.h`           | —                                                  |
+| `0x00802800`   | GPIO Bank 0   | `hardware/gpio.h`          | GPIO 0–31 (`+0x00` per pin)                        |
+| `0x008028C0`   | GPIO Bank 1   | `hardware/gpio.h`          | GPIO 32+ (`GPIO_BASE + 48×4`)                      |
+| `0x00802900`   | WDT           | `hardware/wdt.h`           | Watchdog timer                                     |
+| `0x00802A00`   | Timer Bank 0  | `hardware/timer.h`         | 6 timers, 26 MHz source                            |
+| `0x00802A40`   | Timer Bank 1  | `hardware/timer.h`         | 6 timers, 32 kHz source (`PWM_NEW + 0x10×4`)       |
+| `0x00802C00`   | SAR ADC       | `hardware/saradc.h`        | Successive-approximation ADC                       |
+| `0x00803000`   | Flash ctrl    | `hardware/flash.h`         | SPI flash controller (XIP config, erase, program)  |
+| `0x00805000`   | FFT           | `hardware/fft.h`           | Hardware FFT accelerator                           |
+| `0x00806000`   | Security — AES | `hardware/security.h`     | AES sub-block (`SECURITY_BASE + 0×4`)              |
+| `0x00806100`   | Security — SHA | `hardware/security.h`     | SHA sub-block (`SECURITY_BASE + 0x40×4`)           |
+| `0x00806200`   | Security — RSA | `hardware/rsa.h`          | RSA sub-block (`SECURITY_BASE + 0x80×4`)           |
+| `0x00809000`   | GDMA          | `hardware/gdma.h`          | General-purpose DMA, 6 channels                    |
+| `0x0080A000`   | JPEG encoder  | `hardware/jpeg_encoder.h`  | Hardware JPEG encoder                              |
+
+---
+
+## Upper Address Space
+
+### RC — `0x01050000`
+
+RF transceiver control block (`hw_rc`, `rc_regs.h`). Spans
+`0x01050000`–`0x010501A8` (107 words). `TRX_REG28` is accessed at the
+anomalous address `0x08628078`, outside all mapped regions; the access
+mechanism is not characterised.
+
+### MPB — `0x01060000`
+
+MAC PHY Bypass (`hw_mpb`, `mpb_regs.h`). Two sub-blocks: main at
+`0x01060000` (`hw_mpb`, `r0`–`r11`) and TX-vector extra at `0x01060200`
+(`hw_mpb_extra`, `r128`–`r143`).
+
+### MDM / AGC — `0x01000000`
+
+Modem and AGC registers share a single base address; sub-groups occupy
+distinct offset windows:
+
+| Sub-group   | Offset range          | Count | Notes                                                    |
+|-------------|-----------------------|-------|----------------------------------------------------------|
+| MDM STAT    | `+0x0000`–`+0x0068`   | 27    | Read-only status; `+0x0000` = version register           |
+| MDM CFG     | `+0x0800`–`+0x0894`   | 550   | Config registers                                         |
+| AGC         | `+0x2000`–`+0x20AC`   | 2092  | Only part of the 2092-register space is described in SDK |
+| PHY AGC µcode | `+0xA000`           | —     | SDK comment warns writes to the mirror alias `0x01C0A000` may not be correct on this SoC |
+
+`REG_MDM_CFG_SIZE = 152` and `REG_AGC_SIZE = 172` are SDK-internal constants
+that do not reflect total byte sizes (those are COUNT × 4).
+
+### INTC (NX) — `0x10910000`
+
+Interrupt controller for the NX coprocessor subsystem. Size: 68 bytes (17
+registers). Distinct from the ARM ICU at `0x00802000`.
+
+### LA — `0x10E00000`
+
+Logic analyzer block. 16 registers. Offset constant `REG_LA_OFFSET = 0x00800000`
+suggests a second window or mirror at `0x10E00000 + 0x800000 = 0x11600000`;
+purpose not characterised.
+
+### NXMAC — `0xC0000000`
+
+NX 802.11 MAC hardware core. Three sub-blocks:
+
+| Sub-block  | Base           | Size    | Registers | Notes                                    |
+|------------|----------------|---------|-----------|------------------------------------------|
+| MAC Core   | `0xC0000000`   | 1376 B  | 344       | Core MAC engine                          |
+| MAC PL     | `0xC0008000`   | 1404 B  | —         | Physical layer interface                 |
+| MAC PTA    | `0xC0010000`   | 36 B    | —         | Packet traffic arbitration; `NXMAC_CONFIG` at `0xC0010004` |
+
+Monotonic free-running counters at `0xC000011C`–`0xC0000124` are used as
+microsecond timebase by `hardware_time`.

@@ -44,12 +44,12 @@ Flasher tools (`tools/flasher/uartprogram`, `uartreader`) are Python scripts usi
 Layered CMake tree under `src/` — each subdir is its own CMake library and gets composed by the application:
 
 - `src/platform/` — chip/runtime layer. Each subdir is one library:
-  - `boot/` (`platform_boot`) — ARM vector table + reset handler + `boot_init.c`. All firmware targets link this via `bk_firmware()`.
+  - `boot/` (`platform_boot`) — ARM vector table + reset handler + `boot_init.c` + low-level ARM CPU primitives (`cpu.S`, exported as `platform/cpu.h`: IRQ/FIQ enable/disable, `WFI`, alignment-fault control). All firmware targets link this via `bk_firmware()`.
   - `nosys/` — minimal libc syscall stubs.
   - `panic/` — panic handler.
   - `freertos/` (`platform_freertos`) — FreeRTOS kernel wrapper + port for this CPU.
   - `port_newlib/`, `port_lwip/`, `port_tlsf/` — adapters between the upstream library (fetched in `dependencies.cmake`: FreeRTOS-Kernel V11.1.0, lwIP STABLE-2_2_0, tlsf) and this firmware (locks, allocators, OS shim).
-  - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_gdma`, `hardware_gpio`, `hardware_icu`, `hardware_intc`, `hardware_mpb`, `hardware_random`, `hardware_rc`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`, plus `hardware_common` (shared register-base/utility headers used by the drivers; lives in `drivers/common/`).
+  - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_fft`, `hardware_gdma`, `hardware_gpio`, `hardware_i2c`, `hardware_icu`, `hardware_intc`, `hardware_jpeg`, `hardware_mpb`, `hardware_random`, `hardware_rc`, `hardware_saradc`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`, plus `hardware_common` (shared register-base/utility headers used by the drivers; lives in `drivers/common/`; provides `register_defs.h` with the `hw_write_fields()` macro for atomic multi-field bitfield writes — linked transitively by every driver).
   - `stdio/` — `printf`/`getchar` backends bound to a chosen UART (e.g. `platform_stdio_uart2`). Note: `printf` is built without float (see README).
 
 - `src/shell/` — interactive UART shell, split so an app can pick which command groups it ships:
@@ -62,9 +62,11 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/boards/` — board pin/feature headers. `BOARD` CMake var (or `$ENV{BOARD}`, default `A9_B_V1_3`) selects the active board and adds `BOARD_<NAME>` as a compile definition via the `board_config` INTERFACE library; `include/board.h` is the umbrella header consumers include.
 
-- `src/linker/` — `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`) and `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.txt` for the full chip memory map.
+- `src/linker/` — `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`) and `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.md` for the full chip memory map.
 
 - `src/utils/` — generic helpers (`crc`, `busy_wait`).
+
+- `docs/` — reference documents: `memory_map.md` (chip memory map — address space, flash CRC format, RAM layout, peripheral bases), `drivers_known_issues.md` (catalogued driver bugs / arch issues, prefixed F/A/C/Arch), `hardware/` (per-block hardware references: DMA, Security AES/SHA).
 
 External dependencies are fetched into `libs/` by `dependencies.cmake` via `FetchContent` (FreeRTOS-Kernel, lwIP, tlsf). Don't edit them in place.
 
