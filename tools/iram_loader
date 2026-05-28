@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 """
-iram_flash.py — load a firmware binary into IRAM via shell commands.
+iram_loader — load a firmware binary into IRAM via shell commands.
 
 Usage:
-    python3 iram_flash.py [--port PORT] [--baud BAUD] [--speed SPEED] [--addr ADDR] [--no-reboot] BINARY
+    python3 tools/iram_loader [OPTIONS] BINARY
 
 Arguments:
-    BINARY              Path to .bin file (e.g. build/freertos_shell--iram.bin)
+    BINARY              Path to .bin file (e.g. build/app_iram.bin)
 
 Options:
     --port PORT         Serial port (default: /dev/ttyUSB0)
-    --baud BAUD         Baud rate   (default: 115200)
-    --speed SPEED       Switch to this baud rate before upload (e.g. 921600),
-                        then switch back after. Device must support 'speed' command.
+    --baud BAUD         Baud rate (default: 115200)
+    --speed SPEED       Switch to this baud rate before upload (e.g. 921600).
+                        Device must support the 'speed' shell command.
     --addr ADDR         Load address in hex (default: 0x00900000)
     --no-reboot         Skip reboot step, assume shell is already running
     --no-jump           Load binary but do not jump to entry point
     --timeout SECONDS   Serial read timeout in seconds (default: 10)
+    --capture SECONDS   After jump: capture UART output for up to SECONDS seconds
+    --until PATTERN     Stop capture when a line contains PATTERN (default: ==END==)
 """
 
 import sys
+import os
 import time
 import argparse
 import serial
@@ -125,7 +128,8 @@ def step_reboot(ser: serial.Serial, timeout: float):
 
     log("Waiting for shell prompt after reboot...")
     if not wait_for_prompt(ser, timeout):
-        die("Timed out waiting for shell prompt after reboot.")
+        log_err("Timed out waiting for shell prompt after reboot.")
+        die("Recovery: power-cycle the board, or briefly connect CEN pin to GND.")
     log_ok("Shell is ready.")
 
 
@@ -269,6 +273,24 @@ def step_jump(ser: serial.Serial, addr: int, timeout: float):
     log_ok(f"Jump to 0x{addr:08x} issued.")
 
 
+def step_capture(ser: serial.Serial, timeout: float, until_pattern: str) -> None:
+    print(f"[ Capturing output (timeout={timeout:.0f}s, until={until_pattern!r}) ]")
+    deadline = time.monotonic() + timeout
+    found = False
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        line, _ = readline(ser, min(1.0, remaining))
+        if line:
+            print(f"  {line}")
+            if until_pattern in line:
+                found = True
+                log_ok("Sentinel found.")
+                break
+    if not found:
+        log_warn(f"Timeout reached without sentinel {until_pattern!r}.")
+    print()
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -288,11 +310,20 @@ def parse_args():
     parser.add_argument("--no-reboot", action="store_true", help="Skip reboot, shell already running")
     parser.add_argument("--no-jump", action="store_true", help="Load only, do not jump")
     parser.add_argument("--timeout", default=10.0, type=float, help="Serial read timeout in seconds (default: 10)")
+    parser.add_argument(
+        "--capture", default=None, type=float, metavar="SECONDS",
+        help="After jump: read UART output for up to SECONDS seconds (enables capture mode)"
+    )
+    parser.add_argument(
+        "--until", default="==END==",
+        help="Stop capture when a line contains this string (default: ==END==)"
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    total = 5 if args.capture else 4
     addr = int(args.addr, 16)
 
     # Load binary
@@ -302,7 +333,7 @@ def main():
     except OSError as e:
         die(f"Cannot open binary: {e}")
 
-    log(f"Binary: {args.binary} ({len(data)} bytes)")
+    log(f"Binary: {os.path.relpath(args.binary)} ({len(data)} bytes)")
     log(f"Load address: 0x{addr:08x}")
     log(f"Port: {args.port} @ {args.baud} baud")
     if args.speed:
@@ -311,9 +342,16 @@ def main():
 
     # Open serial port at the initial baud rate (always 115200 after reset)
     try:
-        ser = serial.Serial(args.port, args.baud, timeout=args.timeout)
+        ser = serial.Serial(args.port, args.baud, timeout=args.timeout, exclusive=True)
     except serial.SerialException as e:
-        die(f"Cannot open serial port: {e}")
+        msg = str(e).lower()
+        if "no such file" in msg or "no such device" in msg:
+            die(f"Port {args.port} not found — is the device connected?")
+        elif "busy" in msg or "permission denied" in msg or "access denied" in msg \
+                or "exclusively lock" in msg or "resource temporarily unavailable" in msg:
+            die(f"Port {args.port} is busy — close tio or any other terminal first.")
+        else:
+            die(f"Cannot open serial port: {e}")
 
     time.sleep(0.1)  # let port settle
 
@@ -322,25 +360,25 @@ def main():
 
         # Step 1 — reboot and wait for shell
         if not args.no_reboot:
-            print("[ Step 1/4 ] Rebooting device...")
+            print(f"[ Step 1/{total} ] Rebooting device...")
             step_reboot(ser, args.timeout)
         else:
-            print("[ Step 1/4 ] Skipping reboot, waiting for prompt...")
+            print(f"[ Step 1/{total} ] Skipping reboot, waiting for prompt...")
             step_ensure_prompt(ser)
         print()
 
         # Step 2 — optionally switch to faster baud rate
         if args.speed and args.speed != args.baud:
-            print(f"[ Step 2/4 ] Switching to {args.speed} baud...")
+            print(f"[ Step 2/{total} ] Switching to {args.speed} baud...")
             if not step_switch_speed(ser, args.speed, args.timeout):
                 die("Failed to switch baud rate.")
         else:
-            print("[ Step 2/4 ] No baud rate switch requested, skipping.")
+            print(f"[ Step 2/{total} ] No baud rate switch requested, skipping.")
         print()
 
         # Step 3 — upload binary
         for attempt in range(1, 3):
-            print(f"[ Step 3/4 ] Uploading {len(data)} bytes to 0x{addr:08x}...")
+            print(f"[ Step 3/{total} ] Uploading {len(data)} bytes to 0x{addr:08x}...")
             fw_crc = step_load(ser, addr, data, args.timeout)
             if step_verify(data, fw_crc):
                 print()
@@ -357,10 +395,18 @@ def main():
 
         # Step 4 — jump
         if not args.no_jump:
-            print(f"[ Step 4/4 ] Jumping to 0x{addr:08x}...")
+            print(f"[ Step 4/{total} ] Jumping to 0x{addr:08x}...")
             step_jump(ser, addr, args.timeout)
             log_ok(f"Done in {elapsed(t_total)}.")
             print()
+            if args.capture:
+                # Probe firmware starts at args.baud; restore host side after upload speed
+                if args.speed and args.speed != args.baud:
+                    log(f"Restoring baud rate to {args.baud} for capture...")
+                    ser.baudrate = args.baud
+                    time.sleep(0.2)
+                print(f"[ Step 5/{total} ] Capturing output...")
+                step_capture(ser, args.capture, args.until)
         else:
             log("--no-jump specified, skipping jump.")
 
