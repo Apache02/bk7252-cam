@@ -50,7 +50,7 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
   - `freertos/` (`platform_freertos`) — FreeRTOS kernel wrapper + port for this CPU.
   - `port_newlib/`, `port_lwip/`, `port_tlsf/` — adapters between the upstream library (fetched in `dependencies.cmake`: FreeRTOS-Kernel V11.1.0, lwIP STABLE-2_2_0, tlsf) and this firmware (locks, allocators, OS shim).
   - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_fft`, `hardware_gdma`, `hardware_gpio`, `hardware_i2c`, `hardware_icu`, `hardware_intc`, `hardware_jpeg`, `hardware_mpb`, `hardware_random`, `hardware_rc`, `hardware_saradc`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`, plus `hardware_common` (shared register-base/utility headers used by the drivers; lives in `drivers/common/`; provides `register_defs.h` with the `hw_write_fields()` macro for atomic multi-field bitfield writes — linked transitively by every driver).
-  - `stdio/` — `printf`/`getchar` backends bound to a chosen UART (e.g. `platform_stdio_uart2`). Note: `printf` is built without float (see README).
+  - `stdio/` — `printf`/`getchar` backends bound to a chosen UART (e.g. `platform_stdio_uart2`). Note: `printf` is built with `--specs=nano.specs` and without float support — `%f`/`%g`/`%e` and 64-bit specifiers `%llu`/`%lld` do not work.
 
 - `src/shell/` — interactive UART shell, split so an app can pick which command groups it ships:
   - `shell_main` — `Shell`, `Parser`, `History`, `Table` — the engine, no commands.
@@ -76,6 +76,6 @@ External dependencies are fetched into `libs/` by `dependencies.cmake` via `Fetc
 - Adding a new shell command: drop a `.cpp` into the relevant `shell_commands_*/commands/` directory — they're picked up by `file(GLOB)`. Per-app commands under `src/applications/freertos_shell/commands/` are likewise glob-included by that target's `CMakeLists.txt`.
 - Adding a new application or test: create `src/applications/<name>/CMakeLists.txt` (or `src/tests/<name>/CMakeLists.txt`) with an `add_executable(...)` + `bk_firmware(...)` / `bk_firmware_iram(...)` — `src/CMakeLists.txt` will auto-discover it.
 - CRC wrapping (`tools/crc`) is required to produce a flashable image — never flash the raw `*.bin`, always `*_crc.bin` / `app_crc.bin`.
-- The IRAM build (`*--iram` target, `app_iram.bin`) is for loading and running directly out of RAM block 2 via `tools/iram_loader` — useful for fast iteration without writing flash.
+- The IRAM build (`*--iram` target, `app_iram.bin`) is for loading and running directly out of RAM block 2 via `tools/iram_loader` — useful for fast iteration without writing flash. `tools/iram_loader` requires a shell with `loadi`, `go`, and `speed` commands running on the chip; `src/applications/ram_loader` is the dedicated app for this purpose.
 - All source content (identifiers, comments, strings, docs) must be English-only.
-- Do not run the build (`cmake`, `make`, `./test_build.sh`) — the user runs builds themselves.
+- Do not run the build (`cmake`, `make`, `./test_build.sh`) — the user runs builds themselves. Exception: `make test_probe--iram` is allowed when using the `run-on-chip` skill for `src/tests/probe/` experiments.
