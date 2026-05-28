@@ -125,6 +125,61 @@ space), polling that is safer than a magic timeout.
 Fix: confirm with the data-sheet whether such a status bit exists; if yes,
 poll it; if no, replace the comment with a citation and keep the delay.
 
+### F7. Calendar block (`beken378/driver/calendar/`) absent on BK7221U
+
+The Beken SDK ships a `calendar` driver (`calendar.c` / `calendar.h`,
+base address `0x00800000 + 0x55*4 = 0x00800154`) described as a 32 kHz
+free-running counter that exposes `cal_get_time_us()`.
+
+Verified on hardware: the registers at `0x00800154–0x00800160` are unmapped
+on BK7221U — reads return 0, writes are silently ignored regardless of
+`SCTRL_BLOCK_EN_MUX` or `SCTRL_LOW_PWR_CLK` configuration. The block is
+not mentioned in `BK7252_Data_Sheet_V1.0.pdf`.
+
+In the SDK the calendar is only used when both `CFG_USE_TICK_CAL=1` and
+`CFG_LOW_VOLTAGE_PS=1` (low-voltage sleep tick calibration), a combination
+that is not used in this project. The SDK's `#if !(CFG_SOC_NAME == SOC_BK7252N)`
+guard around `cal_get_time_us()` in `os_clock.c` appears to be a copy-paste
+from other chip variants where the block does exist.
+
+Use `get_absolute_time()` from `hardware_time` (NXMAC monotonic counter at
+`0xC000011C`) as a drop-in replacement — it provides microsecond resolution
+and is confirmed working on this chip.
+
+### F8. `platform_stdio_init()` requires a settle delay before first TX
+
+File: `src/platform/stdio/stdio.c`.
+
+Calling `setvbuf` or `printf` immediately after `platform_stdio_init()` (0 ms
+gap) produces a hard fault — register dump is visible on UART, then the
+bootloader takes over. With a delay of ≥ 10 ms, UART output is reliable.
+
+Observed during hardware probing (`src/tests/probe/`):
+
+| Delay after `platform_stdio_init()` | Result |
+|---|---|
+| 0 ms | hard fault (register dump, bootloader recovery) |
+| 10 ms | reliable output |
+| 20 ms | reliable output (chosen as safe default with margin) |
+
+The exact minimum was not pinned below 10 ms. The root cause is likely that
+the UART peripheral clock or baud-rate divisor needs time to stabilise after
+the register write in `stdio_init` — the first character arrives before the
+UART TX shift register is ready.
+
+Note: the earlier observation that "10 ms produced no output" was a host-side
+artefact of the old `tio` workflow: `iram_loader` closed the serial port,
+discarding the OS receive buffer, before `tio` opened it. The bytes were
+transmitted correctly but arrived during the port-close gap. With the
+`--capture` flag on `iram_loader` (port stays open), 10 ms is confirmed
+reliable.
+
+Workaround: `busy_wait_ms(20)` between `platform_stdio_init()` and the first
+I/O call. Used in `src/tests/probe/probe.cpp`.
+
+Fix: investigate whether a UART ready/busy status bit exists in the UART
+peripheral registers that can be polled instead of using a blind delay.
+
 ---
 
 ## API / contract
