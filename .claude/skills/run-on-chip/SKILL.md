@@ -62,7 +62,7 @@ Always uphold these — every experiment, no exceptions:
 int main() {
     wdt_down();               // FIRST — disables watchdog immediately
     platform_stdio_init();
-    busy_wait_ms(20);         // UART settle — 0 ms causes hard fault (see F8 in drivers_known_issues.md)
+    busy_wait_ms(20);         // UART settle — 0 ms causes hard fault (see F8 in known_issues.md)
     setvbuf(stdout, NULL, _IONBF, 0);  // unbuffered — output visible even on crash
 
     wdt_set(10000);           // set 10 s period
@@ -92,3 +92,39 @@ int main() {
 Find available drivers under `src/platform/drivers/` — each subdirectory is one library (`hardware_<block>`). Public headers are in `include/hardware/<block>.h` inside that directory.
 
 To use a driver: include its header in `probe.cpp` and add the library name to `target_link_libraries` in `src/tests/probe/CMakeLists.txt`.
+
+## ARM-mode assembly (`probe_arm.S`)
+
+`src/tests/probe/probe_arm.S` is a permanent fixture — always compiled and linked. Use it for any code that must run in ARM mode (not Thumb), such as exception handlers, `SUBS PC, LR, #offset` returns, or code that cannot be expressed in C/Thumb.
+
+- The file uses `.arm` — all functions in it are ARM-mode regardless of the gcc default.
+- Declare symbols in `probe.cpp` as `extern "C"` and reference them normally.
+- When starting a fresh experiment that doesn't need ARM code: leave the file with a minimal stub (at least one exported symbol so the linker doesn't warn).
+- When the experiment needs an exception handler or other ARM-mode routine: write it here.
+
+Key facts for ARM exception handlers on this chip (ARM968E-S, ARMv5TE):
+
+| Exception | LR_mode (ARM state fault) | LR_mode (Thumb state fault) | Return to next instruction | Confirmed |
+|---|---|---|---|---|
+| Undefined instruction | `fault_addr + 4` | `fault_addr + 2` | `MOVS PC, LR` | **hardware** |
+| Prefetch Abort | `fault_addr + 4` | `fault_addr + 4` | `MOVS PC, LR` | spec only |
+| Data Abort | `fault_addr + 8` | `fault_addr + 6` | `SUBS PC, LR, #4` | spec only |
+
+Hardware-confirmed UNDEFINED details (probe result, ARM state, fault at `0x000F0000`):
+- `LR_und = 0x000F0004` = `fault_addr + 4` ✓
+- `SPSR_und = 0x000000D3` = SVC mode, ARM state, IRQ+FIQ masked
+- Return to next instruction: `MOVS PC, LR`
+
+Data Abort hookability from IRAM context: the bootloader's DABORT handler at `0x00000628` does read `hook_dabort` at `0x00400014` (confirmed by disassembly of `bootloaders/bootloader_a9_v720.bin`). However, installing a handler via `hook_dabort` and triggering `0x00200000` (flash mirror CRC abort) did not route to the installed handler in repeated tests from IRAM. Root cause not resolved. Data Abort hooks may work from flashed firmware but are unreliable from IRAM.
+
+Mode switch without CPS (ARMv5, no CPS instruction):
+```asm
+mrs  r0, cpsr
+bic  r0, r0, #0x1F
+orr  r0, r0, #0x13   /* 0x13 = SVC, 0x1F = SYS, 0x12 = IRQ, 0x11 = FIQ, 0x17 = ABT */
+msr  cpsr_c, r0
+```
+
+ABT and UND mode stacks are initialised. Both share the 16-byte UNUSED stack at `0x43E030`–`0x43E03F` (SP = `0x43E040`). The bootloader's dispatch code pushes `{r0, r1}` (8 bytes) before calling the installed handler, so the effective usable space in the handler itself is 8 bytes. Keep handlers register-only (no push/pop) unless you switch to a larger stack first.
+
+UART FIFO drain before triggering exceptions: `printf()` leaves bytes queued in the UART TX FIFO. If an exception handler writes to UART immediately after, the FIFO may be full and writes are silently dropped. Always call `busy_wait_ms(50)` after the last `printf` and before the fault trigger, and poll `wr_ready` (bit 20 of `fifo_status`) inside the handler before each byte write.
