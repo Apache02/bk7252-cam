@@ -1,4 +1,4 @@
-add_executable(test_probe probe.cpp)
+add_executable(test_probe probe.cpp probe_arm.S)
 target_link_libraries(test_probe PRIVATE
     platform_nosys
     platform_stdio_uart2
