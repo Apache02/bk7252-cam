@@ -66,7 +66,7 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/utils/` — generic helpers (`crc`, `busy_wait`).
 
-- `docs/` — reference documents: `memory_map.md` (chip memory map — address space, flash CRC format, RAM layout, peripheral bases), `drivers_known_issues.md` (catalogued driver bugs / arch issues, prefixed F/A/C/Arch), `hardware/` (per-block hardware references: DMA, Security AES/SHA).
+- `docs/` — reference documents: `memory_map.md` (chip memory map — address space, flash CRC format, RAM layout, peripheral bases), `known_issues.md` (catalogued firmware bugs / arch issues, prefixed F/A/C/Arch), `hardware/` (per-block hardware references: DMA, Security AES/SHA).
 
 External dependencies are fetched into `libs/` by `dependencies.cmake` via `FetchContent` (FreeRTOS-Kernel, lwIP, tlsf). Don't edit them in place.
 

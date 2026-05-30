@@ -1,6 +1,6 @@
-# Drivers — known issues and follow-ups
+# Known issues and follow-ups
 
-This file tracks issues found during the May 2026 review of `src/platform/drivers/`
+This file tracks issues found during the May 2026 platform review
 that were *not* fixed inline in commit `a7cebc0` (`fix: drivers bugfixes and refactor`).
 Each entry describes the issue, why it was deferred, and a concrete fix outline.
 
@@ -237,14 +237,19 @@ File: `hardware_flash/flash.c`.
 
 `flash_read` is `void`-returning. It silently succeeds with garbage if:
 - `addr + count` walks past the end of the flash (no upper bound check),
-- the hardware reports an error in `sr_data_crc_cnt.error_count`,
 - the flash is in deep-power-down mode.
 
-For consumers that need integrity (firmware loaders, OTA, config blob load),
-silent corruption is a real risk.
+Note: `sr_data_crc_cnt.error_count` was investigated and its function is not
+confirmed — it was never observed to increment in any tested scenario. Do not
+rely on it as a telemetry counter. See `docs/hardware/flash.md`.
 
-Fix: return `int` with a meaningful error code, validate `addr + count`,
-check `sr_data_crc_cnt.error_count` after the operation.
+For XIP reads (CPU fetches through the `0x000000–0x1FFFFF` window) the
+hardware enforces CRC validation: a mismatch triggers a Data Abort rather
+than returning corrupt data silently. This is a hardware-level guard that
+applies only to instruction / data cache fetches, not to the OPERATE_SW read
+path used by `flash_read`.
+
+Fix: return `int` with a meaningful error code, validate `addr + count`.
 
 ---
 
@@ -324,6 +329,47 @@ application to call `<driver>_init()` manually (uart, wdt, flash, gpio,
 efuse, sctrl, security). Pick one model; the `INIT_AT` macro plus
 `FINI_AT` (already used in `gdma`) is the cleaner option since each driver
 declares its own ordering.
+
+### Arch4. Abort mode stack is 16 bytes — custom Data Abort handlers are tightly constrained
+
+`boot_reset.S` initialises `SP_abt` to `_stack_unused` with size
+`_UNUSED_STACK_SIZE_ = 0x010` (16 bytes). The same 16-byte region is shared
+with UND mode. `boot_dabort` (installed at RAM vector `0x00400014`) pushes
+`{r0, r1}` (8 bytes) before branching to the handler slot — leaving 8 bytes
+(2 words) of usable abort-mode stack for the handler.
+
+Consequences for custom handlers:
+
+- **Stack overflow at 3+ pushes.** A handler that pushes more than 2
+  additional words overflows the abort stack into adjacent memory.
+- **Returning to faulting Thumb code requires restoring every clobbered
+  register.** AAPCS caller-save rules do not apply here — the "caller" is the
+  faulting instruction's register context. Any register modified in the handler
+  and not restored before `SUBS PC, LR, #N` will appear with a garbage value
+  in the resumed code, which can immediately trigger a second Data Abort (e.g.
+  a clobbered register used as a pointer in the next instruction).
+- **Return offset differs by instruction set state.** For ARM state:
+  `SUBS PC, LR, #4` (skips faulting instruction). For Thumb state:
+  `SUBS PC, LR, #6` (Thumb instructions are 2 bytes; `LR_abt = fault + 8`).
+  Check `SPSR_abt` bit 5 (T bit) to detect the active state.
+- **ARM-only instructions cannot be used in a Thumb naked function.** Write
+  the handler in a separate `.S` file with an explicit `.arm` directive.
+- **`static` globals are not addressable by name from `.S`.** Remove `static`
+  from any file-scope variable the handler needs to write.
+- **To call C code, switch to SVC mode first** (which has a properly-sized
+  stack). After the switch `LR_abt` / `SPSR_abt` are no longer accessible, so
+  returning to the faulting code is not possible — the handler must reboot or
+  jump to a known-good address. ARMv5 has no `CPS` instruction:
+  ```asm
+  mrs  r0, cpsr
+  bic  r0, r0, #0x1F
+  orr  r0, r0, #0x13   /* SVC mode = 0x13 */
+  msr  cpsr_c, r0
+  ```
+
+Fix: if a production Data Abort handler is ever needed, increase
+`_UNUSED_STACK_SIZE_` in `boot.h` and give ABT mode its own dedicated region
+in `flash.lds` / `iram.lds`.
 
 ---
 
