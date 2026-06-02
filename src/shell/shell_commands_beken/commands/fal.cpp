@@ -9,7 +9,7 @@
 
 #define FAL_PART_MAGIC_WORD         0x45503130
 #define FAL_DEV_NAME_MAX            24
-#define FAL_PART_TABLE_START        0xe000
+#define FAL_PART_TABLE_START        0xd000
 #define FAL_PART_TABLE_END          0xf000
 
 
