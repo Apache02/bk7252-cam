@@ -117,11 +117,17 @@ bad-data return.** A CPU fetch whose 34-byte physical block carries an invalid
 stored CRC (including blocks written raw via OPERATE_SW without appending CRC
 bytes) triggers a Data Abort exception immediately.
 
-**Effective XIP range.** A 2 MiB flash (`0x000000–0x1FFFFF`) contains 61 680
-complete 34-byte blocks (`61680 × 34 = 0x1FFF60`). The last valid XIP logical
-address is `0x1E1BFF` (block 61 679, last byte). Accesses at `0x1E1C00` and
-above map to physical positions where the CRC bytes fall outside the 2 MiB
-window and the controller triggers a Data Abort.
+**Effective XIP range.** The last valid logical address depends on the installed
+flash chip:
+
+- **2 MiB chip** (`0x000000–0x1FFFFF`): 61 680 complete 34-byte blocks
+  (`61680 × 34 = 0x1FFF60`). Last valid XIP logical address: `0x1E1BFF`
+  (block 61 679, last byte). Accesses at `0x1E1C00` and above trigger a
+  Data Abort.
+- **4 MiB chip** (`0x000000–0x3FFFFF`): 123 361 complete 34-byte blocks
+  (`123361 × 34 = 0x3FFFA2`). Last valid XIP logical address: `0x3C37BF`
+  (block 123 360, last byte). Accesses at `0x3C37C0` and above trigger a
+  Data Abort.
 
 **The OPERATE_SW path sees raw physical bytes.** The 2 CRC bytes per 34-byte
 block are visible as ordinary data on reads and must be accounted for in writes

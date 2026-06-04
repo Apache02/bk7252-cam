@@ -13,7 +13,7 @@ physically separate blocks.
 | `0x00000000`–`0x0000FFFF`   | 64 KiB | Flash XIP — Bootloader / ROM        |
 | `0x00010000`–`0x0012FFFF`   | ~1.1 MiB | Flash XIP — Application           |
 | `0x00130000`–`0x001FFFFF`   | ~832 KiB | Flash XIP — OTA / reserved         |
-| `0x00200000`–`0x003FFFFF`   | 2 MiB  | Flash mirror (raw, alias of 0x0…)   |
+| `0x00200000`–`0x003FFFFF`   | 2 MiB  | Flash upper window: 4 MiB chip → upper 2 MiB of flash; 2 MiB chip → mirror of `0x0–0x1FFFFF` |
 | `0x00400000`–`0x0043FFFF`   | 256 KiB | RAM Block 1 (main firmware RAM)    |
 | `0x00440000`–`0x007FFFFF`   | —      | RAM Block 1 mirrors                 |
 | `0x00800000`–`0x008FFFFF`   | 1 MiB  | Peripheral bus                      |
@@ -29,7 +29,7 @@ physically separate blocks.
 
 ## Flash (XIP)
 
-Physical capacity: 2 MiB (one built-in SPI flash device).
+Physical capacity: 2 MiB or 4 MiB depending on the installed chip variant (one built-in SPI NOR flash).
 
 ### CRC interleaving
 
@@ -53,7 +53,8 @@ Consequence: logical `0x00010000` (linker `ORIGIN`) maps to physical flash byte
 |-----------------------------|-----------------|------------------------------------------|
 | `0x00000000`–`0x0000FFFF`   | `0x000000`      | Bootloader, ARM exception vectors, RF/MAC firmware |
 | `0x00010000`–`0x0012FFFF`   | `0x011000`      | Application (CRC-interleaved)            |
-| `0x00130000`–`0x001FFFFF`   | —               | OTA / reserved                           |
+| `0x00130000`–`0x001FFFFF`   | —               | OTA / reserved (2 MiB chip end)          |
+| `0x00200000`–`0x003FFFFF`   | —               | Upper 2 MiB (4 MiB chip only)            |
 
 Flasher segment names (`uartprogram --segment <name>`):
 
@@ -115,12 +116,26 @@ The hook slot addresses used:
 | DABORT | `0x00400014` (`hook_dabort`) — reads correct hook slot; routing to IRAM handler unconfirmed |
 | RESERVED | `0x00400018` (`hook_reserved`) |
 
-### Flash mirror
+### Upper flash window (`0x00200000`–`0x003FFFFF`)
 
-The 2 MiB physical flash is aliased into the upper half of the 4 MiB window.
-The mirror is accessed raw (without CRC decoding) at `0x00200000`–`0x003FFFFF`.
-`uartreader --segment full` reads from physical `0x200000`, length `0x200000`
-to capture a complete raw flash dump.
+Behavior depends on the installed flash chip variant:
+
+- **2 MiB chip** — the XIP controller aliases the entire 2 MiB flash into both
+  halves of the 4 MiB window. Reads from `0x00200000`–`0x003FFFFF` return the
+  same raw physical bytes as `0x00000000`–`0x001FFFFF` (without CRC decoding).
+- **4 MiB chip** — `0x00200000`–`0x003FFFFF` maps to the upper 2 MiB of the
+  physical flash (physical bytes `0x200000`–`0x3FFFFF`), not a mirror. These
+  bytes are accessible raw via the OPERATE_SW path and as CRC-decoded XIP data
+  via the XIP path, the same as the lower window.
+
+Address bits above the flash capacity are insignificant (standard SPI flash
+addressing), so `0x400000` is used as a base for all dump segments — it aliases
+physical `0x000000` on both chip variants. On a 4 MiB chip consecutive sectors
+at `0x400000, 0x401000, …, 0x7FF000` correctly wrap through the full 22-bit
+physical space, covering both halves.
+
+`uartreader --segment full2m` dumps 2 MiB from physical `0x0`.
+`uartreader --segment full4m` dumps 4 MiB from physical `0x0` (for 4 MiB chips).
 
 ---
 
