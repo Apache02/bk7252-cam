@@ -44,11 +44,14 @@ const struct id_name_map device_id_map[] = {
 const struct id_name_map flash_id_map[] = {
     {0x1C7016, "en_25qh32b"},
     {0x1C7015, "en_25qh16b"},
+    {0x0B4015, "xtx_25f16b"},
+    {0x0B4016, "xtx_25f32b"},
     {0, "unknown"},
 };
 
 const struct id_name_map manufacturer_id_map[] = {
     {0x1C, "Eon Silicon Devices"},
+    {0x0B, "xtx"},
     {0, "unknown"},
 };
 

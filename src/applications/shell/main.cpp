@@ -4,6 +4,7 @@
 #include "platform/cpu.h"
 #include "utils/busy_wait.h"
 #include "shell_handlers.h"
+#include "hardware/wdt.h"
 #include "shell/console_colors.h"
 
 
@@ -32,6 +33,7 @@ static bool is_connected() {
 }
 
 int main() {
+    wdt_down();
     init_hardware();
     // disable stdout buffering
     setvbuf(stdout, NULL, _IONBF, 0);

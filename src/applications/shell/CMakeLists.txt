@@ -31,6 +31,7 @@ target_link_libraries(
         hardware_intc
         hardware_timer
         hardware_sctrl
+        hardware_wdt
 )
 
 bk_firmware(shell)
