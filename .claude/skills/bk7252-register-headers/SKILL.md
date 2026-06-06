@@ -62,7 +62,7 @@ typedef volatile struct {
 | 2 | Bit-range comments: `[hi:lo]` (MSB:LSB) | Matches industry/datasheet convention and `docs/hardware/*.md`. Legacy files using `[lo:hi]` are wrong; bring them to MSB:LSB on refactor. |
 | 3 | Every bit-field gets an inline `// [bits]` placement comment AND a semantic comment when meaning isn't fully self-evident from the name | Apply to single-bit fields too — placement is cheap, future readers benefit. |
 | 4 | Reserved bit-field naming: `reserved_<lo>_<hi>: N;` for ranges, `reserved_<n>: 1;` for single bits | All bit-fields in a union must sum to exactly 32. |
-| 5 | Includes: `#include "register_defs.h"` only | It already pulls `<stdint.h>`. Do not duplicate. |
+| 5 | Includes: `#include "register_defs.h"` is required. Additional standard headers are allowed when needed. | — |
 | 6 | Typedef name: `hw_<block>_t` for a memory-mapped block; `hw_<block>_<sub>_t` for sub-engines inside a parent block (e.g. `hw_security_aes_reg_t` — but use `hw_<block>_<sub>_t` for new code; the `_reg_t` suffix in `security_regs.h` is legacy) | Existing `efuse_hw_t`, `*_reg_t`, `icu_<...>_reg_t` are legacy — bring to `hw_<block>_t` on refactor. |
 | 7 | Base macro: `<BLOCK>_BASE_ADDR` for a standalone block; `<BLOCK>_BASE + N * 4` when the block sits inside a parent (as `EFUSE_BASE` does inside `SCTRL_BASE`) | Pattern matches gdma/random/uart/gpio. |
 | 8 | Pointer macro: `hw_<block>` for singletons; `hw_<block>N` for multi-instance (e.g. `hw_uart1`, `hw_uart2`) | Goes at the bottom of the file, after the typedef. |
@@ -103,7 +103,7 @@ The header carries hardware layout. Nothing else.
 9. **Sanity checks** before delivering:
     - Every bit-field union sums to exactly 32.
     - Every register offset accounted for (registers + gap placeholders cover the full address range up to the last register).
-    - File compiles in isolation — only dependency is `register_defs.h`.
+    - File compiles in isolation — `register_defs.h` is present; any additional includes are standard headers only.
     - File path is `src/platform/drivers/hardware_<block>/<block>_regs.h` (NOT the nested anti-pattern path).
 10. Final pointer macro line at file bottom: `#define hw_<block>  ((volatile hw_<block>_t *) <BLOCK>_BASE_ADDR)`.
 
@@ -118,7 +118,6 @@ Common legacy deltas to fix:
 - Typedef `<block>_hw_t` / `*_reg_t` / `icu_<...>_reg_t` → `hw_<block>_t` (efuse_regs.h, intc_regs.h).
 - Operation-model multi-paragraph comments in the header → relocate to `docs/hardware/<block>.md` and remove from header (gdma_regs.h block comments).
 - Missing inline bit-comments → add per rule #3.
-- `#include <stdint.h>` next to `#include "register_defs.h"` → drop the redundant stdint include.
 
 When refactoring, never break existing field names or change struct member offsets without a clear reason — call sites compile against them. Field renames need a sweep through callers.
 
@@ -127,7 +126,7 @@ When refactoring, never break existing field names or change struct member offse
 - `src/platform/drivers/hardware_gdma/gdma_regs.h` — closest existing file to canon (apart from the legacy operation-model block comment, which belongs in `docs/hardware/dma.md`).
 - `src/platform/drivers/hardware_security/security_regs.h` — multi-engine block (AES, SHA, RSA). Demonstrates the `auteo` SDK-quirk comment pattern.
 - `src/platform/drivers/hardware_random/random_regs.h` — minimal canonical form for a tiny block.
-- `src/platform/drivers/common/include/register_defs.h` — the single required include; provides `hw_write_fields` for atomic multi-field stores (orthogonal to this skill, but worth knowing).
+- `src/platform/drivers/common/include/register_defs.h` — the required base include; provides `hw_write_fields` for atomic multi-field stores and pulls `<stdint.h>` (orthogonal to this skill, but worth knowing).
 
 ## Final pass before delivering
 
