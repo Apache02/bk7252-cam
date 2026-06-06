@@ -79,3 +79,4 @@ External dependencies are fetched into `libs/` by `dependencies.cmake` via `Fetc
 - The IRAM build (`*--iram` target, `app_iram.bin`) is for loading and running directly out of RAM block 2 via `tools/iram_loader` — useful for fast iteration without writing flash. `tools/iram_loader` requires a shell with `loadi`, `go`, and `speed` commands running on the chip; `src/applications/ram_loader` is the dedicated app for this purpose.
 - All source content (identifiers, comments, strings, docs) must be English-only.
 - Do not run the build (`cmake`, `make`, `./test_build.sh`) — the user runs builds themselves. Exception: `make test_probe--iram` is allowed when using the `run-on-chip` skill for `src/tests/probe/` experiments.
+- `src/tests/probe/` is the scratch template for the `run-on-chip` skill — never commit anything in that directory unless explicitly told to (e.g. when updating the template itself).
