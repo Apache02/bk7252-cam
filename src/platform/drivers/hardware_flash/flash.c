@@ -3,12 +3,7 @@
 #include "hardware/flash.h"
 
 
-#define FLASH_READ_BLOCK            (32u)
-#define FLASH_READ_BLOCK_MASK       (FLASH_READ_BLOCK - 1u)
-#define FLASH_READ_WORDS_COUNT      (FLASH_READ_BLOCK / sizeof(uint32_t))
-
-#define FLASH_SECTOR_SIZE           (4096u)
-#define FLASH_SECTOR_MASK           (~(FLASH_SECTOR_SIZE - 1u))
+#define FLASH_READ_WORDS_COUNT      (FLASH_READ_BLOCK_SIZE / sizeof(uint32_t))
 
 
 static inline uint32_t min_u32(uint32_t a, uint32_t b) {
@@ -22,10 +17,12 @@ static inline void wait_busy_bit() {
 /* Single atomic write to operate_sw: sets addr, opcode, wp=1, op_sw=1 together.
  * Avoids read-modify-write races on operate_sw and matches the SDK pattern. */
 static inline void trigger(uint32_t addr, FLASH_OPCODE op) {
-    hw_flash->operate_sw.v = (addr & 0x00FFFFFFu)
-                             | ((uint32_t)op << 24)
-                             | (1u << 29)   /* op_sw */
-                             | (1u << 30);  /* wp   */
+    hw_write_fields(hw_flash->operate_sw,
+        .addr = addr,
+        .op_type_sw = op,
+        .op_sw = 1,
+        .wp = 1,
+    );
     wait_busy_bit();
 }
 
@@ -57,12 +54,9 @@ void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
     while (count > 0) {
         const uint32_t aligned_addr = addr & ~FLASH_READ_BLOCK_MASK;
         const uint32_t block_offset = addr - aligned_addr;
-        const uint32_t available = FLASH_READ_BLOCK - block_offset;
+        const uint32_t available = FLASH_READ_BLOCK_SIZE - block_offset;
 
-        hw_flash->operate_sw.addr = aligned_addr;
-        hw_flash->operate_sw.op_type_sw = FLASH_OPCODE_READ;
-        hw_flash->operate_sw.op_sw = 1;
-        wait_busy_bit();
+        trigger(aligned_addr, FLASH_OPCODE_READ);
 
         for (uint32_t i = 0; i < FLASH_READ_WORDS_COUNT; i++) {
             buf[i] = hw_flash->data_flash_sw;
@@ -80,7 +74,7 @@ void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
 void flash_erase_sector(uint32_t addr) {
     wait_busy_bit();
     wren();
-    trigger(addr & FLASH_SECTOR_MASK, FLASH_OPCODE_SE);
+    trigger(addr & ~FLASH_SECTOR_MASK, FLASH_OPCODE_SE);
 }
 
 void flash_write(uint32_t addr, const uint8_t *src, uint32_t count) {
@@ -91,12 +85,12 @@ void flash_write(uint32_t addr, const uint8_t *src, uint32_t count) {
     while (count > 0) {
         const uint32_t aligned_addr = addr & ~FLASH_READ_BLOCK_MASK;
         const uint32_t block_offset = addr - aligned_addr;
-        const uint32_t available    = FLASH_READ_BLOCK - block_offset;
+        const uint32_t available    = FLASH_READ_BLOCK_SIZE - block_offset;
         const uint32_t c            = min_u32(available, count);
 
         /* Partial block: preserve the bytes outside the written range. */
-        if (block_offset != 0 || c < FLASH_READ_BLOCK) {
-            flash_read(aligned_addr, (uint8_t *)buf, FLASH_READ_BLOCK);
+        if (block_offset != 0 || c < FLASH_READ_BLOCK_SIZE) {
+            flash_read(aligned_addr, (uint8_t *)buf, FLASH_READ_BLOCK_SIZE);
         }
 
         memcpy((uint8_t *)buf + block_offset, src, c);

@@ -1,9 +1,14 @@
 #ifndef _HARDWARE_FLASH_H
 #define _HARDWARE_FLASH_H
 
-#include <stdbool.h>
 #include <stdint.h>
-#include <sys/cdefs.h>
+
+
+#define FLASH_READ_BLOCK_SIZE       (32u)
+#define FLASH_READ_BLOCK_MASK       (FLASH_READ_BLOCK_SIZE - 1u)
+
+#define FLASH_SECTOR_SIZE           (4096u)
+#define FLASH_SECTOR_MASK           (FLASH_SECTOR_SIZE - 1u)
 
 
 #ifdef __cplusplus
