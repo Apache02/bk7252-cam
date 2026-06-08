@@ -55,10 +55,21 @@ static const uint32_t crc32_table[256] = {
     0x2d02ef8d
 };
 
-uint32_t crc32(const unsigned char *buf, size_t len) {
-    uint32_t crc = 0xFFFFFFFFu;
+uint32_t crc32_init(void) {
+    return 0xFFFFFFFFu;
+}
+
+uint32_t crc32_update(uint32_t crc, const uint8_t *buf, size_t len) {
     for (size_t i = 0; i < len; i++) {
         crc = (crc >> 8) ^ crc32_table[(crc ^ buf[i]) & 0xFFu];
     }
+    return crc;
+}
+
+uint32_t crc32_final(uint32_t crc) {
     return crc ^ 0xFFFFFFFFu;
+}
+
+uint32_t crc32(const unsigned char *buf, size_t len) {
+    return crc32_final(crc32_update(crc32_init(), buf, len));
 }
