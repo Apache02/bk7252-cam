@@ -33,7 +33,7 @@ Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this
 4. **Flash and capture:**
    Find the port:
    ```sh
-   ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+   find /dev -maxdepth 1 \( -name 'ttyUSB*' -o -name 'ttyACM*' \) | sort
    ```
    Port selection rules:
    - Single port found → use it.
@@ -82,7 +82,7 @@ int main() {
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Port … is busy` | tio or another terminal has the port open | Close tio / terminal, retry |
-| `Port … not found` | Device not connected or wrong port | Check USB cable; re-run `ls /dev/ttyUSB* /dev/ttyACM*` |
+| `Port … not found` | Device not connected or wrong port | Check USB cable; re-run `find /dev -maxdepth 1 \( -name 'ttyUSB*' -o -name 'ttyACM*' \)` |
 | `Timed out waiting for shell prompt` | Chip hung or wrong firmware flashed | Power-cycle the board, or briefly connect CEN to GND |
 | `Failed to switch baud rate` | Firmware missing `speed` command | Use without `--speed`, or flash `ram_loader` |
 | `Permission denied` on `/dev/tty*` | User not in the serial port group | `sudo usermod -aG dialout $USER` (Ubuntu/Debian) or `uucp` (Arch), then re-login |
