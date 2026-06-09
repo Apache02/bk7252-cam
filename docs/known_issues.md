@@ -290,6 +290,36 @@ RSA is ever needed, design the API from scratch then.
 
 ## Architectural follow-ups
 
+### Arch5. `shell_commands_beken` depends on `platform_boot` via `jump.cpp`
+
+File: `src/shell/shell_commands_beken/commands/jump.cpp`,
+`src/shell/shell_commands_beken/CMakeLists.txt`.
+
+`jump.cpp` calls `portDisableInt()` from `platform/cpu.h`, which is provided by
+`platform_boot`. That library does more than expose CPU primitives — it also
+provides the ARM vector table, the reset handler, and `boot_init.c`. Pulling it
+in as an INTERFACE dep of a shell command library is a layering violation: a
+leaf component that should only know about its own peripheral drivers is now
+dragging in the board's reset infrastructure.
+
+`platform_boot` was removed from `shell_commands_beken` INTERFACE deps as a
+workaround — all current consumers (`bootloader`, `ram_loader`, `freertos_shell`)
+link `platform_boot` directly and the symbol resolves at link time. But this is
+implicit and fragile.
+
+Fix options:
+- (a) Extract `portDisableInt()` / `portEnableInt()` / `WFI` into a thin
+  `platform_cpu` header-only library that has no link-time code. `jump.cpp` links
+  that instead of `platform_boot`.
+- (b) Move `jump.cpp` back into `shell_commands_iram` (which already expects
+  callers to link boot/intc/wdt dependencies) and keep the function names as
+  `command_jump` / `command_jump_app`.
+
+Recommendation: (a) — it also benefits any other driver or library that needs
+only the CPU primitives without the full boot layer.
+
+
+
 These are larger pieces that require a design pass, not a patch.
 
 ### Arch1. Audit remaining register-write call sites
