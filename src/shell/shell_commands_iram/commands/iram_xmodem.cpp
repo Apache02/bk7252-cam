@@ -22,11 +22,9 @@ extern "C" void xmodem_putc(uint8_t c) {
 }
 
 
-#define IRAM_START  (0x00900000u)
-#define IRAM_SIZE   (0x00040000u)   /* 256 KiB */
-
-static bool valid_addr(uint32_t addr) {
-    return addr >= IRAM_START && addr < (IRAM_START + IRAM_SIZE);
+static bool inline valid_ram(uint32_t addr) {
+    return (addr >= 0x00400000 && addr < 0x00400000 + 0x00040000)
+        || (addr >= 0x00900000 && addr < 0x00900000 + 0x00040000);
 }
 
 int command_iram_xmodem(int argc, const char *argv[]) {
@@ -37,12 +35,14 @@ int command_iram_xmodem(int argc, const char *argv[]) {
 
     uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
 
-    if (!valid_addr(addr)) {
+    if (!valid_ram(addr)) {
         printf(COLOR_RED("Invalid address 0x%08lx") "\r\n", addr);
         return 1;
     }
 
-    uint32_t max_size = IRAM_START + IRAM_SIZE - addr;
+    uint32_t region_end = (addr >= 0x00900000u) ? (0x00900000u + 0x00040000u)
+                                                 : (0x00400000u + 0x00040000u);
+    uint32_t max_size = region_end - addr;
     if (argc == 3) {
         uint32_t arg_size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
         if (arg_size == 0 || arg_size > max_size) {

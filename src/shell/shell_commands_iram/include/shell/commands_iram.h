@@ -13,11 +13,6 @@ extern "C" {
 //      or "ERROR\r\n" on failure
 int command_iram_load(int argc, const char *argv[]);
 
-
-// Disable interrupts and jump to address.
-// Usage: iram_jump 0x<addr_hex>
-int command_iram_jump(int argc, const char *argv[]);
-
 int command_iram_xmodem(int argc, const char *argv[]);
 
 #ifdef __cplusplus
