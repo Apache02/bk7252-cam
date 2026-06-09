@@ -20,11 +20,16 @@ target_sources(
 target_link_libraries(
         shell_commands_beken INTERFACE
         shell_main
+        hardware_intc
         hardware_sctrl
         hardware_efuse
         hardware_flash
         hardware_random
+        hardware_timer
         hardware_time
         hardware_uart
+        hardware_wdt
         hardware_security
+        utils_busy_wait
+        utils_crc
 )
