@@ -78,6 +78,14 @@ static int find_free_timer(uint32_t freq) {
     return -1;
 }
 
+void timer_reset(void) {
+    hw_timer_bank0->ctl.v = 0;
+    hw_timer_bank1->ctl.v = 0;
+
+    hw_icu->peri_clk_pwd.timer_26m = 1;
+    hw_icu->peri_clk_pwd.timer_32k = 1;
+}
+
 static void timer_init(void) {
     hw_timer_bank0->ctl.enable = 0;
     hw_timer_bank0->ctl.irq_status = 0;

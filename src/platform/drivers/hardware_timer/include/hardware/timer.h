@@ -22,6 +22,8 @@ void timer_remove(int timer_num);
 
 int timer_read(int timer_num);
 
+void timer_reset(void);
+
 #ifdef __cplusplus
 }
 #endif
