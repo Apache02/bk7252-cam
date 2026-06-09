@@ -71,6 +71,25 @@ void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
     }
 }
 
+uint8_t flash_read_sr1(void) {
+    wait_busy_bit();
+    trigger(0, FLASH_OPCODE_RDSR);
+    return (uint8_t)hw_flash->sr_data_crc_cnt.sr;
+}
+
+void flash_write_sr1(uint8_t sr1) {
+    wait_busy_bit();
+    hw_flash->conf.wrsr_data = sr1;
+    wren();
+    trigger(0, FLASH_OPCODE_WRSR);
+}
+
+void flash_unprotect(void) {
+    if (flash_read_sr1() & 0xFCu) {
+        flash_write_sr1(0x00u);
+    }
+}
+
 void flash_erase_sector(uint32_t addr) {
     wait_busy_bit();
     wren();

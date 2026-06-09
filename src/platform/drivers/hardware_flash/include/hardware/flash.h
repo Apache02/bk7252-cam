@@ -19,6 +19,18 @@ uint32_t flash_id();
 
 void flash_read(uint32_t addr, uint8_t *dst, uint32_t count);
 
+/* Read flash Status Register 1 (SR1). */
+uint8_t flash_read_sr1(void);
+
+/* Write flash Status Register 1 (SR1) via WREN + WRSR.
+ * Use to set or clear BP (Block Protect) bits. */
+void flash_write_sr1(uint8_t sr1);
+
+/* Convenience: clear all SR1 protection bits (write SR1 = 0x00).
+ * The vendor bootloader sets BP bits on startup; call before erasing
+ * or writing to 0x000000. No-op if SR1 is already 0x00. */
+void flash_unprotect(void);
+
 /* Erase one 4 KB sector that contains addr.
  * addr is aligned down to the nearest 4 KB boundary.
  * The caller must ensure the target region is not write-protected. */
