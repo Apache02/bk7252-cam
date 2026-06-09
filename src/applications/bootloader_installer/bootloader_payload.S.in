@@ -1,0 +1,7 @@
+	.section .rodata
+	.global _bootloader_payload_start
+	.global _bootloader_payload_end
+	.balign 4
+_bootloader_payload_start:
+	.incbin "@BOOTLOADER_CRC_BIN@"
+_bootloader_payload_end:
