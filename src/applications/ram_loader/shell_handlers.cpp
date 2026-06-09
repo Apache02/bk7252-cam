@@ -22,9 +22,15 @@ const Shell::Handler shell_handlers[] = {
     {"partitions", command_partitions, nullptr},
     {"dump", command_dump, nullptr},
     {"dump32", command_dump32, nullptr},
+    {"flash_dump", command_flash_dump, nullptr},
+    {"flash_read", command_flash_read_binary, nullptr},
+    {"flash_write", command_flash_write, nullptr},
+    {"flash_crc32", command_flash_crc32, nullptr},
+
     {"loadi", command_iram_load, nullptr},
     {"loadx", command_iram_xmodem, nullptr},
-    {"go", command_iram_jump, nullptr},
+    {"go", command_jump, nullptr},
+    {"go_app", command_jump_app, nullptr},
 
     {"cpu_speed", command_cpu_speed, nullptr},
     {"mclk", command_mclk, nullptr},
