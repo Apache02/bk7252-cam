@@ -61,7 +61,7 @@ typedef volatile struct {
 #define hw_gpio_bank1           ((volatile hw_gpio_reg_t *) REG_GPIO_BANK1)
 
 
-static inline volatile hw_gpio_reg_t *get_gpio_reg(unsigned gpio) {
+__unused static inline volatile hw_gpio_reg_t *get_gpio_reg(unsigned gpio) {
     return (gpio > GPIO_BANK0_END)
            ? (hw_gpio_bank1 + (gpio - GPIO_BANK0_COUNT))
            : (hw_gpio_bank0 + gpio);

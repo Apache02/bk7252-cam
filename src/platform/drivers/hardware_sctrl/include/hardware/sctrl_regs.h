@@ -327,7 +327,7 @@ typedef volatile struct {
             uint32_t xtal_26m_low_power: 1;       // [11]
             uint32_t temprature_sensor: 1;        // [12]
             uint32_t saradc: 1;                   // [13]
-            uint32_t usb: 1;                      // [14]   (NOT INVESTIGATED)
+            uint32_t usb: 1;                      // [14]   USB block enable
             uint32_t audio_random_generator: 1;   // [15]
             uint32_t audio_pll: 1;                // [16]
             uint32_t audio: 1;                    // [17]

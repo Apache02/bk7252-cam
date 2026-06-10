@@ -87,13 +87,8 @@ void timer_reset(void) {
 }
 
 static void timer_init(void) {
-    hw_timer_bank0->ctl.enable = 0;
-    hw_timer_bank0->ctl.irq_status = 0;
-    hw_timer_bank0->ctl.clk_divider = 0;
-
-    hw_timer_bank1->ctl.enable = 0;
-    hw_timer_bank1->ctl.irq_status = 0;
-    hw_timer_bank1->ctl.clk_divider = 0;
+    hw_timer_bank0->ctl.v = 0;
+    hw_timer_bank1->ctl.v = 0;
 
     hw_icu->peri_clk_pwd.timer_26m = 0;
     hw_icu->peri_clk_pwd.timer_32k = 0;
