@@ -69,56 +69,57 @@ _not_used:			    .word boot_reserved
 _irq:				    .word irq_handler
 _fiq:				    .word fiq_handler
 
-	.balignl 16,0xdeadbeef
+    .balignl 16, 0xdeadbeef
 
+    .code 32
 
-		.align	5
+    .align 4
 irq_handler:
 	STMFD  sp!,{r0-r1}
 	LDR    R1, =RAM_VECTORS_IRQ_ADDR
-	LDR    r0, [R1]
-	BX     r0
+	LDR    R1, [R1]
+	BX     R1
 
-		.align	5
+    .align	4
 fiq_handler:
 	STMFD  sp!,{r0-r1}
 	LDR    R1, =RAM_VECTORS_FIQ_ADDR
-	LDR    r0, [R1]
-	BX     r0
+	LDR    R1, [R1]
+	BX     R1
 
-		.align	5
+    .align	4
 boot_swi:
 	STMFD  sp!,{r0-r1}
 	LDR    R1, =RAM_VECTORS_SWI_ADDR
-	LDR    r0, [R1]
-	BX     r0
+	LDR    R1, [R1]
+	BX     R1
 
-         .align  5
+    .align  4
 boot_undefined:
  	STMFD  sp!,{r0-r1}
  	LDR    R1, =RAM_VECTORS_UNDEFINED_ADDR
- 	LDR    r0, [R1]
- 	BX     r0
+ 	LDR    R1, [R1]
+ 	BX     R1
 
-         .align  5
+    .align  4
 boot_pabort:
  	STMFD  sp!,{r0-r1}
  	LDR    R1, =RAM_VECTORS_PABORT_ADDR
- 	LDR    r0, [R1]
- 	BX     r0
+ 	LDR    R1, [R1]
+ 	BX     R1
 
-         .align  5
+    .align  4
 boot_dabort:
  	STMFD  sp!,{r0-r1}
  	LDR    R1, =RAM_VECTORS_DABORT_ADDR
- 	LDR    r0, [R1]
- 	BX     r0
+ 	LDR    R1, [R1]
+ 	BX     R1
 
-         .align  5
+    .align  4
 boot_reserved:
  	STMFD  sp!,{r0-r1}
  	LDR    R1, =RAM_VECTORS_RESERVED_ADDR
- 	LDR    r0, [R1]
- 	BX     r0
+ 	LDR    R1, [R1]
+ 	BX     R1
 
 /* eof */

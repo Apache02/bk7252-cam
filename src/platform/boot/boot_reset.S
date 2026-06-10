@@ -78,11 +78,12 @@ boot_stack_len_SYS:
  * Function to handle reset vector
  */
 	.global	boot_reset
+	.code 32
 
 boot_reset:
     // Disable IRQ and FIQ before starting anything
     MRS   R0, CPSR
-    ORR   R0, R0, #0xC0
+    ORR   R0, R0, #CPU_FIQ_IRQ_MASK
     MSR   CPSR_c, R0
 
     // Setup all stacks //Note: Abt and Usr mode are not used
