@@ -13,6 +13,8 @@ uint32_t chip_id();
 
 uint32_t device_id();
 
+void sctrl_init();
+
 #ifdef __cplusplus
 }
 #endif
