@@ -115,6 +115,18 @@ int uart2_write_byte(char c) {
     return uart_write_byte(hw_uart2, c);
 }
 
+int uart1_puts(const char *s) {
+    int i = 0;
+    while (*s) i += uart1_write_byte(*s++);
+    return i;
+}
+
+int uart2_puts(const char *s) {
+    int i = 0;
+    while (*s) i += uart2_write_byte(*s++);
+    return i;
+}
+
 void uart1_flush() {
     uart_flush(hw_uart1);
 }

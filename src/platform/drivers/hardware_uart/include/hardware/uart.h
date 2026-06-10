@@ -26,6 +26,10 @@ int uart1_write_byte(char c);
 
 int uart2_write_byte(char c);
 
+int uart1_puts(const char *s);
+
+int uart2_puts(const char *s);
+
 void uart1_flush();
 
 void uart2_flush();
