@@ -12,7 +12,7 @@ Segments:
     download  0x00132000   696 KB
 
 Common options:
-    --port PORT         serial port (default: /dev/ttyACM1)
+    --port PORT         serial port (default: /dev/ttyUSB0)
     --baud BAUD         initial baud rate (default: 115200)
     --speed SPEED       switch to faster baud before transfer (e.g. 921600)
     --no-reboot         skip reboot, assume shell already running
@@ -30,14 +30,14 @@ from datetime import datetime
 
 SECTOR_SIZE   = 4096
 DEFAULT_CHUNK = 64 * 1024
-DEFAULT_PORT  = "/dev/ttyACM1"
+DEFAULT_PORT  = "/dev/ttyUSB0"
 DEFAULT_BAUD  = 115200
 DEFAULT_IRAM  = 0x00900000
 
 SEGMENTS = {
-    # "bootloader": {"addr": 0x00000000, "size":   64 * 1024},
-    "app":        {"addr": 0x00010000, "size": 1152 * 1024},
-    "download":   {"addr": 0x00132000, "size":  696 * 1024},
+    "bootloader": {"addr": 0x00000000, "size":   64 * 1024, "ext": "_crc.bin"},
+    "app":        {"addr": 0x00011000, "size": 1156 * 1024, "ext": "_crc.bin"},
+    "download":   {"addr": 0x00132000, "size":  696 * 1024, "ext": ".bin"},
 }
 
 ACK = b'\x06'
@@ -150,7 +150,7 @@ def step_enter_shell(ser, timeout):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
-        line, _ = readline(ser, min(2.0, remaining))
+        line, _ = readline(ser, min(1.0, remaining))
 
         if "Press [enter] key to stop autoboot" in line:
             if not interrupted:
@@ -309,6 +309,9 @@ def step_flash_read(ser, addr, size, speed_baud, timeout):
     if is_timeout or "Send ACK" not in prompt:
         die(f"Unexpected flash_read response: {prompt!r}")
 
+    # readline stops at \r, leaving the trailing \n of \r\n in the OS buffer.
+    # flush it before reading raw binary so it doesn't land as the first data byte.
+    ser.reset_input_buffer()
     ser.write(ACK)
 
     # size bytes of data + 4 bytes CRC32 little-endian
@@ -331,20 +334,31 @@ def step_go(ser, addr):
 
 
 def step_capture(ser, timeout, until_pattern):
-    print(f"[ Capturing output (timeout={timeout:.0f}s, until={until_pattern!r}) ]")
-    deadline = time.monotonic() + timeout
-    found = False
-    while time.monotonic() < deadline:
-        remaining = deadline - time.monotonic()
-        line, _ = readline(ser, min(1.0, remaining))
-        if line:
-            print(f"  {line}")
-            if until_pattern in line:
-                found = True
-                log_ok("Sentinel found.")
-                break
-    if not found:
-        log_warn(f"Timeout without sentinel {until_pattern!r}.")
+    header = "[ Capturing output (Ctrl+C to stop)" if timeout == 0 \
+             else f"[ Capturing output (timeout={timeout:.0f}s)"
+    if until_pattern:
+        header += f", until={until_pattern!r}"
+    print(header + " ]")
+
+    deadline = None if timeout == 0 else time.monotonic() + timeout
+    try:
+        while True:
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+            else:
+                remaining = 1.0
+            line, _ = readline(ser, min(1.0, remaining))
+            if line:
+                print(f"  {line}")
+                if until_pattern and until_pattern in line:
+                    log_ok("Sentinel found.")
+                    break
+    except KeyboardInterrupt:
+        print()
+        log("Capture stopped.")
+
     print()
 
 
@@ -453,7 +467,7 @@ def mode_backup(ser, args, seg):
     else:
         ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         os.makedirs("backups", exist_ok=True)
-        out_path = f"backups/{args.segment}_{ts}.bin"
+        out_path = f"backups/{args.segment}_{ts}{seg.get('ext', '.bin')}"
 
     has_speed = bool(args.speed and args.speed != args.baud)
     n_steps   = 2 + int(has_speed)
@@ -479,14 +493,16 @@ def mode_backup(ser, args, seg):
           f" from '{args.segment}' (0x{flash_base:08x})...")
     data, fw_crc = step_flash_read(ser, flash_base, read_size, cur_baud, args.timeout)
 
-    local_crc = zlib.crc32(data) & 0xFFFFFFFF
-    if fw_crc != local_crc:
-        die(f"CRC mismatch: local=0x{local_crc:08x} device=0x{fw_crc:08x}")
-    log_ok(f"CRC32 OK: 0x{fw_crc:08x}")
-
     with open(out_path, "wb") as f:
         f.write(data)
     log_ok(f"Saved {len(data)} bytes → {out_path}")
+
+    local_crc = zlib.crc32(data) & 0xFFFFFFFF
+    if fw_crc != local_crc:
+        log_warn(f"CRC mismatch: local=0x{local_crc:08x} device=0x{fw_crc:08x}")
+        log_warn(f"Dump saved for inspection: {out_path}")
+        sys.exit(1)
+    log_ok(f"CRC32 OK: 0x{fw_crc:08x}")
     log_ok(f"Done in {elapsed(t_total)}.")
 
 
@@ -500,7 +516,7 @@ def mode_iram(ser, args, data):
     has_speed = bool(args.speed and args.speed != args.baud)
     n_steps   = (2 + int(has_speed)
                  + int(not args.no_jump)
-                 + int(bool(args.capture) and not args.no_jump))
+                 + int((args.capture is not None) and not args.no_jump))
 
     print(f"[ Step 1/{n_steps} ] Entering shell...")
     if args.no_reboot:
@@ -540,7 +556,7 @@ def mode_iram(ser, args, data):
         step_n += 1
         print()
 
-        if args.capture:
+        if args.capture is not None:
             if has_speed:
                 log(f"Restoring baud to {args.baud} for capture...")
                 ser.baudrate = args.baud
@@ -602,8 +618,8 @@ def parse_args():
                    help="Load only, do not jump")
     p.add_argument("--capture", default=None, type=float, metavar="SECONDS",
                    help="After jump: capture UART output for up to SECONDS seconds")
-    p.add_argument("--until", default="==END==",
-                   help="Stop capture when output contains this string (default: ==END==)")
+    p.add_argument("--until", default=None,
+                   help="Stop capture when output contains this string")
     add_common(p)
 
     return parser.parse_args()
