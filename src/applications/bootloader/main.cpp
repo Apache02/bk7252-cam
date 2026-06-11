@@ -30,7 +30,7 @@ extern "C" {
 
 static bool enter_shell(int seconds) {
     for (int i = seconds; i > 0; i--) {
-        printf("\rPress [enter] key to stop autoboot: %2d", i);
+        printf("\rPress [enter] to stop autoboot: %2d", i);
 
         for (int j = 0; j < 1000; j += STEP_MS) {
             int c;

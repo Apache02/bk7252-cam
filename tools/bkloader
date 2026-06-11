@@ -16,11 +16,12 @@ Common options:
     --baud BAUD         initial baud rate (default: 115200)
     --speed SPEED       switch to faster baud before transfer (e.g. 921600)
     --no-reboot         skip reboot, assume shell already running
-    --timeout SECS      serial read timeout in seconds (default: 10)
+    --timeout SECS      serial read timeout in seconds (default: 5)
 """
 
 import sys
 import os
+import re
 import time
 import argparse
 import serial
@@ -137,7 +138,7 @@ def wait_for_prompt(ser, timeout=2.0):
 def step_enter_shell(ser, timeout):
     """Ctrl+C → reboot → intercept autoboot countdown → wait for prompt."""
     log("Sending Ctrl+C...")
-    ser.write(b"\x03\x03")
+    serial_write_slow(ser, b"\x03\r\n")
     time.sleep(0.1)
     ser.reset_input_buffer()
 
@@ -150,9 +151,9 @@ def step_enter_shell(ser, timeout):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
-        line, _ = readline(ser, min(1.0, remaining))
+        line, _ = readline(ser, min(0.1, remaining))
 
-        if "Press [enter] key to stop autoboot" in line:
+        if re.search(r"Press .* to stop autoboot", line):
             if not interrupted:
                 log("Autoboot countdown — interrupting...")
                 ser.write(b"\r")
@@ -580,8 +581,8 @@ def add_common(p):
                    help="Switch to this baud rate before transfer (e.g. 921600)")
     p.add_argument("--no-reboot", dest="no_reboot", action="store_true",
                    help="Skip reboot, assume shell already running")
-    p.add_argument("--timeout", default=10.0, type=float,
-                   help="Serial read timeout in seconds (default: 10)")
+    p.add_argument("--timeout", default=5.0, type=float,
+                   help="Serial read timeout in seconds (default: 5)")
 
 
 def parse_args():
