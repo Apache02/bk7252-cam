@@ -1,6 +1,7 @@
 #include "string.h"
 #include "flash_regs.h"
 #include "hardware/flash.h"
+#include "platform/init.h"
 
 
 #define FLASH_READ_WORDS_COUNT      (FLASH_READ_BLOCK_SIZE / sizeof(uint32_t))
@@ -31,6 +32,18 @@ static inline void trigger(uint32_t addr, FLASH_OPCODE op) {
 static void wren(void) {
     trigger(0, FLASH_OPCODE_WREN);
 }
+
+void flash_init(void) {
+    wait_busy_bit();
+    trigger(0, FLASH_OPCODE_RDID);
+
+    hw_write_fields(hw_flash->conf,
+        .clk_conf  = 5,
+        .model_sel = 1,
+    );
+    hw_flash->sr_data_crc_cnt.m_value = 0xA5;
+}
+INIT_AT(flash_init, 02);
 
 uint32_t flash_id() {
     return hw_flash->JEDEC_ID;
@@ -74,6 +87,12 @@ void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
 uint8_t flash_read_sr1(void) {
     wait_busy_bit();
     trigger(0, FLASH_OPCODE_RDSR);
+    return (uint8_t)hw_flash->sr_data_crc_cnt.sr;
+}
+
+uint8_t flash_read_sr2(void) {
+    wait_busy_bit();
+    trigger(0, FLASH_OPCODE_RDSR2);
     return (uint8_t)hw_flash->sr_data_crc_cnt.sr;
 }
 

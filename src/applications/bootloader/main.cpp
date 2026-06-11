@@ -3,6 +3,7 @@
 #include "platform/init.h"
 #include "platform/stdio.h"
 #include "platform/cpu.h"
+#include "hardware/flash.h"
 #include "hardware/intc.h"
 #include "hardware/sctrl.h"
 #include "hardware/uart.h"
@@ -16,7 +17,6 @@ extern "C" {
     // filled by BACKUP_REGISTERS macro
     __used
     __section(".noinit")
-    // __attribute__((used, section(".noinit")))
     struct {
         uint32_t cpsr;
         uint32_t r[13];
@@ -117,8 +117,8 @@ int main() {
 
     if (!enter_shell(2)) {
         printf("\r\n");
-        const char *args[] = {"go_app"};
-        command_jump_app(1, args);
+        const char *args[] = {"go", "app"};
+        command_jump(2, args);
 
         return 0;
     }

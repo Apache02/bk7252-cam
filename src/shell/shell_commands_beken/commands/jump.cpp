@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "shell/commands_beken.h"
 #include "shell/Parser.h"
 #include <stdio.h>
@@ -9,7 +11,9 @@
 #include "utils/busy_wait.h"
 
 
-#define APP_ADDR     0x00010000u
+#define BOOTLOADER_ADDR     0x00000000ul
+#define APP_ADDR            0x00010000ul
+#define IRAM_ADDR           0x00900000ul
 
 
 static void jump(uint32_t addr, unsigned int delay) {
@@ -37,6 +41,27 @@ int command_jump(int argc, const char *argv[]) {
         return 1;
     }
 
+    if (strcmp(argv[1], "app") == 0) {
+        printf("go os_addr(0x%lx)..........\r\n", APP_ADDR);
+        jump(APP_ADDR, 100);
+
+        return 0;
+    }
+
+    if (strcmp(argv[1], "bootloader") == 0) {
+        printf("Jumping to bootloader\r\n");
+        jump(BOOTLOADER_ADDR, 500);
+
+        return 0;
+    }
+
+    if (strcmp(argv[1], "iram") == 0) {
+        printf("Jumping to iram\r\n");
+        jump(IRAM_ADDR, 500);
+
+        return 0;
+    }
+
     uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
 
     if (addr == 0) {
@@ -47,15 +72,6 @@ int command_jump(int argc, const char *argv[]) {
     printf("Jumping to 0x%08lx\r\n", addr);
 
     jump(addr, 500);
-
-    // Never reached
-    return 0;
-}
-
-int command_jump_app(__unused int argc, __unused const char *argv[]) {
-    printf("go os_addr(0x%x)..........\r\n", APP_ADDR);
-
-    jump(APP_ADDR, 100);
 
     // Never reached
     return 0;

@@ -30,7 +30,6 @@ const Shell::Handler shell_handlers[] = {
     {"loadi", command_iram_load, nullptr},
     {"loadx", command_iram_xmodem, nullptr},
     {"go", command_jump, nullptr},
-    {"go_app", command_jump_app, nullptr},
 
     {"cpu_speed", command_cpu_speed, nullptr},
     {"mclk", command_mclk, nullptr},

@@ -21,8 +21,7 @@ int command_crc32(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t checksum = crc32(static_cast<uint8_t *>(addr), static_cast<size_t>(size));
-    printf("CRC32 0x%08lx\r\n", checksum);
+    printf("CRC32 0x%08lx\r\n", crc32(static_cast<uint8_t *>(addr), static_cast<size_t>(size)));
 
     return 0;
 }

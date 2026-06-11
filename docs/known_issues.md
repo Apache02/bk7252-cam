@@ -180,24 +180,6 @@ I/O call. Used in `src/tests/probe/probe.cpp`.
 Fix: investigate whether a UART ready/busy status bit exists in the UART
 peripheral registers that can be polled instead of using a blind delay.
 
-### F9. Bootloader missing `flash_init` — `JEDEC_ID` reads zero
-
-File: `src/applications/bootloader/main.cpp`, `preinit()`.
-
-The bootloader's `preinit()` calls `sctrl_init()` and `uart2_init()` but never
-calls `flash_init()`. As a result `hw_flash->JEDEC_ID` returns `0x000000` and
-all flash commands (`flash_dump`, `flash_read`, `flash_write`, `flash_crc32`,
-`partitions`) operate on uninitialised hardware.
-
-The `freertos_shell` application works because `flash_init` is wired up via
-`INIT_AT` in `hardware_flash/flash.c` and runs automatically through
-`__libc_init_array`. The bootloader uses `PREINIT_AT` for its own `preinit`,
-which runs before `__init_array` — so `flash_init` has not been called yet when
-`preinit` executes.
-
-Fix: add `flash_init()` to `preinit()` in `bootloader/main.cpp`, after
-`sctrl_init()` and before any flash command is reachable.
-
 ---
 
 ## API / contract
@@ -412,3 +394,4 @@ For traceability — these were fixed in commit `a7cebc0`:
 | 16 | `GPIO_HIGH_IMPENDANCE` → `GPIO_HIGH_IMPEDANCE`    |
 | 23 | `register_sys_counter` had no IRQ-disable guard   |
 | Arch5 | `cpu.S`/`cpu.h`/`arm.h` extracted from `platform_boot` into `platform_cpu`; `shell_commands_beken` now explicitly links `platform_cpu` |
+| F9 | `flash_init()` added to `hardware_flash/flash.c` (RDID + clk_conf=5 + model_sel=1); registered `INIT_AT(02)`; called explicitly from bootloader `preinit()` |
