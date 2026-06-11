@@ -113,6 +113,11 @@ SECTIONS
         __bss_end__ = .;
     } > RAM
 
+    .noinit (NOLOAD) :
+    {
+        *(.noinit)
+    } > RAM
+
     . = ALIGN (8);
     _empty_ram = .;
 

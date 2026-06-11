@@ -21,5 +21,7 @@ target_link_libraries(
         utils_crc
 )
 
+target_compile_definitions(bootloader PRIVATE ENTRY_BACKUP_REGISTERS)
+
 bk_bootloader(bootloader)
 bk_firmware_iram(bootloader)
