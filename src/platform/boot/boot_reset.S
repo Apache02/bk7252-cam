@@ -1,138 +1,104 @@
 #include "boot.h"
 
-    .global _start
+.syntax unified
+.arm
 
-/* ========================================================================
- *                                Macros
- * ======================================================================== */
-/* ========================================================================
-/**
- * Macro for switching ARM mode
- */
-	.macro	BOOT_CHANGE_MODE, mode, mode_mask
-	MRS   R0, CPSR
-	BIC   R0, R0, #\mode_mask
-	ORR   R0, R0, #\mode
-	MSR   CPSR_c, R0
-	.endm
+/////////////////// MACROS ///////////////////
 
-/* ========================================================================
-/**
- * Macro for setting the stack
- */
-	.macro  BOOT_SET_STACK, stackStart, stackLen, color
-	LDR   R0, \stackStart
-	LDR   R1, \stackLen
+.macro  BACKUP_REGISTERS
+    mov   r10, r3
+    ldr   r3, =(boot_entry_state + 64)
+    stmdb r3!, {r4-r12, sp, lr}
+    stmdb r3!, {r10}
+    stmdb r3!, {r0-r2}
+    mrs   r0, cpsr
+    stmdb r3!, {r0}
+.endm
 
-	ADD   R1, R1, R0
-	MOV   SP, R1        //Set stack pointer
+.macro	DISABLE_IRQ_FIQ
+    mrs   r0, cpsr
+    orr   r0, r0, #CPU_FIQ_IRQ_MASK
+    msr   cpsr_c, r0
+.endm
 
-	LDR   R2, =\color
+.macro	BOOT_CHANGE_MODE, mode, mode_mask
+    mrs   r0, cpsr
+    bic   r0, r0, #\mode_mask
+    orr   r0, r0, #\mode
+    msr   cpsr_c, r0
+.endm
 
-3:
-	CMP   R0, R1        //End of stack?
-	STRLT R2, [r0]      //Colorize stack word
-	ADDLT R0, R0, #4
-	BLT   3b           //branch to previous local label
-	.endm
+.macro  BOOT_SET_STACK, stackStart, stackLen, color
+    ldr   r0, =\stackStart
+    ldr   r2, =\stackLen
+    add   r1, r0, r2
+    mov   sp, r1
+    ldr   r2, =\color
+loc_stack_loop_\@:
+    cmp   r0, r1
+    strlt r2, [r0]
+    addlt r0, r0, #4
+    blt   loc_stack_loop_\@
+.endm
 
-/* ========================================================================
- *                                Globals
- * ======================================================================== */
-boot_stack_base_UNUSED:
-	.word _stack_unused
+/////////////////// RESET HANDLER ///////////////////
 
-boot_stack_len_UNUSED:
-	.word _UNUSED_STACK_SIZE_
+.global _reset
+.global _start
 
-boot_stack_base_IRQ:
-	.word _stack_irq
+.text
+.arm
+_reset:
+#ifdef ENTRY_BACKUP_REGISTERS
+    BACKUP_REGISTERS
+#endif
+    DISABLE_IRQ_FIQ
 
-boot_stack_len_IRQ:
-	.word _IRQ_STACK_SIZE_
+    // Setup all stacks // Note: Abt and Usr mode are not used
 
-boot_stack_base_SVC:
-   	.word _stack_svc
+    BOOT_CHANGE_MODE CPU_MODE_SYS, CPU_MODE_MASK
+    BOOT_SET_STACK _stack_sys, _SYS_STACK_SIZE_, BOOT_COLOR_SYS
 
-boot_stack_len_SVC:
-  	 .word _SVC_STACK_SIZE_
+    BOOT_CHANGE_MODE CPU_MODE_ABT, CPU_MODE_MASK
+    BOOT_SET_STACK _stack_unused, _UNUSED_STACK_SIZE_, BOOT_COLOR_UNUSED
 
-boot_stack_base_FIQ:
-  	 .word _stack_fiq
+    BOOT_CHANGE_MODE CPU_MODE_UND, CPU_MODE_MASK
+    BOOT_SET_STACK _stack_unused, _UNUSED_STACK_SIZE_, BOOT_COLOR_UNUSED
 
-boot_stack_len_FIQ:
-   	.word _FIQ_STACK_SIZE_
+    BOOT_CHANGE_MODE CPU_MODE_IRQ, CPU_MODE_MASK
+    BOOT_SET_STACK _stack_irq, _IRQ_STACK_SIZE_, BOOT_COLOR_IRQ
 
-boot_stack_base_SYS:
-  	 .word _stack_sys
+    BOOT_CHANGE_MODE CPU_MODE_FIQ, CPU_MODE_MASK
+    BOOT_SET_STACK _stack_fiq, _FIQ_STACK_SIZE_, BOOT_COLOR_FIQ
 
-boot_stack_len_SYS:
-  	 .word _SYS_STACK_SIZE_
+    // Clear FIQ banked registers while in FIQ mode
+    mov   r8, #0
+    mov   r9, #0
+    mov   r10, #0
+    mov   r11, #0
+    mov   r12, #0
 
-
-/* ========================================================================
- *                                Functions
- * ========================================================================
-
-/* ========================================================================
- * Function to handle reset vector
- */
-	.global	boot_reset
-	.code 32
-
-boot_reset:
-    // Disable IRQ and FIQ before starting anything
-    MRS   R0, CPSR
-    ORR   R0, R0, #CPU_FIQ_IRQ_MASK
-    MSR   CPSR_c, R0
-
-    // Setup all stacks //Note: Abt and Usr mode are not used
-	BOOT_CHANGE_MODE CPU_MODE_SYS CPU_MODE_MASK
-	BOOT_SET_STACK   boot_stack_base_SYS boot_stack_len_SYS BOOT_COLOR_SYS
-
-	BOOT_CHANGE_MODE CPU_MODE_ABT CPU_MODE_MASK
-	BOOT_SET_STACK   boot_stack_base_UNUSED boot_stack_len_UNUSED BOOT_COLOR_UNUSED
-
-	BOOT_CHANGE_MODE CPU_MODE_UND CPU_MODE_MASK
-	BOOT_SET_STACK   boot_stack_base_UNUSED boot_stack_len_UNUSED BOOT_COLOR_UNUSED
-
-	BOOT_CHANGE_MODE CPU_MODE_IRQ CPU_MODE_MASK
-	BOOT_SET_STACK   boot_stack_base_IRQ boot_stack_len_IRQ BOOT_COLOR_IRQ
-
-	BOOT_CHANGE_MODE CPU_MODE_FIQ CPU_MODE_MASK
-	BOOT_SET_STACK   boot_stack_base_FIQ boot_stack_len_FIQ BOOT_COLOR_FIQ
-
-	// Clear FIQ banked registers while in FIQ mode
-	MOV     R8,  #0
-	MOV     R9,  #0
-	MOV     R10, #0
-	MOV     R11, #0
-	MOV     R12, #0
-
-	BOOT_CHANGE_MODE CPU_MODE_SVC CPU_MODE_MASK
-	BOOT_SET_STACK   boot_stack_base_SVC boot_stack_len_SVC BOOT_COLOR_SVC
+    BOOT_CHANGE_MODE CPU_MODE_SVC, CPU_MODE_MASK
+    BOOT_SET_STACK _stack_svc, _SVC_STACK_SIZE_, BOOT_COLOR_SVC
 
     // Stay in Supervisor Mode
-    // copy data from binary to ram
-    BL _sysboot_copy_data_to_ram
-    
-    // Init the BSS section
-    BL _sysboot_zi_init
+    bl _sysboot_copy_data_to_ram
+    bl _sysboot_zi_init
 
-    // ==================
     // Clear Registers
-    MOV R0, #0
-    MOV R1, #0
-    MOV R2, #0
-    MOV R3, #0
-    MOV R4, #0
-    MOV R5, #0
-    MOV R6, #0
-    MOV R7, #0
-    MOV R8, #0
-    MOV R9, #0
-    MOV R10, #0
-    MOV R11, #0
-    MOV R12, #0
+    mov   r0, #0
+    mov   r1, #0
+    mov   r2, #0
+    mov   r3, #0
+    mov   r4, #0
+    mov   r5, #0
+    mov   r6, #0
+    mov   r7, #0
+    mov   r8, #0
+    mov   r9, #0
+    mov   r10, #0
+    mov   r11, #0
+    mov   r12, #0
 
-    B _start
+    b     _start
+

@@ -1,125 +1,68 @@
-/**
- ****************************************************************************************
- *
- * @file boot_vectors.S
- *
- * @brief ARM Exception Vectors table.
- *
- * Copyright (C) Beken Corp 2017-2026
- *
- ****************************************************************************************
- */
-
 #include "boot.h"
 
- 
-/*
- *************************************************************************
- *
- * Symbol _vector_start is referenced elsewhere, so make it global
- *
- *************************************************************************
- */
+.syntax unified
+.arm
 
-	.global _vector_start
+.section ".vectors", "ax"
+.global _vector_start
 
-/*
- *************************************************************************
- *
- * Vectors have their own section so linker script can map them easily
- *
- *************************************************************************
- */
-
-	.section ".vectors", "ax"
-
-/*
- *************************************************************************
- *
- * Exception vectors as described in ARM reference manuals
- *
- * Uses indirect branch to allow reaching handlers anywhere in memory.
- *
- *************************************************************************
- */
 _vector_start:
-	b	boot_reset
-	ldr	pc, _undefined_instruction
-	ldr	pc, _software_interrupt
-	ldr	pc, _prefetch_abort
-	ldr	pc, _data_abort
-	ldr	pc, _not_used
-	ldr	pc, _irq
-	ldr	pc, _fiq
+    b _reset
+    ldr pc, _undef_addr
+    ldr pc, _swi_addr
+    ldr pc, _pabort_addr
+    ldr pc, _dabort_addr
+    ldr pc, _reserved_addr
+    ldr pc, _irq_addr
+    ldr pc, _fiq_addr
 
-/*
- *************************************************************************
- *
- * Indirect vectors table
- *
- * Symbols referenced here must be defined somewhere else
- *
- *************************************************************************
- */
-_undefined_instruction:	.word boot_undefined
-_software_interrupt:	.word boot_swi
-_prefetch_abort:	    .word boot_pabort
-_data_abort:		    .word boot_dabort
-_not_used:			    .word boot_reserved
-_irq:				    .word irq_handler
-_fiq:				    .word fiq_handler
+_undef_addr:            .word boot_undef
+_swi_addr:              .word boot_swi
+_pabort_addr:           .word boot_pabort
+_dabort_addr:           .word boot_dabort
+_reserved_addr:         .word boot_reserved
+_irq_addr:              .word boot_irq
+_fiq_addr:              .word boot_fiq
 
-    .balignl 16, 0xdeadbeef
+.balignl 16, 0xdeadbeef
 
-    .code 32
+/////////////////// HANDLERS ///////////////////
 
-    .align 4
-irq_handler:
-	STMFD  sp!,{r0-r1}
-	LDR    R1, =RAM_VECTORS_IRQ_ADDR
-	LDR    R1, [R1]
-	BX     R1
+.macro  RAM_VECTOR_HANDLER, addr
+    push   {r0, r1}
+    ldr    r1, =\addr
+    ldr    r1, [r1]
+    bx     r1
+.endm
 
-    .align	4
-fiq_handler:
-	STMFD  sp!,{r0-r1}
-	LDR    R1, =RAM_VECTORS_FIQ_ADDR
-	LDR    R1, [R1]
-	BX     R1
+.arm
 
-    .align	4
+.align 4
+boot_undef:
+    RAM_VECTOR_HANDLER RAM_VECTORS_UNDEFINED_ADDR
+
+.align 4
 boot_swi:
-	STMFD  sp!,{r0-r1}
-	LDR    R1, =RAM_VECTORS_SWI_ADDR
-	LDR    R1, [R1]
-	BX     R1
+    RAM_VECTOR_HANDLER RAM_VECTORS_SWI_ADDR
 
-    .align  4
-boot_undefined:
- 	STMFD  sp!,{r0-r1}
- 	LDR    R1, =RAM_VECTORS_UNDEFINED_ADDR
- 	LDR    R1, [R1]
- 	BX     R1
-
-    .align  4
+.align 4
 boot_pabort:
- 	STMFD  sp!,{r0-r1}
- 	LDR    R1, =RAM_VECTORS_PABORT_ADDR
- 	LDR    R1, [R1]
- 	BX     R1
+    RAM_VECTOR_HANDLER RAM_VECTORS_PABORT_ADDR
 
-    .align  4
+.align 4
 boot_dabort:
- 	STMFD  sp!,{r0-r1}
- 	LDR    R1, =RAM_VECTORS_DABORT_ADDR
- 	LDR    R1, [R1]
- 	BX     R1
+    RAM_VECTOR_HANDLER RAM_VECTORS_DABORT_ADDR
 
-    .align  4
+.align 4
 boot_reserved:
- 	STMFD  sp!,{r0-r1}
- 	LDR    R1, =RAM_VECTORS_RESERVED_ADDR
- 	LDR    R1, [R1]
- 	BX     R1
+    RAM_VECTOR_HANDLER RAM_VECTORS_RESERVED_ADDR
 
-/* eof */
+.align 4
+boot_irq:
+    RAM_VECTOR_HANDLER RAM_VECTORS_IRQ_ADDR
+
+.align 4
+boot_fiq:
+    RAM_VECTOR_HANDLER RAM_VECTORS_FIQ_ADDR
+
+/////////////////// END ///////////////////
