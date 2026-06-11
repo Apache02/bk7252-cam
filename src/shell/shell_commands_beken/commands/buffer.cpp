@@ -18,6 +18,8 @@ static bool valid_size(uint32_t size) {
 int command_buffer(int argc, const char *argv[]) {
     if (argc != 2) {
         printf("Usage: %s <size>\r\n", argv[0]);
+        printf("  Allocates a RAM buffer and prints its address for use with flash_write.\r\n");
+        printf("  Reuses the existing buffer if it is large enough.\r\n");
         return 1;
     }
 

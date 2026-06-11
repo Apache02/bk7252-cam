@@ -10,24 +10,26 @@ static int help(__unused int argc, __unused const char *argv[]) {
 }
 
 const Shell::Handler shell_handlers[] = {
-    {"help",        help,                          nullptr},
-    {"reboot",      command_reboot,                nullptr},
-    {"crc32",       command_crc32,                 nullptr},
-    {"speed",       command_uart2_baudrate,        nullptr},
+    {"help",        help,                          "print this help"},
+    {"reboot",      command_reboot,                "reboot via watchdog"},
+    {"crc32",       command_crc32,                 "CRC32 of memory: <addr> <size>"},
+    {"speed",       command_uart2_baudrate,        "set UART2 baud rate: <baud>"},
 
-    {"go",          command_jump,                  nullptr},
-    {"go_app",      command_jump_app,              nullptr},
-    {"loadi",       command_iram_load,             nullptr},
-    {"loadx",       command_iram_xmodem,           nullptr},
+    {"go",          command_jump,                  "jump to address: <addr>"},
+    {"go_app",      command_jump_app,              "jump to app at 0x00010000"},
+    {"loadi",       command_iram_load,             "load binary to RAM: <addr> <size> <checksum>"},
+    {"loadx",       command_iram_xmodem,           "load XMODEM binary to RAM: <addr>"},
 
-    {"buffer",      command_buffer,                nullptr},
-    {"flash_write", command_flash_write,           nullptr},
-    {"flash_dump",  command_flash_dump,            nullptr},
-    {"flash_read",  command_flash_read_binary,     nullptr},
-    {"flash_crc32", command_flash_crc32,           nullptr},
+    {"buffer",      command_buffer,                "allocate RAM buffer for flash_write: <size>"},
+    {"flash_write", command_flash_write,           "write RAM to flash: <ram_addr> <flash_addr> <size> <checksum>"},
+    {"flash_dump",  command_flash_dump,            "hex dump flash: <addr> [size]"},
+    {"flash_read",  command_flash_read_binary,     "read flash as binary stream: <addr> <size>"},
+    {"flash_crc32", command_flash_crc32,           "CRC32 of flash: <addr> <size>"},
 
-    {"partitions",  command_partitions,            nullptr},
-    {"chip_id",     command_chip_id,               nullptr},
+    {"partitions",  command_partitions,            "list flash partition table"},
+    {"chip_id",     command_chip_id,               "print chip and device IDs"},
+    {"dump",        command_dump,                  "hex dump of memory: [addr]"},
+    {"dump32",      command_dump32,                "32-bit word dump of memory: [addr]"},
 
     {nullptr, nullptr, nullptr},
 };

@@ -204,7 +204,7 @@ int command_flash_write(int argc, const char *argv[]) {
     flash_write(to_addr, reinterpret_cast<const uint8_t *>(from_addr), size);
 
     uint32_t crc = flash_crc32(to_addr, size);
-    printf("CRC32 %08lx\r\n", crc);
+    printf("CRC32 0x%08lx\r\n", crc);
 
     return 0;
 }
