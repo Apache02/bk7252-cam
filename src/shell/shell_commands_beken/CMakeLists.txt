@@ -20,6 +20,7 @@ target_sources(
 target_link_libraries(
         shell_commands_beken INTERFACE
         shell_main
+        platform_cpu
         hardware_intc
         hardware_sctrl
         hardware_efuse

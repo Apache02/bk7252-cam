@@ -23,6 +23,9 @@ void portRestoreInt(int state);
 int portIsInIRQ(void);
 int portIsInFIQ(void);
 
+void WFI(void);
+void arm9_enable_alignfault(void);
+void arm9_disable_alignfault(void);
 
 #ifdef __cplusplus
 }

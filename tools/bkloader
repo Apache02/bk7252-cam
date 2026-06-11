@@ -1,0 +1,651 @@
+#!/usr/bin/env python3
+"""
+bkloader — flash, backup, and load firmware via the BK7252 bootloader shell.
+
+Modes:
+    bkloader flash  [OPTIONS] BINARY     write binary to a flash segment
+    bkloader backup [OPTIONS]            read a flash segment to a file
+    bkloader iram   [OPTIONS] BINARY     load binary to IRAM and jump
+
+Segments:
+    app       0x00010000  1152 KB  (default)
+    download  0x00132000   696 KB
+
+Common options:
+    --port PORT         serial port (default: /dev/ttyACM1)
+    --baud BAUD         initial baud rate (default: 115200)
+    --speed SPEED       switch to faster baud before transfer (e.g. 921600)
+    --no-reboot         skip reboot, assume shell already running
+    --timeout SECS      serial read timeout in seconds (default: 10)
+"""
+
+import sys
+import os
+import time
+import argparse
+import serial
+import zlib
+from datetime import datetime
+
+
+SECTOR_SIZE   = 4096
+DEFAULT_CHUNK = 64 * 1024
+DEFAULT_PORT  = "/dev/ttyACM1"
+DEFAULT_BAUD  = 115200
+DEFAULT_IRAM  = 0x00900000
+
+SEGMENTS = {
+    # "bootloader": {"addr": 0x00000000, "size":   64 * 1024},
+    "app":        {"addr": 0x00010000, "size": 1152 * 1024},
+    "download":   {"addr": 0x00132000, "size":  696 * 1024},
+}
+
+ACK = b'\x06'
+
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+def log(msg):
+    print(f"  {msg}", flush=True)
+
+
+def log_ok(msg):
+    print(f"  \033[32m✓\033[0m {msg}", flush=True)
+
+
+def log_warn(msg):
+    print(f"  \033[33m!\033[0m {msg}", flush=True)
+
+
+def log_err(msg):
+    print(f"  \033[31m✗\033[0m {msg}", flush=True)
+
+
+def die(msg):
+    log_err(msg)
+    sys.exit(1)
+
+
+def elapsed(t):
+    return f"{time.monotonic() - t:.1f}s"
+
+
+# ---------------------------------------------------------------------------
+# Serial helpers
+# ---------------------------------------------------------------------------
+
+def serial_write_slow(ser, data, byte_delay=0.005):
+    for b in data:
+        ser.write(bytes([b]))
+        ser.flush()
+        time.sleep(byte_delay)
+
+
+def readline(ser, timeout=2.0):
+    ser.timeout = 0.1
+    buf = b''
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        c = ser.read(1)
+        if not c:
+            continue
+        if c in (b'\r', b'\n'):
+            line = buf.decode(errors="ignore").strip()
+            if line == '':
+                continue
+            return line, False
+        buf += c
+    return buf.decode(errors="ignore").strip(), True
+
+
+def read_raw(ser, count, timeout):
+    """Read exactly `count` raw bytes with a progress indicator."""
+    ser.timeout = 0.1
+    buf = b''
+    deadline = time.monotonic() + timeout
+    t_start = time.monotonic()
+    while len(buf) < count and time.monotonic() < deadline:
+        chunk = ser.read(count - len(buf))
+        if chunk:
+            buf += chunk
+            pct = len(buf) * 100 // count
+            dt = max(time.monotonic() - t_start, 0.001)
+            speed = len(buf) / dt / 1024
+            print(f"\r  Receiving... {len(buf)}/{count} bytes ({pct}%) {speed:.1f} KB/s",
+                  end="", flush=True)
+    print()
+    return buf
+
+
+def wait_for_prompt(ser, timeout=2.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        line, is_timeout = readline(ser, 1.0)
+        if line == ">":
+            return True
+        if is_timeout:
+            ser.write(b"\x03")
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Entry
+# ---------------------------------------------------------------------------
+
+def step_enter_shell(ser, timeout):
+    """Ctrl+C → reboot → intercept autoboot countdown → wait for prompt."""
+    log("Sending Ctrl+C...")
+    ser.write(b"\x03\x03")
+    time.sleep(0.1)
+    ser.reset_input_buffer()
+
+    log("Sending reboot...")
+    serial_write_slow(ser, b"reboot\n")
+
+    interrupted = False
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        line, _ = readline(ser, min(2.0, remaining))
+
+        if "Press [enter] key to stop autoboot" in line:
+            if not interrupted:
+                log("Autoboot countdown — interrupting...")
+                ser.write(b"\r")
+                interrupted = True
+            continue
+
+        if "Bootloader shell is ready" in line:
+            log_ok("Bootloader shell is ready.")
+            continue
+
+        if line == ">":
+            return True
+
+    return False
+
+
+def step_ensure_prompt(ser, timeout):
+    """Used with --no-reboot: send Ctrl+C and wait for prompt."""
+    ser.write(b"\x03")
+    time.sleep(0.1)
+    ser.reset_input_buffer()
+    if not wait_for_prompt(ser, timeout):
+        die("No shell prompt detected. Is the device running?")
+    log_ok("Shell ready.")
+    time.sleep(0.1)
+    ser.reset_input_buffer()
+
+
+def step_switch_speed(ser, new_baud, timeout):
+    cmd = f"speed {new_baud}"
+    log(f"Switching baud rate: sending '{cmd}'")
+    serial_write_slow(ser, (cmd + "\n").encode())
+
+    echo, _ = readline(ser, timeout)
+    if cmd not in echo:
+        log_warn(f"Echo mismatch: {echo!r}")
+
+    response, is_timeout = readline(ser, timeout)
+    if is_timeout or response != f"OK {new_baud}":
+        log_err(f"Unexpected speed response: {response!r}")
+        return False
+
+    ser.flush()
+    time.sleep(0.1)
+    ser.baudrate = new_baud
+    time.sleep(0.1)
+    log_ok(f"Baud rate switched to {new_baud}.")
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Flash operations
+# ---------------------------------------------------------------------------
+
+def step_get_buffer(ser, size, timeout):
+    """Allocate a RAM buffer. Returns its address."""
+    cmd = f"buffer {size}"
+    log(f"Allocating buffer: {cmd}")
+    serial_write_slow(ser, (cmd + "\n").encode())
+
+    echo, _ = readline(ser, timeout)
+    if cmd not in echo:
+        log_warn(f"Echo mismatch: {echo!r}")
+
+    resp, is_timeout = readline(ser, timeout)
+    if is_timeout or not resp.startswith("addr"):
+        die(f"Unexpected buffer response: {resp!r}")
+
+    # "addr 0x004xxxxx  size 65536"
+    parts = resp.split()
+    if len(parts) < 2:
+        die(f"Cannot parse buffer address: {resp!r}")
+
+    buf_addr = int(parts[1], 16)
+    log_ok(f"Buffer at 0x{buf_addr:08x}")
+    return buf_addr
+
+
+def step_loadi(ser, buf_addr, chunk, timeout, label=""):
+    """Load chunk bytes into RAM at buf_addr. Returns CRC32 reported by device."""
+    size = len(chunk)
+    cmd = f"loadi 0x{buf_addr:08x} {size} 0x{buf_addr + size:08x}"
+
+    ser.write(b"\x03")
+    time.sleep(0.05)
+    ser.reset_input_buffer()
+
+    serial_write_slow(ser, (cmd + "\n").encode())
+
+    echo, _ = readline(ser, timeout)
+    if cmd not in echo:
+        log_warn(f"Echo mismatch: {echo!r}")
+
+    ready, is_timeout = readline(ser, timeout)
+    if is_timeout or ready != "READY":
+        die(f"Expected READY, got: {ready!r}")
+
+    sent = 0
+    t_start = time.monotonic()
+    prefix = f"  [{label}] Uploading" if label else "  Uploading"
+    while sent < size:
+        block = chunk[sent:sent + 512]
+        ser.write(block)
+        sent += len(block)
+        pct = sent * 100 // size
+        dt = max(time.monotonic() - t_start, 0.001)
+        speed = sent / dt / 1024
+        print(f"\r{prefix}... {sent}/{size} bytes ({pct}%) {speed:.1f} KB/s",
+              end="", flush=True)
+    print()
+
+    done_line, is_timeout = readline(ser, timeout)
+    if is_timeout or not done_line.startswith("DONE"):
+        die(f"Expected DONE, got: {done_line!r}")
+
+    return int(done_line.split()[1], 16)
+
+
+def step_flash_write(ser, buf_addr, flash_addr, size, timeout):
+    """Erase and write from RAM buffer to flash. Returns CRC32 of written region."""
+    checksum = (buf_addr + flash_addr + size) & 0xFFFFFFFF
+    cmd = f"flash_write 0x{buf_addr:08x} 0x{flash_addr:08x} {size} 0x{checksum:08x}"
+
+    serial_write_slow(ser, (cmd + "\n").encode())
+
+    echo, _ = readline(ser, timeout)
+    if cmd not in echo:
+        log_warn(f"Echo mismatch: {echo!r}")
+
+    # One '.' per erased sector, then \r\n
+    erase_timeout = timeout + (size // SECTOR_SIZE + 1) * 0.15
+    dots, _ = readline(ser, erase_timeout)
+    n_sectors = dots.count(".")
+    if n_sectors:
+        log(f"Erased {n_sectors} sector(s).")
+
+    crc_line, is_timeout = readline(ser, timeout)
+    if is_timeout or not crc_line.startswith("CRC32"):
+        die(f"Expected CRC32 response, got: {crc_line!r}")
+
+    return int(crc_line.split()[1], 16)
+
+
+def step_flash_read(ser, addr, size, speed_baud, timeout):
+    """Read size bytes from flash. Returns (data, crc32)."""
+    cmd = f"flash_read 0x{addr:08x} {size}"
+    serial_write_slow(ser, (cmd + "\n").encode())
+
+    echo, _ = readline(ser, timeout)
+    if cmd not in echo:
+        log_warn(f"Echo mismatch: {echo!r}")
+
+    prompt, is_timeout = readline(ser, timeout)
+    if is_timeout or "Send ACK" not in prompt:
+        die(f"Unexpected flash_read response: {prompt!r}")
+
+    ser.write(ACK)
+
+    # size bytes of data + 4 bytes CRC32 little-endian
+    transfer_timeout = (size + 4) / (speed_baud / 10) + 30
+    raw = read_raw(ser, size + 4, transfer_timeout)
+    if len(raw) < size + 4:
+        die(f"Incomplete transfer: {len(raw)}/{size + 4} bytes received")
+
+    data = raw[:size]
+    fw_crc = int.from_bytes(raw[size:size + 4], 'little')
+    return data, fw_crc
+
+
+def step_go(ser, addr):
+    cmd = f"go 0x{addr:08x}"
+    log(f"Sending: {cmd}")
+    serial_write_slow(ser, (cmd + "\n").encode())
+    time.sleep(0.5)
+    log_ok(f"Jump to 0x{addr:08x} issued.")
+
+
+def step_capture(ser, timeout, until_pattern):
+    print(f"[ Capturing output (timeout={timeout:.0f}s, until={until_pattern!r}) ]")
+    deadline = time.monotonic() + timeout
+    found = False
+    while time.monotonic() < deadline:
+        remaining = deadline - time.monotonic()
+        line, _ = readline(ser, min(1.0, remaining))
+        if line:
+            print(f"  {line}")
+            if until_pattern in line:
+                found = True
+                log_ok("Sentinel found.")
+                break
+    if not found:
+        log_warn(f"Timeout without sentinel {until_pattern!r}.")
+    print()
+
+
+# ---------------------------------------------------------------------------
+# Open serial port
+# ---------------------------------------------------------------------------
+
+def open_serial(port, baud, timeout):
+    try:
+        ser = serial.Serial(port, baud, timeout=timeout, exclusive=True)
+    except serial.SerialException as e:
+        msg = str(e).lower()
+        if "no such file" in msg or "no such device" in msg:
+            die(f"Port {port} not found — is the device connected?")
+        elif any(x in msg for x in ("busy", "permission denied", "access denied",
+                                     "resource temporarily unavailable")):
+            die(f"Port {port} is busy — close tio or any other terminal first.")
+        else:
+            die(f"Cannot open serial port: {e}")
+    time.sleep(0.1)
+    return ser
+
+
+# ---------------------------------------------------------------------------
+# Mode: flash
+# ---------------------------------------------------------------------------
+
+def mode_flash(ser, args, data, seg):
+    t_total = time.monotonic()
+    file_size  = len(data)
+    flash_base = seg["addr"]
+    chunk_size = args.chunk_size
+
+    if chunk_size % SECTOR_SIZE != 0:
+        die(f"--chunk-size must be a multiple of {SECTOR_SIZE}")
+    if file_size > seg["size"]:
+        die(f"Binary ({file_size} bytes) exceeds segment size ({seg['size']} bytes)")
+
+    n_chunks  = (file_size + chunk_size - 1) // chunk_size
+    has_speed = bool(args.speed and args.speed != args.baud)
+    n_steps   = 3 + int(has_speed)
+
+    print(f"[ Step 1/{n_steps} ] Entering shell...")
+    if args.no_reboot:
+        step_ensure_prompt(ser, args.timeout)
+    else:
+        if not step_enter_shell(ser, args.timeout):
+            die("Timed out waiting for bootloader shell.")
+        log_ok("Bootloader shell ready.")
+    print()
+
+    step_n = 2
+    if has_speed:
+        print(f"[ Step {step_n}/{n_steps} ] Switching to {args.speed} baud...")
+        if not step_switch_speed(ser, args.speed, args.timeout):
+            die("Failed to switch baud rate.")
+        step_n += 1
+        print()
+
+    print(f"[ Step {step_n}/{n_steps} ] Allocating RAM buffer ({chunk_size} bytes)...")
+    buf_addr = step_get_buffer(ser, chunk_size, args.timeout)
+    step_n += 1
+    print()
+
+    print(f"[ Step {step_n}/{n_steps} ] Writing {file_size} bytes to"
+          f" '{args.segment}' (0x{flash_base:08x}, {n_chunks} chunk(s))...")
+    print()
+
+    for i in range(n_chunks):
+        offset     = i * chunk_size
+        chunk      = data[offset:offset + chunk_size]
+        chunk_addr = flash_base + offset
+        label      = f"{i + 1}/{n_chunks}"
+
+        log(f"[{label}] Loading chunk to RAM"
+            f" (flash target 0x{chunk_addr:08x}, {len(chunk)} bytes)...")
+        fw_crc    = step_loadi(ser, buf_addr, chunk, args.timeout, label=label)
+        local_crc = zlib.crc32(chunk) & 0xFFFFFFFF
+        if fw_crc != local_crc:
+            die(f"RAM CRC mismatch: local=0x{local_crc:08x} device=0x{fw_crc:08x}")
+        log_ok(f"[{label}] RAM  CRC32 OK: 0x{fw_crc:08x}")
+
+        log(f"[{label}] Writing to flash 0x{chunk_addr:08x}...")
+        flash_crc = step_flash_write(ser, buf_addr, chunk_addr, len(chunk), args.timeout)
+        if flash_crc != local_crc:
+            die(f"Flash CRC mismatch: local=0x{local_crc:08x} device=0x{flash_crc:08x}")
+        log_ok(f"[{label}] Flash CRC32 OK: 0x{flash_crc:08x}")
+        print()
+
+    log_ok(f"Done in {elapsed(t_total)}."
+           f" Wrote {file_size} bytes to '{args.segment}' (0x{flash_base:08x}).")
+
+
+# ---------------------------------------------------------------------------
+# Mode: backup
+# ---------------------------------------------------------------------------
+
+def mode_backup(ser, args, seg):
+    t_total    = time.monotonic()
+    flash_base = seg["addr"]
+    read_size  = seg["size"]
+    cur_baud   = args.speed if (args.speed and args.speed != args.baud) else args.baud
+
+    if args.output:
+        out_path = args.output
+    else:
+        ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        os.makedirs("backups", exist_ok=True)
+        out_path = f"backups/{args.segment}_{ts}.bin"
+
+    has_speed = bool(args.speed and args.speed != args.baud)
+    n_steps   = 2 + int(has_speed)
+
+    print(f"[ Step 1/{n_steps} ] Entering shell...")
+    if args.no_reboot:
+        step_ensure_prompt(ser, args.timeout)
+    else:
+        if not step_enter_shell(ser, args.timeout):
+            die("Timed out waiting for bootloader shell.")
+        log_ok("Bootloader shell ready.")
+    print()
+
+    step_n = 2
+    if has_speed:
+        print(f"[ Step {step_n}/{n_steps} ] Switching to {args.speed} baud...")
+        if not step_switch_speed(ser, args.speed, args.timeout):
+            die("Failed to switch baud rate.")
+        step_n += 1
+        print()
+
+    print(f"[ Step {step_n}/{n_steps} ] Reading {read_size // 1024} KB"
+          f" from '{args.segment}' (0x{flash_base:08x})...")
+    data, fw_crc = step_flash_read(ser, flash_base, read_size, cur_baud, args.timeout)
+
+    local_crc = zlib.crc32(data) & 0xFFFFFFFF
+    if fw_crc != local_crc:
+        die(f"CRC mismatch: local=0x{local_crc:08x} device=0x{fw_crc:08x}")
+    log_ok(f"CRC32 OK: 0x{fw_crc:08x}")
+
+    with open(out_path, "wb") as f:
+        f.write(data)
+    log_ok(f"Saved {len(data)} bytes → {out_path}")
+    log_ok(f"Done in {elapsed(t_total)}.")
+
+
+# ---------------------------------------------------------------------------
+# Mode: iram
+# ---------------------------------------------------------------------------
+
+def mode_iram(ser, args, data):
+    t_total   = time.monotonic()
+    addr      = args.addr
+    has_speed = bool(args.speed and args.speed != args.baud)
+    n_steps   = (2 + int(has_speed)
+                 + int(not args.no_jump)
+                 + int(bool(args.capture) and not args.no_jump))
+
+    print(f"[ Step 1/{n_steps} ] Entering shell...")
+    if args.no_reboot:
+        step_ensure_prompt(ser, args.timeout)
+    else:
+        if not step_enter_shell(ser, args.timeout):
+            die("Timed out waiting for bootloader shell.")
+        log_ok("Bootloader shell ready.")
+    print()
+
+    step_n = 2
+    if has_speed:
+        print(f"[ Step {step_n}/{n_steps} ] Switching to {args.speed} baud...")
+        if not step_switch_speed(ser, args.speed, args.timeout):
+            die("Failed to switch baud rate.")
+        step_n += 1
+        print()
+
+    print(f"[ Step {step_n}/{n_steps} ] Loading {len(data)} bytes to 0x{addr:08x}...")
+    for attempt in range(1, 3):
+        fw_crc    = step_loadi(ser, addr, data, args.timeout)
+        local_crc = zlib.crc32(data) & 0xFFFFFFFF
+        if fw_crc == local_crc:
+            log_ok(f"CRC32 OK: 0x{fw_crc:08x}")
+            break
+        log_warn(f"CRC mismatch (attempt {attempt}/2):"
+                 f" local=0x{local_crc:08x} device=0x{fw_crc:08x}")
+        if attempt == 2:
+            die("Upload failed after 2 attempts.")
+    step_n += 1
+    print()
+
+    if not args.no_jump:
+        print(f"[ Step {step_n}/{n_steps} ] Jumping to 0x{addr:08x}...")
+        step_go(ser, addr)
+        log_ok(f"Done in {elapsed(t_total)}.")
+        step_n += 1
+        print()
+
+        if args.capture:
+            if has_speed:
+                log(f"Restoring baud to {args.baud} for capture...")
+                ser.baudrate = args.baud
+                time.sleep(0.2)
+            print(f"[ Step {step_n}/{n_steps} ] Capturing output...")
+            step_capture(ser, args.capture, args.until)
+    else:
+        log("--no-jump: skipping jump.")
+
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+def add_common(p):
+    p.add_argument("--port", default=DEFAULT_PORT,
+                   help=f"Serial port (default: {DEFAULT_PORT})")
+    p.add_argument("--baud", default=DEFAULT_BAUD, type=int,
+                   help=f"Baud rate (default: {DEFAULT_BAUD})")
+    p.add_argument("--speed", default=None, type=int,
+                   help="Switch to this baud rate before transfer (e.g. 921600)")
+    p.add_argument("--no-reboot", dest="no_reboot", action="store_true",
+                   help="Skip reboot, assume shell already running")
+    p.add_argument("--timeout", default=10.0, type=float,
+                   help="Serial read timeout in seconds (default: 10)")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog="bkloader",
+        description="Flash, backup, and load firmware via the BK7252 bootloader shell.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = parser.add_subparsers(dest="mode", required=True)
+
+    # --- flash ---
+    p = sub.add_parser("flash", help="Write a binary file to a flash segment")
+    p.add_argument("binary", metavar="BINARY", help="Path to .bin file")
+    p.add_argument("--segment", default="app", choices=list(SEGMENTS),
+                   help="Target segment (default: app)")
+    p.add_argument("--chunk-size", dest="chunk_size", default=DEFAULT_CHUNK, type=int,
+                   help=f"Bytes per chunk, multiple of {SECTOR_SIZE} (default: {DEFAULT_CHUNK})")
+    add_common(p)
+
+    # --- backup ---
+    p = sub.add_parser("backup", help="Read a flash segment to a file")
+    p.add_argument("--segment", default="app", choices=list(SEGMENTS),
+                   help="Source segment (default: app)")
+    p.add_argument("--output", default=None,
+                   help="Output file (default: backups/<segment>_TIMESTAMP.bin)")
+    add_common(p)
+
+    # --- iram ---
+    p = sub.add_parser("iram", help="Load a binary to IRAM and jump to it")
+    p.add_argument("binary", metavar="BINARY", help="Path to IRAM .bin file")
+    p.add_argument("--addr", default=DEFAULT_IRAM, type=lambda x: int(x, 0),
+                   help=f"Load and jump address (default: 0x{DEFAULT_IRAM:08x})")
+    p.add_argument("--no-jump", dest="no_jump", action="store_true",
+                   help="Load only, do not jump")
+    p.add_argument("--capture", default=None, type=float, metavar="SECONDS",
+                   help="After jump: capture UART output for up to SECONDS seconds")
+    p.add_argument("--until", default="==END==",
+                   help="Stop capture when output contains this string (default: ==END==)")
+    add_common(p)
+
+    return parser.parse_args()
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main():
+    args = parse_args()
+
+    data = None
+    if args.mode in ("flash", "iram"):
+        try:
+            with open(args.binary, "rb") as f:
+                data = f.read()
+        except OSError as e:
+            die(f"Cannot open binary: {e}")
+        log(f"Binary: {os.path.relpath(args.binary)} ({len(data)} bytes)")
+
+    seg = None
+    if args.mode in ("flash", "backup"):
+        seg = SEGMENTS[args.segment]
+        log(f"Segment '{args.segment}':"
+            f" addr=0x{seg['addr']:08x}  size={seg['size'] // 1024} KB")
+
+    log(f"Port: {args.port} @ {args.baud} baud"
+        + (f"  (transfer at {args.speed})" if args.speed else ""))
+    print()
+
+    ser = open_serial(args.port, args.baud, args.timeout)
+    try:
+        if args.mode == "flash":
+            mode_flash(ser, args, data, seg)
+        elif args.mode == "backup":
+            mode_backup(ser, args, seg)
+        elif args.mode == "iram":
+            mode_iram(ser, args, data)
+    finally:
+        ser.close()
+
+
+if __name__ == "__main__":
+    main()

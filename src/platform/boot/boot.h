@@ -13,7 +13,7 @@
 #define BOOT_COLOR_FIQ                  0xDDDDDDDD      // Pattern to fill FIQ stack
 #define BOOT_COLOR_SYS                  0xEEEEEEEE      // Pattern to fill SYS stack
 
-#include "arm.h"
+#include "platform/arm.h"
 
 #define RAM_VECTORS_IRQ_ADDR            0x00400000
 #define RAM_VECTORS_FIQ_ADDR            0x00400004
