@@ -43,7 +43,7 @@ No gap — `download` starts on the first physical byte after the CRC-wrapped `a
 
 | name         | physical start | physical end | physical size |
 |--------------|---------------|--------------|---------------|
-| `bootloader` | `0x000000`    | `0x010FFF`   | 68 KB         |
+| `bootloader` | `0x000000`    | `0x00FFFF`   | 64 KB         |
 | `app`        | `0x011000`    | `0x131FFF`   | ~1.13 MB      |
 | `download`   | `0x132000`    | `0x1DFFFF`   | 696 KB        |
 | `unused`     | `0x1E0000`    | `0x1FFFFF`   | 128 KB        |

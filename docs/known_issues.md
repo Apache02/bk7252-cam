@@ -180,6 +180,24 @@ I/O call. Used in `src/tests/probe/probe.cpp`.
 Fix: investigate whether a UART ready/busy status bit exists in the UART
 peripheral registers that can be polled instead of using a blind delay.
 
+### F9. Bootloader missing `flash_init` — `JEDEC_ID` reads zero
+
+File: `src/applications/bootloader/main.cpp`, `preinit()`.
+
+The bootloader's `preinit()` calls `sctrl_init()` and `uart2_init()` but never
+calls `flash_init()`. As a result `hw_flash->JEDEC_ID` returns `0x000000` and
+all flash commands (`flash_dump`, `flash_read`, `flash_write`, `flash_crc32`,
+`partitions`) operate on uninitialised hardware.
+
+The `freertos_shell` application works because `flash_init` is wired up via
+`INIT_AT` in `hardware_flash/flash.c` and runs automatically through
+`__libc_init_array`. The bootloader uses `PREINIT_AT` for its own `preinit`,
+which runs before `__init_array` — so `flash_init` has not been called yet when
+`preinit` executes.
+
+Fix: add `flash_init()` to `preinit()` in `bootloader/main.cpp`, after
+`sctrl_init()` and before any flash command is reachable.
+
 ---
 
 ## API / contract
@@ -290,36 +308,6 @@ RSA is ever needed, design the API from scratch then.
 
 ## Architectural follow-ups
 
-### Arch5. `shell_commands_beken` depends on `platform_boot` via `jump.cpp`
-
-File: `src/shell/shell_commands_beken/commands/jump.cpp`,
-`src/shell/shell_commands_beken/CMakeLists.txt`.
-
-`jump.cpp` calls `portDisableInt()` from `platform/cpu.h`, which is provided by
-`platform_boot`. That library does more than expose CPU primitives — it also
-provides the ARM vector table, the reset handler, and `boot_init.c`. Pulling it
-in as an INTERFACE dep of a shell command library is a layering violation: a
-leaf component that should only know about its own peripheral drivers is now
-dragging in the board's reset infrastructure.
-
-`platform_boot` was removed from `shell_commands_beken` INTERFACE deps as a
-workaround — all current consumers (`bootloader`, `ram_loader`, `freertos_shell`)
-link `platform_boot` directly and the symbol resolves at link time. But this is
-implicit and fragile.
-
-Fix options:
-- (a) Extract `portDisableInt()` / `portEnableInt()` / `WFI` into a thin
-  `platform_cpu` header-only library that has no link-time code. `jump.cpp` links
-  that instead of `platform_boot`.
-- (b) Move `jump.cpp` back into `shell_commands_iram` (which already expects
-  callers to link boot/intc/wdt dependencies) and keep the function names as
-  `command_jump` / `command_jump_app`.
-
-Recommendation: (a) — it also benefits any other driver or library that needs
-only the CPU primitives without the full boot layer.
-
-
-
 These are larger pieces that require a design pass, not a patch.
 
 ### Arch1. Audit remaining register-write call sites
@@ -423,3 +411,4 @@ For traceability — these were fixed in commit `a7cebc0`:
 | 15 | `get_gpio_reg` macro → `static inline`            |
 | 16 | `GPIO_HIGH_IMPENDANCE` → `GPIO_HIGH_IMPEDANCE`    |
 | 23 | `register_sys_counter` had no IRQ-disable guard   |
+| Arch5 | `cpu.S`/`cpu.h`/`arm.h` extracted from `platform_boot` into `platform_cpu`; `shell_commands_beken` now explicitly links `platform_cpu` |
