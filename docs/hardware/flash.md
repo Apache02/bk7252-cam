@@ -8,6 +8,65 @@ data path (read and write) — a command engine that translates opcode identifie
 to SPI wire sequences, and a hardware CRC checker that validates 34-byte
 physical blocks during XIP fetches.
 
+The flash die is a separate die bonded inside the same package as the BK7252 MCU
+(Multi-Chip Package). The specific flash chip varies by production batch; the
+controller identifies the installed chip at startup by reading its JEDEC ID and
+selects per-chip parameters (SPI line mode, QE bit position, write-protection
+encoding) from an internal table. The same SPI bus is also accessible on external
+chip pins through a boot-time programming protocol (see `flash_spi_mode.md`).
+
+---
+
+## Flash chip models
+
+The BK7252 ships with one of several SPI NOR flash dies bonded in the same
+package. All listed chips use a standard JEDEC SPI NOR command set; the
+controller maps internal opcodes to the appropriate wire bytes. If the JEDEC ID
+returned by RDID does not match any table entry, the default row applies
+(`size = 4 MiB, dual-SPI, no QE`).
+
+| JEDEC ID   | Chip          | Size  | SR bytes | Line mode | QE setup  |
+| ---------- | ------------- | ----- | -------- | --------- | --------- |
+| `0x1C7016` | en_25qh32b    | 4 MiB | 1        | dual      | none      |
+| `0x1C7015` | en_25qh16b    | 2 MiB | 1        | dual      | none      |
+| `0x1C4116` | en_25qe32a    | 4 MiB | 2        | dual      | SR2\[1\]  |
+| `0x1C6116` | en_25qw32a    | 4 MiB | 2        | dual      | SR2\[1\]  |
+| `0x0B4014` | xtx_25f08b    | 1 MiB | 2        | dual      | SR2\[1\]  |
+| `0x0B4015` | xtx_25f16b    | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0x0B4016` | xtx_25f32b    | 4 MiB | 2        | dual      | SR2\[1\]  |
+| `0x0B4017` | xtx_25f64b    | 8 MiB | 2        | dual      | SR2\[1\]  |
+| `0x0E4016` | xtx_FT25H32   | 4 MiB | 2        | dual      | SR2\[1\]  |
+| `0xC84015` | gd_25q16c     | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0xC84016` | gd_25q32c     | 4 MiB | 1        | dual      | none      |
+| `0xC86515` | gd_25w16e     | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0xC86516` | gd_25wq32e    | 4 MiB | 2        | quad      | SR2\[1\]  |
+| `0xEF4016` | w_25q32       | 4 MiB | 2        | dual      | SR2\[1\]  |
+| `0x204016` | xmc_25qh32b   | 4 MiB | 2        | dual      | SR2\[1\]  |
+| `0xC22315` | mx_25v16b     | 2 MiB | 1        | dual      | SR1\[6\]  |
+| `0xEB6015` | zg_th25q16b   | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0xCD6014` | zg_th25q80HB  | 1 MiB | 2        | dual      | SR2\[1\]  |
+| `0xCD7115` | zg_th25q16uc  | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0x854215` | py_p25q16     | 2 MiB | 1        | dual      | SR2\[1\]† |
+| `0x856015` | py_p25q16SH   | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0x852015` | py_p25q16HB   | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0x852016` | py_p25q32HB   | 4 MiB | 2        | dual      | SR2\[1\]  |
+| `0xC46015` | gt_25q16B     | 2 MiB | 2        | dual      | SR2\[1\]  |
+| `0x000000` | (default)     | 4 MiB | 2        | dual      | none      |
+
+**SR bytes**: number of SR bytes read and written during init. Chips with SR
+bytes = 1 use RDSR/WRSR only; chips with SR bytes = 2 also use RDSR2/WRSR2.
+
+**Line mode** is the SPI width set by init for all subsequent transfers:
+`dual` → `conf.model_sel = 1`; `quad` → `conf.model_sel = 2`.
+
+**QE setup**: whether init writes the Quad Enable bit into the flash SR. SR2\[1\]
+= bit 1 of SR2 (bit 9 of the concatenated 16-bit SR1:SR2 value); SR1\[6\] = bit 6
+of SR1 (Macronix convention for 1-byte SR chips).
+
+† `py_p25q16` (0x854215): the SDK entry has SR bytes = 1 but QE position = SR2\[1\]
+(bit 9 of a combined value), which addresses a bit outside the 8-bit SR1. Not
+validated on hardware.
+
 ---
 
 ## Register map
@@ -182,6 +241,31 @@ is set. Issue WREN + WRSR(`0x00`) to clear all protection before programming.
 ---
 
 ## Operation sequences
+
+### Initialize controller
+
+Run once at startup before using the OPERATE_SW path. The flash chip is in an
+unspecified state after reset; skipping init may leave write protection active
+or the SPI line mode misconfigured.
+
+1. Poll `operate_sw.busy` until 0.
+2. Issue RDID (see Read JEDEC ID below). Read `JEDEC_ID` and look up the
+   per-chip parameters in the flash chip models table. If no entry matches,
+   use the default row.
+3. Clear write protection: write the chip's `unprotect_last_block` SR value into
+   `conf.wrsr_data`; issue WRSR (SR bytes = 1) or WRSR2 (SR bytes = 2).
+   Poll `busy` until 0.
+4. Write `conf.cpu_data_wr = 0` (bit 9 of the `conf` register).
+5. Issue CRMR to reset any continuous-read state in the flash chip; then set
+   the line mode:
+   - Dual: set `conf.model_sel = 1`.
+   - Quad: write the chip's `m_value` into `sr_data_crc_cnt.m_value`;
+     set `conf.model_sel = 2`.
+6. For chips with a QE setup in the models table: read the relevant SR byte
+   (RDSR or RDSR2); set the QE bit at the listed position; write back with
+   WRSR or WRSR2. Poll `busy` until 0.
+7. Set `conf.crc_en = 1`.
+8. Set `conf.clk_conf = 5` (60 MHz from DPLL).
 
 ### Read 32 bytes
 

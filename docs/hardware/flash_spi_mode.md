@@ -5,6 +5,12 @@ access to the internal flash memory through external chip pins. The mechanism
 remains available even when the flash contents are erased, allowing recovery of
 a blank device.
 
+The vendor datasheet refers to this feature as **FLASH Download** (§8.10): after
+a digital logic reset GPIO20–GPIO23 act as a mode selection port for a short
+window, then revert to normal GPIO mode. If a FLASH download command is received
+during that window, the four pins switch to the FLASH download port for
+programming. The datasheet does not detail the entry protocol.
+
 After a reset, the chip opens a short entry window during which a 0xD2
 handshake can activate the programming mode. Once activated, standard SPI NOR
 commands can be issued directly to the flash memory.
@@ -27,6 +33,10 @@ following chip pins (A9 camera board):
 WP# and HOLD# are not routed to external pins in the known board configuration;
 the flash chip hardware WP# mechanism is inactive in this mode (SRP=0 in the
 factory-default SR).
+
+GPIO20–GPIO23 as the mode selection / download port is confirmed by the vendor
+datasheet (§8.10). The SPI NOR signal mapping and test-point labels above are
+from hardware measurement on the A9 camera board.
 
 ---
 
@@ -248,10 +258,17 @@ Without the 0xD2 handshake the entry window closes and a normal boot follows.
 
 ## Notes
 
-- **Handshake token `0xD2`** is specific to this chip and is not documented in
-  any public Beken datasheet. The entry sequence was reverse-engineered from
-  community sources and verified by hardware measurement on an A9 camera board
-  (RP2040 SPI master at 30–50 kHz).
+- **Handshake token `0xD2`** is specific to this chip. The vendor datasheet
+  (§8.10) acknowledges the FLASH Download mode and confirms GPIO20–GPIO23 as
+  the download port, but does not document the entry protocol. The 0xD2
+  handshake sequence was reverse-engineered from community sources and verified
+  by hardware measurement on an A9 camera board (RP2040 SPI master at 30–50 kHz).
+
+- **Entry window timing.** The datasheet states the GPIO mode selection window
+  lasts "a few hundred milliseconds" after reset. Hardware measurement gives
+  ~53 ms from CEN↑ at 30–50 kHz. The discrepancy may reflect a conservative
+  bound in the datasheet or a difference between chip revisions; treat 53 ms as
+  the observed upper bound on this hardware.
 
 - **SPI clock speed.** 10 kHz–1 MHz confirmed working. At 1 MHz the step 12
   poll loop must use a time-based timeout (≥ 50 ms) rather than a fixed

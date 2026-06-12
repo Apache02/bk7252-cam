@@ -30,7 +30,7 @@ from datetime import datetime
 
 
 SECTOR_SIZE   = 4096
-DEFAULT_CHUNK = 64 * 1024
+DEFAULT_CHUNK = 128 * 1024
 DEFAULT_PORT  = "/dev/ttyUSB0"
 DEFAULT_BAUD  = 115200
 DEFAULT_IRAM  = 0x00900000
@@ -39,6 +39,8 @@ SEGMENTS = {
     "bootloader": {"addr": 0x00000000, "size":   64 * 1024, "ext": "_crc.bin"},
     "app":        {"addr": 0x00011000, "size": 1156 * 1024, "ext": "_crc.bin"},
     "download":   {"addr": 0x00132000, "size":  696 * 1024, "ext": ".bin"},
+    "full_2m":    {"addr": 0x00000000, "size":  2 * 1024 * 1024, "ext": ".bin"},
+    "full_4m":    {"addr": 0x00000000, "size":  4 * 1024 * 1024, "ext": ".bin"},
 }
 
 ACK = b'\x06'
@@ -49,7 +51,7 @@ ACK = b'\x06'
 # ---------------------------------------------------------------------------
 
 def log(msg):
-    print(f"  {msg}", flush=True)
+    print(f"    {msg}", flush=True)
 
 
 def log_ok(msg):
@@ -253,7 +255,7 @@ def step_loadi(ser, buf_addr, chunk, timeout, label=""):
 
     sent = 0
     t_start = time.monotonic()
-    prefix = f"  [{label}] Uploading" if label else "  Uploading"
+    prefix = f"    [{label}] Uploading" if label else "  Uploading"
     while sent < size:
         block = chunk[sent:sent + 512]
         ser.write(block)
@@ -279,7 +281,7 @@ def step_flash_write(ser, buf_addr, flash_addr, size, timeout):
 
     serial_write_slow(ser, (cmd + "\n").encode())
 
-    echo, _ = readline(ser, timeout)
+    echo, _ = readline(ser, 0.1)
     if cmd not in echo:
         log_warn(f"Echo mismatch: {echo!r}")
 
@@ -391,13 +393,12 @@ def mode_flash(ser, args, data, seg):
     t_total = time.monotonic()
     file_size  = len(data)
     flash_base = seg["addr"]
-    chunk_size = args.chunk_size
-
-    if chunk_size % SECTOR_SIZE != 0:
+    if args.chunk_size % SECTOR_SIZE != 0:
         die(f"--chunk-size must be a multiple of {SECTOR_SIZE}")
     if file_size > seg["size"]:
         die(f"Binary ({file_size} bytes) exceeds segment size ({seg['size']} bytes)")
 
+    chunk_size = min(args.chunk_size, file_size)
     n_chunks  = (file_size + chunk_size - 1) // chunk_size
     has_speed = bool(args.speed and args.speed != args.baud)
     n_steps   = 3 + int(has_speed)
@@ -448,6 +449,11 @@ def mode_flash(ser, args, data, seg):
             die(f"Flash CRC mismatch: local=0x{local_crc:08x} device=0x{flash_crc:08x}")
         log_ok(f"[{label}] Flash CRC32 OK: 0x{flash_crc:08x}")
         print()
+
+    if has_speed:
+        log(f"Restoring baud rate to {args.baud}...")
+        if not step_switch_speed(ser, args.baud, args.timeout):
+            log_warn(f"Failed to restore baud rate to {args.baud}.")
 
     log_ok(f"Done in {elapsed(t_total)}."
            f" Wrote {file_size} bytes to '{args.segment}' (0x{flash_base:08x}).")
@@ -502,8 +508,14 @@ def mode_backup(ser, args, seg):
     if fw_crc != local_crc:
         log_warn(f"CRC mismatch: local=0x{local_crc:08x} device=0x{fw_crc:08x}")
         log_warn(f"Dump saved for inspection: {out_path}")
-        sys.exit(1)
-    log_ok(f"CRC32 OK: 0x{fw_crc:08x}")
+    else:
+        log_ok(f"CRC32 OK: 0x{fw_crc:08x}")
+
+    if has_speed:
+        log(f"Restoring baud rate to {args.baud}...")
+        if not step_switch_speed(ser, args.baud, args.timeout):
+            log_warn(f"Failed to restore baud rate to {args.baud}.")
+
     log_ok(f"Done in {elapsed(t_total)}.")
 
 

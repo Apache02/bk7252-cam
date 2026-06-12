@@ -40,6 +40,7 @@ void flash_init(void) {
     hw_write_fields(hw_flash->conf,
         .clk_conf  = 5,
         .model_sel = 1,
+        .crc_en = 1,
     );
     hw_flash->sr_data_crc_cnt.m_value = 0xA5;
 }
