@@ -7,10 +7,6 @@ Modes:
     bkloader backup [OPTIONS]            read a flash segment to a file
     bkloader iram   [OPTIONS] BINARY     load binary to IRAM and jump
 
-Segments:
-    app       0x00010000  1152 KB  (default)
-    download  0x00132000   696 KB
-
 Common options:
     --port PORT         serial port (default: /dev/ttyUSB0)
     --baud BAUD         initial baud rate (default: 115200)
@@ -578,6 +574,10 @@ def mode_iram(ser, args, data):
             step_capture(ser, args.capture, args.until)
     else:
         log("--no-jump: skipping jump.")
+        if has_speed:
+            log(f"Restoring baud rate to {args.baud}...")
+            if not step_switch_speed(ser, args.baud, args.timeout):
+                log_warn(f"Failed to restore baud rate to {args.baud}.")
 
 
 # ---------------------------------------------------------------------------
@@ -598,6 +598,14 @@ def add_common(p):
 
 
 def parse_args():
+    seg_lines = ["Segments:"]
+    for name, seg in SEGMENTS.items():
+        n = seg["size"]
+        size_str = f"{n // (1024 * 1024)} MB" if n % (1024 * 1024) == 0 else f"{n // 1024} KB"
+        dflt = "  (default)" if name == "app" else ""
+        seg_lines.append(f"  {name:<12} 0x{seg['addr']:08x}  {size_str:>6}{dflt}")
+    seg_epilog = "\n".join(seg_lines)
+
     parser = argparse.ArgumentParser(
         prog="bkloader",
         description="Flash, backup, and load firmware via the BK7252 bootloader shell.",
@@ -606,7 +614,9 @@ def parse_args():
     sub = parser.add_subparsers(dest="mode", required=True)
 
     # --- flash ---
-    p = sub.add_parser("flash", help="Write a binary file to a flash segment")
+    p = sub.add_parser("flash", help="Write a binary file to a flash segment",
+                       formatter_class=argparse.RawDescriptionHelpFormatter,
+                       epilog=seg_epilog)
     p.add_argument("binary", metavar="BINARY", help="Path to .bin file")
     p.add_argument("--segment", default="app", choices=list(SEGMENTS),
                    help="Target segment (default: app)")
@@ -615,7 +625,9 @@ def parse_args():
     add_common(p)
 
     # --- backup ---
-    p = sub.add_parser("backup", help="Read a flash segment to a file")
+    p = sub.add_parser("backup", help="Read a flash segment to a file",
+                       formatter_class=argparse.RawDescriptionHelpFormatter,
+                       epilog=seg_epilog)
     p.add_argument("--segment", default="app", choices=list(SEGMENTS),
                    help="Source segment (default: app)")
     p.add_argument("--output", default=None,

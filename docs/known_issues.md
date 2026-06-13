@@ -168,10 +168,10 @@ the register write in `stdio_init` — the first character arrives before the
 UART TX shift register is ready.
 
 Note: the earlier observation that "10 ms produced no output" was a host-side
-artefact of the old `tio` workflow: `iram_loader` closed the serial port,
+artefact of the old `tio` workflow: the loader closed the serial port,
 discarding the OS receive buffer, before `tio` opened it. The bytes were
 transmitted correctly but arrived during the port-close gap. With the
-`--capture` flag on `iram_loader` (port stays open), 10 ms is confirmed
+`--capture` flag on `bkloader iram` (port stays open), 10 ms is confirmed
 reliable.
 
 Workaround: `busy_wait_ms(20)` between `platform_stdio_init()` and the first

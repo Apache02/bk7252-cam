@@ -134,7 +134,7 @@ without writing flash. Under normal flash-boot operation this block may be
 reserved for RF/MAC or a hardware coprocessor; its use by that subsystem is not
 fully characterised.
 
-IRAM firmware is loaded via `tools/iram_loader` over UART and entered directly
+IRAM firmware is loaded via `tools/bkloader iram` over UART and entered directly
 at `0x00900000`.
 
 ---

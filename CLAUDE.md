@@ -37,7 +37,7 @@ There is no unit-test framework — `test_build.sh` only verifies clean compilat
 tio -b 115200 /dev/ttyUSB0
 ```
 
-Flasher tools (`tools/flasher/uartprogram`, `uartreader`) are Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/iram_loader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`.
+Flasher tools (`tools/flasher/uartprogram`, `uartreader`) are Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/bkloader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`.
 
 ## Architecture
 
@@ -58,7 +58,7 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/applications/` — final firmware images. Each `add_executable(...)` here calls `bk_firmware(target)` (and optionally `bk_firmware_iram(target)`), wiring `platform_boot`, the chosen `platform_stdio_uart*`, FreeRTOS heap variant, lwip port, shell engine + command groups, and the specific drivers it needs. `freertos_shell` is the canonical reference for how to compose a real app.
 
-- `src/tests/` — standalone driver smoke tests built as IRAM firmware images (one `add_executable` per subdir, wrapped with `bk_firmware_iram`). Same auto-discovery as `src/applications/`. Loaded via `tools/iram_loader` without flashing.
+- `src/tests/` — standalone driver smoke tests built as IRAM firmware images (one `add_executable` per subdir, wrapped with `bk_firmware_iram`). Same auto-discovery as `src/applications/`. Loaded via `tools/bkloader iram` without flashing.
 
 - `src/boards/` — board pin/feature headers. `BOARD` CMake var (or `$ENV{BOARD}`, default `A9_B_V1_3`) selects the active board and adds `BOARD_<NAME>` as a compile definition via the `board_config` INTERFACE library; `include/board.h` is the umbrella header consumers include.
 
@@ -76,7 +76,7 @@ External dependencies are fetched into `libs/` by `dependencies.cmake` via `Fetc
 - Adding a new shell command: drop a `.cpp` into the relevant `shell_commands_*/commands/` directory — they're picked up by `file(GLOB)`. Per-app commands under `src/applications/freertos_shell/commands/` are likewise glob-included by that target's `CMakeLists.txt`.
 - Adding a new application or test: create `src/applications/<name>/CMakeLists.txt` (or `src/tests/<name>/CMakeLists.txt`) with an `add_executable(...)` + `bk_firmware(...)` / `bk_firmware_iram(...)` — `src/CMakeLists.txt` will auto-discover it.
 - CRC wrapping (`tools/crc`) is required to produce a flashable image — never flash the raw `*.bin`, always `*_crc.bin` / `app_crc.bin`.
-- The IRAM build (`*--iram` target, `app_iram.bin`) is for loading and running directly out of RAM block 2 via `tools/iram_loader` — useful for fast iteration without writing flash. `tools/iram_loader` requires a shell with `loadi`, `go`, and `speed` commands running on the chip; `src/applications/ram_loader` is the dedicated app for this purpose.
+- The IRAM build (`*--iram` target, `app_iram.bin`) is for loading and running directly out of RAM block 2 via `tools/bkloader iram` — useful for fast iteration without writing flash. `tools/bkloader iram` requires a shell with `loadi`, `go`, and `speed` commands running on the chip; `src/applications/ram_loader` is the dedicated app for this purpose.
 - All source content (identifiers, comments, strings, docs) must be English-only.
 - Do not run the build (`cmake`, `make`, `./test_build.sh`) — the user runs builds themselves. Exception: `make test_probe--iram` is allowed when using the `run-on-chip` skill for `src/tests/probe/` experiments.
 - `src/tests/probe/` is the scratch template for the `run-on-chip` skill — never commit anything in that directory unless explicitly told to (e.g. when updating the template itself).

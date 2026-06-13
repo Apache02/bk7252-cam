@@ -19,7 +19,7 @@ Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this
 
 ## Prerequisite
 
-`tools/iram_loader` requires a shell with `loadi`, `go`, and `speed` commands running on the chip. `src/applications/ram_loader` is the dedicated app for this, but any firmware with these shell commands works. If the loader fails to connect, ask the user to flash a compatible app first.
+`tools/bkloader iram` requires a shell with `loadi`, `go`, and `speed` commands running on the chip. `src/applications/ram_loader` is the dedicated app for this, but any firmware with these shell commands works. If the loader fails to connect, ask the user to flash a compatible app first.
 
 ## Probe Cycle (max 5 iterations)
 
@@ -42,7 +42,7 @@ Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this
 
    Then:
    ```sh
-   python3 tools/iram_loader --speed 921600 --port <PORT> \
+   tools/bkloader iram --speed 921600 --port <PORT> \
        --capture 10 --until "==END==" build/app_iram.bin
    ```
 5. **Interpret output:**
@@ -71,7 +71,7 @@ int main() {
     // --- experiment code ---
 
     printf("\r\n%u / %u passed\r\n", g_passed, g_total);
-    printf("==END==\r\n");   // sentinel — iram_loader stops capture here
+    printf("==END==\r\n");   // sentinel — bkloader stops capture here
     wdt_reboot(100);          // clean reset — chip ready for next flash
     return 0;
 }
