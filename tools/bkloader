@@ -230,24 +230,30 @@ def step_get_buffer(ser, size, timeout):
     return buf_addr
 
 
-def step_loadi(ser, buf_addr, chunk, timeout, label=""):
+def step_loadi(ser, buf_addr, chunk, timeout, label="", retries=3):
     """Load chunk bytes into RAM at buf_addr. Returns CRC32 reported by device."""
     size = len(chunk)
     cmd = f"loadi 0x{buf_addr:08x} {size} 0x{buf_addr + size:08x}"
 
-    ser.write(b"\x03")
-    time.sleep(0.05)
-    ser.reset_input_buffer()
+    for attempt in range(1, retries + 1):
+        if attempt > 1:
+            log_warn(f"Retrying loadi (attempt {attempt}/{retries})...")
+        ser.write(b"\x03")
+        time.sleep(0.05)
+        ser.reset_input_buffer()
 
-    serial_write_slow(ser, (cmd + "\n").encode())
+        serial_write_slow(ser, (cmd + "\n").encode())
 
-    echo, _ = readline(ser, timeout)
-    if cmd not in echo:
-        log_warn(f"Echo mismatch: {echo!r}")
+        echo, _ = readline(ser, timeout)
+        if cmd not in echo:
+            log_warn(f"Echo mismatch: {echo!r}")
 
-    ready, is_timeout = readline(ser, timeout)
-    if is_timeout or ready != "READY":
-        die(f"Expected READY, got: {ready!r}")
+        ready, is_timeout = readline(ser, timeout)
+        if ready == "READY":
+            break
+        log_warn(f"Expected READY, got: {ready!r}")
+        if attempt == retries:
+            die(f"loadi: no READY after {retries} attempts")
 
     sent = 0
     t_start = time.monotonic()
@@ -545,9 +551,9 @@ def mode_iram(ser, args, data):
         print()
 
     print(f"[ Step {step_n}/{n_steps} ] Loading {len(data)} bytes to 0x{addr:08x}...")
+    local_crc = zlib.crc32(data) & 0xFFFFFFFF
     for attempt in range(1, 3):
-        fw_crc    = step_loadi(ser, addr, data, args.timeout)
-        local_crc = zlib.crc32(data) & 0xFFFFFFFF
+        fw_crc = step_loadi(ser, addr, data, args.timeout)
         if fw_crc == local_crc:
             log_ok(f"CRC32 OK: 0x{fw_crc:08x}")
             break
@@ -578,6 +584,7 @@ def mode_iram(ser, args, data):
             log(f"Restoring baud rate to {args.baud}...")
             if not step_switch_speed(ser, args.baud, args.timeout):
                 log_warn(f"Failed to restore baud rate to {args.baud}.")
+        log_ok(f"Done in {elapsed(t_total)}.")
 
 
 # ---------------------------------------------------------------------------
@@ -618,7 +625,7 @@ def parse_args():
                        formatter_class=argparse.RawDescriptionHelpFormatter,
                        epilog=seg_epilog)
     p.add_argument("binary", metavar="BINARY", help="Path to .bin file")
-    p.add_argument("--segment", default="app", choices=list(SEGMENTS),
+    p.add_argument("--segment", default="app", choices=list(SEGMENTS), metavar="SEGMENT",
                    help="Target segment (default: app)")
     p.add_argument("--chunk-size", dest="chunk_size", default=DEFAULT_CHUNK, type=int,
                    help=f"Bytes per chunk, multiple of {SECTOR_SIZE} (default: {DEFAULT_CHUNK})")
@@ -628,7 +635,7 @@ def parse_args():
     p = sub.add_parser("backup", help="Read a flash segment to a file",
                        formatter_class=argparse.RawDescriptionHelpFormatter,
                        epilog=seg_epilog)
-    p.add_argument("--segment", default="app", choices=list(SEGMENTS),
+    p.add_argument("--segment", default="app", choices=list(SEGMENTS), metavar="SEGMENT",
                    help="Source segment (default: app)")
     p.add_argument("--output", default=None,
                    help="Output file (default: backups/<segment>_TIMESTAMP.bin)")
