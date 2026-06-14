@@ -31,7 +31,7 @@ for target in $TARGETS ; do
 done
 
 echo "Cleaning up..."
-cd $START_DIR
+cd $PROJECT_DIR
 rm -rf $BUILD_DIR
 
 exit $exit_status

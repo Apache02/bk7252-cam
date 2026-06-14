@@ -24,10 +24,10 @@ Each firmware target produced by `bk_firmware()` (see `cmake/firmware.cmake`) po
 Smoke-build the main app targets in a throwaway directory:
 
 ```sh
-./test_build.sh
+./smoke_build.sh
 ```
 
-There is no unit-test framework — `test_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell`.
+There is no unit-test framework — `smoke_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell`.
 
 ## Flash / backup / monitor
 
@@ -78,5 +78,5 @@ External dependencies are fetched into `libs/` by `dependencies.cmake` via `Fetc
 - CRC wrapping (`tools/crc`) is required to produce a flashable image — never flash the raw `*.bin`, always `*_crc.bin` / `app_crc.bin`.
 - The IRAM build (`*--iram` target, `app_iram.bin`) is for loading and running directly out of RAM block 2 via `tools/bkloader iram` — useful for fast iteration without writing flash. `tools/bkloader iram` requires a shell with `loadi`, `go`, and `speed` commands running on the chip; `src/applications/ram_loader` is the dedicated app for this purpose.
 - All source content (identifiers, comments, strings, docs) must be English-only.
-- Do not run the build (`cmake`, `make`, `./test_build.sh`) — the user runs builds themselves. Exception: `make test_probe--iram` is allowed when using the `run-on-chip` skill for `src/tests/probe/` experiments.
+- Do not run the build (`cmake`, `make`, `./smoke_build.sh`) — the user runs builds themselves. Exception: `make test_probe--iram` is allowed when using the `run-on-chip` skill for `src/tests/probe/` experiments.
 - `src/tests/probe/` is the scratch template for the `run-on-chip` skill — never commit anything in that directory unless explicitly told to (e.g. when updating the template itself).
