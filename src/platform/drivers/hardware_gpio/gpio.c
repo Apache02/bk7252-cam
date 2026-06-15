@@ -15,12 +15,12 @@ void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
             reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT;
             break;
         case GPIO_IN_PULLUP:
-            // 0x2C
-            reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT;
+            // 0x3C — SDK GMODE_INPUT_PULLUP: pull_mode=1
+            reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT | GPIO_PULL_MODE_BIT;
             break;
         case GPIO_IN_PULLDOWN:
-            // 0x3C
-            reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT | GPIO_PULL_MODE_BIT;
+            // 0x2C — SDK GMODE_INPUT_PULLDOWN: pull_mode=0
+            reg_value = GPIO_OUTPUT_ENABLE_BIT | GPIO_INPUT_ENABLE_BIT | GPIO_PULL_ENABLE_BIT;
             break;
         case GPIO_SECOND_FUNC:
             // 0x48

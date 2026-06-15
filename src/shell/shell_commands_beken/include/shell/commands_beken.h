@@ -53,6 +53,8 @@ int command_sha256(int argc, const char *argv[]);
 
 int command_sha512(int argc, const char *argv[]);
 
+int command_gpio(int argc, const char *argv[]);
+
 #ifdef __cplusplus
 }
 

@@ -28,6 +28,7 @@ const Shell::Handler shell_handlers[] = {
     {"sys_ctl_test", comand_sys_ctl_test, nullptr},
     {"pwm", command_pwm, nullptr},
     {"pwm_stop", command_pwm_stop, nullptr},
+    {"gpio", command_gpio, nullptr},
     {"sos", command_sos, nullptr},
     {"gpio_blink", command_gpio_blink, nullptr},
     {"tt", command_timers_test, nullptr},

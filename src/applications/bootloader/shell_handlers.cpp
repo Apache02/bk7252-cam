@@ -30,6 +30,7 @@ const Shell::Handler shell_handlers[] = {
     {"chip_id",     command_chip_id,               "print chip and device IDs"},
     {"dump",        command_dump,                  "hex dump of memory: [addr]"},
     {"dump32",      command_dump32,                "32-bit word dump of memory: [addr]"},
+    {"gpio",        command_gpio,                   nullptr},
 
     {nullptr, nullptr, nullptr},
 };

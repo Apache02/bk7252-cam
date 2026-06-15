@@ -255,27 +255,6 @@ Fix: return `int` with a meaningful error code, validate `addr + count`.
 
 ## Cosmetic
 
-### C1. `GPIO_SECOND_FUNC_PULLUP` is named "pullup" but configures pulldown
-
-File: `hardware_gpio/include/hardware/gpio.h` and `hardware_gpio/gpio.c`.
-
-The enum sets `GPIO_PULL_MODE_BIT = 1` in addition to `GPIO_PULL_ENABLE_BIT`.
-By the convention used elsewhere in the same driver (`GPIO_IN_PULLUP` =
-`pull_mode = 0`, `GPIO_IN_PULLDOWN` = `pull_mode = 1`) this combination is
-pulldown, not pullup.
-
-It is currently used only for UART RX pins (where pulldown is wrong on its
-own, but the second-function override may make it irrelevant), so the actual
-electrical behaviour might be correct by accident. Worth verifying with a
-scope before renaming, because:
-- if behaviour is actually pulldown but desired is pullup, the bit is wrong;
-- if behaviour is pullup, the BK convention for `pull_mode` differs from the
-  comments in this file.
-
-Action: either rename the enum to `GPIO_SECOND_FUNC_PULLDOWN` or flip the
-`GPIO_PULL_MODE_BIT` value to match the name — but first measure on hardware
-to know which side of the contradiction to trust.
-
 ### C2. RSA driver is a placeholder, no implementation planned
 
 Files: `hardware_security/rsa.c`, `hardware_security/include/hardware/rsa.h`.
@@ -395,3 +374,4 @@ For traceability — these were fixed in commit `a7cebc0`:
 | 23 | `register_sys_counter` had no IRQ-disable guard   |
 | Arch5 | `cpu.S`/`cpu.h`/`arm.h` extracted from `platform_boot` into `platform_cpu`; `shell_commands_beken` now explicitly links `platform_cpu` |
 | F9 | `flash_init()` added to `hardware_flash/flash.c` (RDID + clk_conf=5 + model_sel=1); registered `INIT_AT(02)`; called explicitly from bootloader `preinit()` |
+| C1 | `GPIO_IN_PULLUP`/`GPIO_IN_PULLDOWN` had `GPIO_PULL_MODE_BIT` swapped; confirmed against SDK (`GMODE_INPUT_PULLUP=0x3C`, `GMODE_INPUT_PULLDOWN=0x2C`); fixed in `hardware_gpio/gpio.c`. `GPIO_SECOND_FUNC_PULLUP=0x78` was already correct. |
