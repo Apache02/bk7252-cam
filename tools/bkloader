@@ -257,7 +257,7 @@ def step_loadi(ser, buf_addr, chunk, timeout, label="", retries=3):
 
     sent = 0
     t_start = time.monotonic()
-    prefix = f"    [{label}] Uploading" if label else "  Uploading"
+    prefix = f"    [{label}] Uploading" if label else "    Uploading"
     while sent < size:
         block = chunk[sent:sent + 512]
         ser.write(block)
