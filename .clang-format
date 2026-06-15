@@ -2,6 +2,13 @@
 # The K&R style, also known as Kernighan and Ritchie style, is a common coding style named after the authors of "The C Programming Language."
 # In this style, the opening brace is placed on the same line as the control statement, and the closing brace is on its own line.
 BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+SortIncludes: Never
+IndentCaseLabels: true
+BreakStringLiterals: false
+ColumnLimit: 160
 
 BraceWrapping:
   AfterClass: false
