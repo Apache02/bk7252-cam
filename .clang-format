@@ -9,6 +9,10 @@ SortIncludes: Never
 IndentCaseLabels: true
 BreakStringLiterals: false
 ColumnLimit: 160
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AttributeMacros:
+  - __data
+  - __noinline
 
 BraceWrapping:
   AfterClass: false
