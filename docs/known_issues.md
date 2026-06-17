@@ -350,6 +350,29 @@ Fix: if a production Data Abort handler is ever needed, increase
 `_UNUSED_STACK_SIZE_` in `boot.h` and give ABT mode its own dedicated region
 in `flash.lds` / `iram.lds`.
 
+### Arch6. RAM (0x00400000) is non-executable — `__data` / `.data` code causes prefetch abort
+
+Confirmed on hardware via `src/tests/probe/` (June 2026).
+
+The BK7252 MPU marks the general-purpose RAM region (`0x00400000–0x004FFFFF`) as
+non-executable.  Any attempt to branch to an address in this region immediately
+triggers a prefetch abort.  Only IRAM (`0x00900000–0x0093FFFF`) is executable.
+
+Implications:
+
+- The `__data` attribute (or `__attribute__((section(".data")))`) places the function
+  body in the `.data` section, which is linked to RAM VMA.  Code compiled with this
+  attribute will crash with a prefetch abort the first time it is called.
+- For flash firmware, code that must run during the XIP gap (e.g. `flash_bypass_xfer`
+  while `flash_spi_mux = 1`) **must** reside in IRAM.  Use
+  `__attribute__((section(".iram.text")))` or a dedicated IRAM section.
+- For IRAM firmware (`iram.lds`), all `.text` is already in IRAM, so this constraint
+  is automatically satisfied — no special attributes are needed.
+
+Workaround: for the bypass driver (see `wip/flash-bypass` branch), IRAM firmware is
+used for now.  A production flash-firmware version of `flash_bypass_xfer` will need an
+explicit IRAM section attribute.
+
 ---
 
 ## Index of fixed issues
