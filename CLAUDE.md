@@ -62,7 +62,7 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/boards/` — board pin/feature headers. `BOARD` CMake var (or `$ENV{BOARD}`, default `A9_B_V1_3`) selects the active board and adds `BOARD_<NAME>` as a compile definition via the `board_config` INTERFACE library; `include/board.h` is the umbrella header consumers include.
 
-- `src/linker/` — `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`) and `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.md` for the full chip memory map.
+- `src/linker/` — three linker scripts: `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`), `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`), and `bootloader.lds` (bootloader image from flash @ `0x00000000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.md` for the full chip memory map.
 
 - `src/utils/` — generic helpers (`crc`, `busy_wait`).
 
