@@ -18,6 +18,7 @@ include(cmake/toolchain.cmake)
 include(cmake/firmware.cmake)
 include(cmake/iram.cmake)
 include(cmake/bootloader.cmake)
+include(cmake/format.cmake)
 
 add_compile_options(-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}=.)
 

@@ -3,12 +3,10 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-
 static size_t xNumberOfSuccessfulAllocations = 0;
-static size_t xNumberOfSuccessfulFrees = 0;
+static size_t xNumberOfSuccessfulFrees       = 0;
 
 static void pool_walker(void *ptr, size_t size, int used, void *user);
-
 
 void *pvPortMalloc(size_t xWantedSize) {
     if (xWantedSize == 0) {
@@ -32,7 +30,7 @@ void *pvPortMalloc(size_t xWantedSize) {
 
     xTaskResumeAll();
 
-#if ( configUSE_MALLOC_FAILED_HOOK == 1 )
+#if (configUSE_MALLOC_FAILED_HOOK == 1)
     if (pv == NULL) {
         vApplicationMallocFailedHook();
     }
@@ -43,7 +41,7 @@ void *pvPortMalloc(size_t xWantedSize) {
 
 void *pvPortCalloc(size_t xNum, size_t xSize) {
     size_t total = xNum * xSize;
-    void *p = pvPortMalloc(total);
+    void  *p     = pvPortMalloc(total);
     if (p) {
         memset(p, 0, total);
     }
@@ -70,12 +68,10 @@ size_t xPortGetFreeHeapSize(void) {
     return s.xAvailableHeapSpaceInBytes;
 }
 
-size_t xPortGetMinimumEverFreeHeapSize(void) {
-    return g_xMinimumEverFreeBytesRemaining;
-}
+size_t xPortGetMinimumEverFreeHeapSize(void) { return g_xMinimumEverFreeBytesRemaining; }
 
 static void pool_walker(__unused void *ptr, size_t size, int used, void *user) {
-    HeapStats_t *s = (HeapStats_t *) user;
+    HeapStats_t *s = (HeapStats_t *)user;
 
     if (!used) {
         s->xAvailableHeapSpaceInBytes += size;
@@ -90,10 +86,10 @@ static void pool_walker(__unused void *ptr, size_t size, int used, void *user) {
 }
 
 void vPortGetHeapStats(HeapStats_t *pxHeapStats) {
-    pxHeapStats->xAvailableHeapSpaceInBytes = 0;
-    pxHeapStats->xSizeOfLargestFreeBlockInBytes = 0;
+    pxHeapStats->xAvailableHeapSpaceInBytes      = 0;
+    pxHeapStats->xSizeOfLargestFreeBlockInBytes  = 0;
     pxHeapStats->xSizeOfSmallestFreeBlockInBytes = 0;
-    pxHeapStats->xNumberOfFreeBlocks = 0;
+    pxHeapStats->xNumberOfFreeBlocks             = 0;
 
     vTaskSuspendAll();
     tlsf_walk_pool(g_pvTLSFPool, pool_walker, pxHeapStats);
@@ -101,5 +97,5 @@ void vPortGetHeapStats(HeapStats_t *pxHeapStats) {
 
     pxHeapStats->xMinimumEverFreeBytesRemaining = g_xMinimumEverFreeBytesRemaining;
     pxHeapStats->xNumberOfSuccessfulAllocations = xNumberOfSuccessfulAllocations;
-    pxHeapStats->xNumberOfSuccessfulFrees = xNumberOfSuccessfulFrees;
+    pxHeapStats->xNumberOfSuccessfulFrees       = xNumberOfSuccessfulFrees;
 }

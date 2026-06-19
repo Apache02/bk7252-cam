@@ -3,4 +3,4 @@
 #include "platform/soc.h"
 
 
-#define FFT_BASE                            (0x00805000)
+#define FFT_BASE (0x00805000)

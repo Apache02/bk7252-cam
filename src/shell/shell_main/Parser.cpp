@@ -5,7 +5,7 @@
 //------------------------------------------------------------------------------
 
 static bool parse_binary_literal(const char *s, int &out) {
-    int accum = 0;
+    int accum  = 0;
     int digits = 0;
 
     while (*s && !isspace(*s)) {
@@ -27,8 +27,8 @@ static bool parse_binary_literal(const char *s, int &out) {
 //------------------------------------------------------------------------------
 
 static bool parse_decimal_literal(const char *s, int &out) {
-    int accum = 0;
-    int sign = 1;
+    int accum  = 0;
+    int sign   = 1;
     int digits = 0;
 
     if (*s == '-') {
@@ -52,7 +52,7 @@ static bool parse_decimal_literal(const char *s, int &out) {
 //------------------------------------------------------------------------------
 
 static bool parse_hex_literal(const char *s, int &out) {
-    int accum = 0;
+    int accum  = 0;
     int digits = 0;
 
     while (*s && !isspace(*s)) {
@@ -79,7 +79,7 @@ static bool parse_hex_literal(const char *s, int &out) {
 
 static bool parse_octal_literal(const char *&cursor, int &out) {
     int accum = 0;
-    int sign = 1;
+    int sign  = 1;
 
     if (*cursor == '-') {
         sign = -1;
@@ -103,7 +103,8 @@ static bool parse_octal_literal(const char *&cursor, int &out) {
 
 static bool parse_int_literal(const char *s, int &out) {
     // Skip leading whitespace
-    while (isspace(*s)) s++;
+    while (isspace(*s))
+        s++;
 
     if (*s != '0') return parse_decimal_literal(s, out);
 

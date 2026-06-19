@@ -5,7 +5,6 @@
 #include "hardware/gpio.h"
 #include "board.h"
 
-
 static inline void panic_write(const char *message) {
     if (uart1_is_tx_active()) {
         for (const char *tmp = message; *tmp != '\0'; tmp++) {

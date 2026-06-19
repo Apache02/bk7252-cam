@@ -2,21 +2,20 @@
 #include <stdint.h>
 #include "shell/Parser.h"
 
-
 /**
  * Returns true if the block is uniform (all words equal).
  */
 static bool probe_pass1(uint32_t addr, uint32_t size) {
-    auto *ptr = reinterpret_cast<volatile uint32_t *>(addr);
+    auto    *ptr   = reinterpret_cast<volatile uint32_t *>(addr);
     uint32_t count = size / 4;
 
-    uint32_t run_val = ptr[0];
+    uint32_t run_val   = ptr[0];
     uint32_t run_start = addr;
     uint32_t run_bytes = 0;
-    bool uniform = true;
+    bool     uniform   = true;
 
     for (uint32_t i = 0; i < count; i++) {
-        uint32_t val = ptr[i];
+        uint32_t val      = ptr[i];
         uint32_t cur_addr = addr + i * 4;
 
         if (val == run_val) {
@@ -29,16 +28,11 @@ static bool probe_pass1(uint32_t addr, uint32_t size) {
             uniform = false;
         }
 
-        printf("  0x%08lx: 0x%08lx bytes of 0x%08lx  ->  diverges at 0x%08lx = 0x%08lx\r\n",
-               run_start,
-               run_bytes,
-               run_val,
-               cur_addr,
-               val
-        );
+        printf("  0x%08lx: 0x%08lx bytes of 0x%08lx  ->  diverges at 0x%08lx = 0x%08lx\r\n", run_start, run_bytes,
+               run_val, cur_addr, val);
 
         run_start = cur_addr;
-        run_val = val;
+        run_val   = val;
         run_bytes = 4;
     }
 
@@ -53,12 +47,12 @@ static bool probe_pass1(uint32_t addr, uint32_t size) {
 }
 
 static void probe_pass2(uint32_t addr, uint32_t size) {
-    auto *ptr = reinterpret_cast<volatile uint32_t *>(addr);
+    auto    *ptr   = reinterpret_cast<volatile uint32_t *>(addr);
     uint32_t count = size / 4;
 
     printf("[pass2] Write-read test (addr -> cell -> restore)...\r\n");
 
-    uint32_t ok_count = 0;
+    uint32_t ok_count   = 0;
     uint32_t fail_count = 0;
 
     for (uint32_t i = 0; i < count; i++) {
@@ -66,7 +60,7 @@ static void probe_pass2(uint32_t addr, uint32_t size) {
         // uint32_t orig = ptr[i];
 
         ptr[i] = cur_addr;
-        __asm__ volatile ("" ::: "memory");
+        __asm__ volatile("" ::: "memory");
         uint32_t readback = ptr[i];
 
         if (readback == cur_addr) {
@@ -116,11 +110,7 @@ int command_probe_ram(int argc, const char *argv[]) {
         return -1;
     }
 
-    printf("Probing 0x%08lx .. 0x%08lx (0x%lx bytes)\r\n",
-           addr,
-           (addr + size - 1),
-           size
-    );
+    printf("Probing 0x%08lx .. 0x%08lx (0x%lx bytes)\r\n", addr, (addr + size - 1), size);
 
     bool uniform = probe_pass1(addr, size);
 

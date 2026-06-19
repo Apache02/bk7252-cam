@@ -4,21 +4,21 @@
 #include <stdbool.h>
 #include "platform/cpu.h"
 
-
-#define disable_interrupts()            GLOBAL_INT_DECLARATION(); GLOBAL_INT_DISABLE()
-#define restore_interrupts()            GLOBAL_INT_RESTORE()
+#define disable_interrupts()  \
+    GLOBAL_INT_DECLARATION(); \
+    GLOBAL_INT_DISABLE()
+#define restore_interrupts() GLOBAL_INT_RESTORE()
 
 // max interrupts handlers
-#define MAX_HANDLERS        32
-
+#define MAX_HANDLERS 32
 
 struct interrupt_handler_t {
     interrupt_handler_cb *handler;
-    uint32_t source;
+    uint32_t              source;
 };
 
 struct handlers_collection_t {
-    size_t count;
+    size_t                     count;
     struct interrupt_handler_t handlers[MAX_HANDLERS];
 };
 
@@ -27,9 +27,8 @@ static struct {
     struct handlers_collection_t fiq;
 } intc_manager;
 
-
-static inline bool
-register_handler(struct handlers_collection_t *collection, uint32_t source, interrupt_handler_cb *func) {
+static inline bool register_handler(struct handlers_collection_t *collection, uint32_t source,
+                                    interrupt_handler_cb *func) {
     disable_interrupts();
 
     for (int i = 0; i < collection->count; i++) {
@@ -40,25 +39,25 @@ register_handler(struct handlers_collection_t *collection, uint32_t source, inte
         }
     }
 
-    int i = collection->count;
+    int i                           = collection->count;
     collection->handlers[i].handler = func;
-    collection->handlers[i].source = source;
+    collection->handlers[i].source  = source;
     collection->count++;
 
     restore_interrupts();
     return true;
 }
 
-static inline bool
-unregister_handler(struct handlers_collection_t *collection, uint32_t source, interrupt_handler_cb *func) {
-    int found = -1;
+static inline bool unregister_handler(struct handlers_collection_t *collection, uint32_t source,
+                                      interrupt_handler_cb *func) {
+    int found   = -1;
     bool delete = false;
 
     disable_interrupts();
 
     for (int i = 0; i < collection->count; i++) {
         if (collection->handlers[i].handler == func) {
-            found = i;
+            found  = i;
             delete = (collection->handlers[i].source & ~source) == 0;
         }
     }
@@ -77,4 +76,3 @@ unregister_handler(struct handlers_collection_t *collection, uint32_t source, in
 
     return found != -1;
 }
-

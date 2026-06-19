@@ -3,7 +3,6 @@
 #include "platform/stdio.h"
 #include "hardware/wdt.h"
 
-
 extern "C" void test_sha();
 extern "C" void test_aes();
 

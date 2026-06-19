@@ -9,20 +9,19 @@
 #include "net.h"
 
 
-#define count_of(x)     (sizeof(x) / sizeof(x[0]))
-
+#define count_of(x) (sizeof(x) / sizeof(x[0]))
 
 /*-----------------------------------------------------------*/
 
 static StaticTask_t shellTaskTCB;
-static StackType_t shellTaskStack[configMINIMAL_STACK_SIZE * 6];
+static StackType_t  shellTaskStack[configMINIMAL_STACK_SIZE * 6];
 
 extern void vTaskShell(void *pvParams);
 
 /*-----------------------------------------------------------*/
 
 static StaticTask_t wdtTaskTCB;
-static StackType_t wdtTaskStack[40];
+static StackType_t  wdtTaskStack[40];
 
 void vTaskWdt(__unused void *pvParams) {
     wdt_init();
@@ -37,31 +36,16 @@ void vTaskWdt(__unused void *pvParams) {
 
 /*-----------------------------------------------------------*/
 
-
 int main() {
     wdt_down();
     platform_stdio_init();
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    xTaskCreateStatic(
-        vTaskShell,
-        "shell",
-        count_of(shellTaskStack),
-        NULL,
-        configMAX_PRIORITIES - 1,
-        shellTaskStack,
-        &(shellTaskTCB)
-    );
+    xTaskCreateStatic(vTaskShell, "shell", count_of(shellTaskStack), NULL, configMAX_PRIORITIES - 1, shellTaskStack,
+                      &(shellTaskTCB));
 
-    xTaskCreateStatic(
-        vTaskWdt,
-        "watchdog",
-        count_of(wdtTaskStack),
-        NULL,
-        configMAX_PRIORITIES - 1,
-        wdtTaskStack,
-        &(wdtTaskTCB)
-    );
+    xTaskCreateStatic(vTaskWdt, "watchdog", count_of(wdtTaskStack), NULL, configMAX_PRIORITIES - 1, wdtTaskStack,
+                      &(wdtTaskTCB));
 
     net_init();
 
@@ -78,7 +62,6 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     // wdt_down();
     printf("STACK OVERFLOW: %s\n", pcTaskName);
     // wdt_up();
-    portEXIT_CRITICAL()
-    for (;;);
+    portEXIT_CRITICAL() for (;;);
 }
 #endif

@@ -8,24 +8,22 @@
 
 struct Input {
     unsigned int sentinel1 = 0xDEADBEEF;
-    char buffer[SHELL_INPUT_BUFFER_SIZE]{};
+    char         buffer[SHELL_INPUT_BUFFER_SIZE]{};
     unsigned int sentinel2 = 0xF00DCAFE;
-    int size = 0;
-    bool error = false;
-    char *cursor = buffer;
+    int          size      = 0;
+    bool         error     = false;
+    char        *cursor    = buffer;
 
     void reset() {
         memset(buffer, '\0', sizeof(buffer));
-        size = 0;
-        error = false;
-        cursor = buffer;
+        size      = 0;
+        error     = false;
+        cursor    = buffer;
         sentinel1 = 0xDEADBEEF;
         sentinel2 = 0xF00DCAFE;
     }
 
-    bool check_integrity() {
-        return sentinel1 == 0xDEADBEEF && sentinel2 == 0xF00DCAFE;
-    }
+    bool check_integrity() { return sentinel1 == 0xDEADBEEF && sentinel2 == 0xF00DCAFE; }
 
     void put(char c) {
         if (size >= static_cast<int>(sizeof(buffer) - 1)) {
@@ -39,22 +37,20 @@ struct Input {
         }
     }
 
-    void end() {
-        *cursor = '\0';
-    }
+    void end() { *cursor = '\0'; }
 
     void set(const char *s) {
         reset();
-        while (*s) put(*s++);
+        while (*s)
+            put(*s++);
     }
 
     void put_strn(const char *s, int n) {
-        while (*s && n-- > 0) put(*s++);
+        while (*s && n-- > 0)
+            put(*s++);
     }
 
-    bool is_empty() {
-        return buffer[0] == '\0';
-    }
+    bool is_empty() { return buffer[0] == '\0'; }
 
     // ------------------------------
 
@@ -96,11 +92,7 @@ struct Input {
 
     // ------------------------------
 
-    int get_offset() {
-        return cursor - buffer;
-    }
+    int get_offset() { return cursor - buffer; }
 
-    void set_offset(int offset) {
-        cursor = buffer + offset;
-    }
+    void set_offset(int offset) { cursor = buffer + offset; }
 };

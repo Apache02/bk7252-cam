@@ -2,15 +2,14 @@
 
 #include <stdint.h>
 
-
 class History {
-private:
+  private:
     int8_t depth;
     int8_t index;
     int8_t size;
     char **tokens;
 
-public:
+  public:
     History(int8_t depth);
 
     ~History();

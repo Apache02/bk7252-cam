@@ -5,10 +5,8 @@
 #include "hardware/gpio.h"
 #include "utils/busy_wait.h"
 
-
-#define LED_PIN         26
-#define DELAY           50'000
-
+#define LED_PIN 26
+#define DELAY   50'000
 
 void dot() {
     putchar('.');

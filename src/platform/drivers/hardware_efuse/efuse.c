@@ -1,16 +1,12 @@
 #include "soc/efuse.h"
 #include "hardware/efuse.h"
 
-
 int efuse_read_byte(uint8_t addr) {
     if (addr > 0x1F) return -1;
 
     // Single store latches addr/dir/en together; field-by-field writes would
     // emit three RMW transactions and expose intermediate values to the hw.
-    hw_write_fields(hw_efuse->ctrl,
-        .en = 1,
-        .addr = addr,
-    );
+    hw_write_fields(hw_efuse->ctrl, .en = 1, .addr = addr, );
 
     // wait for read
     for (int timeout = 1000; hw_efuse->ctrl.en; timeout--) {
@@ -36,17 +32,11 @@ int efuse_read_encrypt_word(uint8_t *buf) {
     return efuse_read_block(buf, EFUSE_ENCRYPT_WORD_OFFSET, EFUSE_ENCRYPT_WORD_LEN);
 }
 
-int efuse_read_charge_cal(uint8_t *buf) {
-    return efuse_read_block(buf, EFUSE_CHARGE_CAL_OFFSET, EFUSE_CHARGE_CAL_LEN);
-}
+int efuse_read_charge_cal(uint8_t *buf) { return efuse_read_block(buf, EFUSE_CHARGE_CAL_OFFSET, EFUSE_CHARGE_CAL_LEN); }
 
-int efuse_read_uid(uint8_t *uid) {
-    return efuse_read_block(uid, EFUSE_UID_OFFSET, EFUSE_UID_LEN);
-}
+int efuse_read_uid(uint8_t *uid) { return efuse_read_block(uid, EFUSE_UID_OFFSET, EFUSE_UID_LEN); }
 
-int efuse_read_mac(uint8_t *mac) {
-    return efuse_read_block(mac, EFUSE_MAC_OFFSET, EFUSE_MAC_LEN);
-}
+int efuse_read_mac(uint8_t *mac) { return efuse_read_block(mac, EFUSE_MAC_OFFSET, EFUSE_MAC_LEN); }
 
 int efuse_read_user_area(uint8_t *buf) {
     int result = efuse_read_byte(EFUSE_USER_AREA_OFFSET);

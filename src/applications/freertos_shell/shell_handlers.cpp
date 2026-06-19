@@ -8,7 +8,6 @@
 #include "shell/commands_iram.h"
 #include "shell/Shell.h"
 
-
 static int help(__unused int intc, __unused const char *argv[]) {
     print_command_help(shell_handlers);
     return 0;

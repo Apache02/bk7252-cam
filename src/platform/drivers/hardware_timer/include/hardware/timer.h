@@ -4,9 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-
-typedef void (timer_alarm_handler_t)(int timer_num);
-
+typedef void(timer_alarm_handler_t)(int timer_num);
 
 #ifdef __cplusplus
 extern "C" {

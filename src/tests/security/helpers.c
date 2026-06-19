@@ -9,7 +9,7 @@ int hex_nibble(char c) {
 
 void hex_decode(const char *hex, uint8_t *out, size_t out_len) {
     for (size_t i = 0; i < out_len; i++) {
-        out[i] = (uint8_t) ((hex_nibble(hex[i * 2]) << 4) | hex_nibble(hex[i * 2 + 1]));
+        out[i] = (uint8_t)((hex_nibble(hex[i * 2]) << 4) | hex_nibble(hex[i * 2 + 1]));
     }
 }
 

@@ -2,4 +2,5 @@
 
 #include "platform/soc.h"
 
-#define SARADC_BASE                         (0x00802C00)
+
+#define SARADC_BASE (0x00802C00)

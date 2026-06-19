@@ -7,11 +7,9 @@
 #include "hardware/wdt.h"
 #include "shell/console_colors.h"
 
-
-#define LED_PIN         26
-#define KEY_PWR_PIN     2       // pull up
-#define KEY_MODE_PIN    7       // pull up
-
+#define LED_PIN      26
+#define KEY_PWR_PIN  2 // pull up
+#define KEY_MODE_PIN 7 // pull up
 
 static void init_hardware() {
     portENABLE_IRQ();
@@ -24,13 +22,9 @@ static void init_hardware() {
     gpio_config(KEY_MODE_PIN, GPIO_IN_PULLUP);
 }
 
-static void print_welcome() {
-    printf("\r\n%s.\r\n\r\n", COLOR_WHITE("Shell is ready"));
-}
+static void print_welcome() { printf("\r\n%s.\r\n\r\n", COLOR_WHITE("Shell is ready")); }
 
-static bool is_connected() {
-    return true;
-}
+static bool is_connected() { return true; }
 
 int main() {
     wdt_down();

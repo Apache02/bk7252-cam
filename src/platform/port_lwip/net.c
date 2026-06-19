@@ -3,7 +3,6 @@
 #include "hardware/random.h"
 #include <stdio.h>
 
-
 static void done(__unused void *arg) {
     // printf("net init done\r\n");
 }

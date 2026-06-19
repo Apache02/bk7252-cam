@@ -3,18 +3,17 @@
 #include "Input.h"
 #include "History.h"
 
-
 class Shell {
-public:
-    typedef int (CommandHandlerFunction)(int argc, const char *argv[]);
+  public:
+    typedef int(CommandHandlerFunction)(int argc, const char *argv[]);
 
     struct Handler {
-        const char *const name;
+        const char *const             name;
         CommandHandlerFunction *const handler;
-        const char *const description;
+        const char *const             description;
     };
 
-private:
+  private:
     struct ControlSequence {
         enum {
             NO_SEQUENCE,
@@ -22,20 +21,20 @@ private:
             END_SEQUENCE,
         };
 
-        char buffer[16] = {0};
-        size_t position = 0;
+        char   buffer[16] = {0};
+        size_t position   = 0;
 
         int detect(int c);
     } control_sequence;
 
     size_t autocomplete_streak = 0;
 
-    History *history = nullptr;
+    History       *history  = nullptr;
     const Handler *handlers = nullptr;
 
     Input *input;
 
-public:
+  public:
     Shell(const Handler *handlers);
 
     ~Shell();

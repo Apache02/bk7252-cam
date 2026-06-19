@@ -16,17 +16,12 @@
 //
 // FINI / FINI_AT are symmetric for __libc_fini_array (clean exit).
 
-#define PREINIT(fn)         __attribute__((section(".preinit_array"), used))          \
-                            static typeof(fn) *__preinit_##fn = fn
-#define PREINIT_AT(fn,prio) __attribute__((section(".preinit_array." #prio), used))   \
-                            static typeof(fn) *__preinit_##fn = fn
-#define INIT(fn)            __attribute__((section(".init_array"), used))             \
-                            static typeof(fn) *__init_##fn = fn
-#define INIT_AT(fn, prio)   __attribute__((section(".init_array." #prio), used))      \
-                            static typeof(fn) *__init_##fn = fn
-#define FINI(fn)            __attribute__((section(".fini_array"), used))             \
-                            static typeof(fn) *__fini_##fn = fn
-#define FINI_AT(fn, prio)   __attribute__((section(".fini_array." #prio), used))      \
-                            static typeof(fn) *__fini_##fn = fn
+#define PREINIT(fn) __attribute__((section(".preinit_array"), used)) static typeof(fn) *__preinit_##fn = fn
+#define PREINIT_AT(fn, prio) \
+    __attribute__((section(".preinit_array." #prio), used)) static typeof(fn) *__preinit_##fn = fn
+#define INIT(fn)          __attribute__((section(".init_array"), used)) static typeof(fn) *__init_##fn = fn
+#define INIT_AT(fn, prio) __attribute__((section(".init_array." #prio), used)) static typeof(fn) *__init_##fn = fn
+#define FINI(fn)          __attribute__((section(".fini_array"), used)) static typeof(fn) *__fini_##fn = fn
+#define FINI_AT(fn, prio) __attribute__((section(".fini_array." #prio), used)) static typeof(fn) *__fini_##fn = fn
 
 #endif // _PLATFORM_INIT_H

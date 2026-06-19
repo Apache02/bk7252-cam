@@ -5,27 +5,26 @@
 
 
 #undef count_of
-#define count_of(x)     (sizeof(x) / sizeof(x[0]))
+#define count_of(x) (sizeof(x) / sizeof(x[0]))
 
-#define CONTROL_ARROW_UP        "\x1B[A"
-#define CONTROL_ARROW_DOWN      "\x1B[B"
-#define CONTROL_ARROW_RIGHT     "\x1B[C"
-#define CONTROL_ARROW_LEFT      "\x1B[D"
-#define CONTROL_HOME            "\x1B[H"
-#define CONTROL_HOME_ALT        "\x1B[1~"
-#define CONTROL_END             "\x1B[F"
-#define CONTROL_END_ALT         "\x1B[4~"
-#define CONTROL_PAGE_UP         "\x1B[5~"
-#define CONTROL_PAGE_DOWN       "\x1B[6~"
-#define CONTROL_DELETE          "\x1B[3~"
+#define CONTROL_ARROW_UP    "\x1B[A"
+#define CONTROL_ARROW_DOWN  "\x1B[B"
+#define CONTROL_ARROW_RIGHT "\x1B[C"
+#define CONTROL_ARROW_LEFT  "\x1B[D"
+#define CONTROL_HOME        "\x1B[H"
+#define CONTROL_HOME_ALT    "\x1B[1~"
+#define CONTROL_END         "\x1B[F"
+#define CONTROL_END_ALT     "\x1B[4~"
+#define CONTROL_PAGE_UP     "\x1B[5~"
+#define CONTROL_PAGE_DOWN   "\x1B[6~"
+#define CONTROL_DELETE      "\x1B[3~"
 
-#define EOL                     "\r\n"
-
+#define EOL "\r\n"
 
 Shell::Shell(const Handler *handlers) : handlers(handlers) {
-    history = new History(8);
-    input = new Input();
-    control_sequence.position = 0;
+    history                    = new History(8);
+    input                      = new Input();
+    control_sequence.position  = 0;
     control_sequence.buffer[0] = 0;
 }
 
@@ -38,37 +37,34 @@ Shell::~Shell() {
     input = nullptr;
 }
 
-void Shell::reset() {
-    input->reset();
-}
+void Shell::reset() { input->reset(); }
 
-void Shell::start() {
-    printf("%s ", ">");
-}
+void Shell::start() { printf("%s ", ">"); }
 
-void Shell::clear_line() {
-    printf("\r\x1B[2K\r");
-}
+void Shell::clear_line() { printf("\r\x1B[2K\r"); }
 
 int Shell::handle_input() {
     const char *argv[32];
-    int argc = 0;
+    int         argc = 0;
 
     char *ptr = input->buffer;
     char *end = input->buffer + input->size;
 
     while (ptr < end && argc < static_cast<int>(count_of(argv) - 1)) {
-        while (ptr < end && *ptr == ' ') ptr++;
+        while (ptr < end && *ptr == ' ')
+            ptr++;
         if (ptr >= end) break;
 
         if (*ptr == '"') {
             ptr++;
             argv[argc++] = ptr;
-            while (ptr < end && *ptr != '"') ptr++;
+            while (ptr < end && *ptr != '"')
+                ptr++;
             *ptr++ = '\0';
         } else {
             argv[argc++] = ptr;
-            while (ptr < end && *ptr != ' ') ptr++;
+            while (ptr < end && *ptr != ' ')
+                ptr++;
             *ptr++ = '\0';
         }
     }
@@ -150,7 +146,7 @@ void Shell::update(int c) {
 int Shell::ControlSequence::detect(int c) {
     if (c == '\x1B') {
         // this is the beginning of control sequence
-        position = 0;
+        position           = 0;
         buffer[position++] = c;
 
         return IN_SEQUENCE;
@@ -174,11 +170,11 @@ int Shell::ControlSequence::detect(int c) {
         if (c >= 'A' && c <= 'Z') {
             // end of control sequence
             buffer[position] = 0;
-            position = 0;
+            position         = 0;
         } else if (c == '~') {
             // end of control sequence [F1-F12]
             buffer[position] = 0;
-            position = 0;
+            position         = 0;
         } else if (position >= count_of(buffer)) {
             // buffer overflow
             position = 0;

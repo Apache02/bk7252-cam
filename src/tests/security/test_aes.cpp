@@ -2,24 +2,22 @@
 #include "helpers.h"
 #include "hardware/aes.h"
 
-
 typedef int (*aes_fn_t)(const uint8_t *, const uint8_t *, uint8_t *, size_t);
 
 struct aes_test_case {
     const char *name;
-    const char *key_hex;         // 16 / 24 / 32 bytes
-    const char *input_hex;       // multiple of 16 bytes
-    const char *expected_hex;    // same length as input
+    const char *key_hex;      // 16 / 24 / 32 bytes
+    const char *input_hex;    // multiple of 16 bytes
+    const char *expected_hex; // same length as input
 };
 
 struct aes_algorithm {
-    const char *name;
-    aes_fn_t fn;
-    size_t key_size;             // bytes
+    const char          *name;
+    aes_fn_t             fn;
+    size_t               key_size; // bytes
     const aes_test_case *cases;
-    size_t case_count;
+    size_t               case_count;
 };
-
 
 // Single-block vectors: FIPS 197 Appendix C (pt = 00112233...eeff).
 // Multi-block vectors: NIST SP 800-38A §F.1 ECB examples (4 blocks = 64 B).
@@ -142,9 +140,8 @@ static const aes_test_case aes256_dec_cases[] = {
     },
 };
 
-
 #define ALG(name_str, fn_, key_size_, cases_) \
-    {name_str, fn_, key_size_, cases_, sizeof(cases_) / sizeof(cases_[0])}
+    { name_str, fn_, key_size_, cases_, sizeof(cases_) / sizeof(cases_[0]) }
 
 static const aes_algorithm aes_algorithms[] = {
     ALG("AES-128 encrypt", aes128_encrypt, 16, aes128_enc_cases),
@@ -155,9 +152,7 @@ static const aes_algorithm aes_algorithms[] = {
     ALG("AES-256 decrypt", aes256_decrypt, 32, aes256_dec_cases),
 };
 
-
 // ==========================================================================
-
 
 static bool run_case(const aes_algorithm *alg, const aes_test_case *tc) {
     uint8_t key[32];
@@ -170,11 +165,10 @@ static bool run_case(const aes_algorithm *alg, const aes_test_case *tc) {
     hex_decode(tc->input_hex, input, data_len);
     hex_decode(tc->expected_hex, expected, data_len);
 
-    int rc = alg->fn(key, input, output, data_len);
+    int  rc = alg->fn(key, input, output, data_len);
     bool ok = (rc == 0) && (memcmp(output, expected, data_len) == 0);
 
-    printf("  [%s] %s [%s] len=%u = ", ok ? " OK " : "FAIL",
-           alg->name, tc->name, (unsigned) data_len);
+    printf("  [%s] %s [%s] len=%u = ", ok ? " OK " : "FAIL", alg->name, tc->name, (unsigned)data_len);
     print_hex(output, data_len);
     if (!ok) {
         printf("\r\n         expected ");
@@ -184,9 +178,8 @@ static bool run_case(const aes_algorithm *alg, const aes_test_case *tc) {
     return ok;
 }
 
-
 extern "C" void test_aes() {
-    size_t total = 0;
+    size_t total  = 0;
     size_t passed = 0;
 
     for (const aes_algorithm &alg : aes_algorithms) {
@@ -199,5 +192,5 @@ extern "C" void test_aes() {
         }
     }
 
-    printf("\r\n%u / %u passed\r\n\r\n", (unsigned) passed, (unsigned) total);
+    printf("\r\n%u / %u passed\r\n\r\n", (unsigned)passed, (unsigned)total);
 }

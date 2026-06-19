@@ -2,9 +2,8 @@
 
 #include <initializer_list>
 
-
 class Table {
-public:
+  public:
     enum class Align { Left, Right };
 
     struct ColumnDef {
@@ -17,16 +16,16 @@ public:
     // ─── Row ─────────────────────────────────────────────────────────────────
 
     class Row {
-    public:
+      public:
         explicit Row(const Table *table);
         ~Row();
 
         Row *set(const char *col_name, ...);
 
-    private:
+      private:
         friend class Table;
-        const Table  *table_;
-        char        **cells_;
+        const Table *table_;
+        char       **cells_;
     };
 
     // ─── Table ────────────────────────────────────────────────────────────────
@@ -35,14 +34,14 @@ public:
     Table(const ColumnDef *cols, int col_count);
     ~Table();
 
-    Row  *createRow() const;
-    void  printHeader() const;
-    void  printRow(const Row *row) const;
-    void  printSeparator() const;
+    Row *createRow() const;
+    void printHeader() const;
+    void printRow(const Row *row) const;
+    void printSeparator() const;
 
-private:
+  private:
     ColumnDef *cols_;
     int        col_count_;
 
-    int  find_col(const char *name) const;
+    int find_col(const char *name) const;
 };

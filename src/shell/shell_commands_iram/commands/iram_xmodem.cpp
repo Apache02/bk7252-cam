@@ -7,7 +7,6 @@
 #include "utils/crc32.h"
 #include "utils/busy_wait.h"
 
-
 extern "C" int xmodem_getc(int timeout_ms) {
     for (int i = 0; i < timeout_ms * 200; i++) {
         int c = getchar();
@@ -17,14 +16,11 @@ extern "C" int xmodem_getc(int timeout_ms) {
     return -1;
 }
 
-extern "C" void xmodem_putc(uint8_t c) {
-    putchar(c);
-}
-
+extern "C" void xmodem_putc(uint8_t c) { putchar(c); }
 
 static bool inline valid_ram(uint32_t addr) {
-    return (addr >= 0x00400000 && addr < 0x00400000 + 0x00040000)
-        || (addr >= 0x00900000 && addr < 0x00900000 + 0x00040000);
+    return (addr >= 0x00400000 && addr < 0x00400000 + 0x00040000) ||
+           (addr >= 0x00900000 && addr < 0x00900000 + 0x00040000);
 }
 
 int command_iram_xmodem(int argc, const char *argv[]) {
@@ -40,9 +36,8 @@ int command_iram_xmodem(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t region_end = (addr >= 0x00900000u) ? (0x00900000u + 0x00040000u)
-                                                 : (0x00400000u + 0x00040000u);
-    uint32_t max_size = region_end - addr;
+    uint32_t region_end = (addr >= 0x00900000u) ? (0x00900000u + 0x00040000u) : (0x00400000u + 0x00040000u);
+    uint32_t max_size   = region_end - addr;
     if (argc == 3) {
         uint32_t arg_size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
         if (arg_size == 0 || arg_size > max_size) {
@@ -64,17 +59,23 @@ int command_iram_xmodem(int argc, const char *argv[]) {
     if (received < 0) {
         const char *reason = "unknown error";
         switch (received) {
-            case XMODEM_ERR_TIMEOUT: reason = "timeout";
+            case XMODEM_ERR_TIMEOUT:
+                reason = "timeout";
                 break;
-            case XMODEM_ERR_CRC: reason = "CRC error";
+            case XMODEM_ERR_CRC:
+                reason = "CRC error";
                 break;
-            case XMODEM_ERR_SEQ: reason = "sequence error";
+            case XMODEM_ERR_SEQ:
+                reason = "sequence error";
                 break;
-            case XMODEM_ERR_ABORT: reason = "aborted by sender";
+            case XMODEM_ERR_ABORT:
+                reason = "aborted by sender";
                 break;
-            case XMODEM_ERR_OVERFLOW: reason = "buffer overflow";
+            case XMODEM_ERR_OVERFLOW:
+                reason = "buffer overflow";
                 break;
-            case XMODEM_ERR_NAK: reason = "too many NAKs";
+            case XMODEM_ERR_NAK:
+                reason = "too many NAKs";
                 break;
         }
         printf(COLOR_RED("\r\nXMODEM failed: %s (%ld)") "\r\n", reason, received);

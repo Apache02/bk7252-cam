@@ -4,11 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 void uart1_init();
 
@@ -37,7 +35,6 @@ void uart2_flush();
 void uart1_set_baudrate(unsigned long baudrate);
 
 void uart2_set_baudrate(unsigned long baudrate);
-
 
 #ifdef __cplusplus
 }

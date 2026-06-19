@@ -1,6 +1,5 @@
 #include "platform/panic.h"
 
-
 void bk_trap_udef() {
     panic_blink(1);
     panic("bk_trap_udef");
@@ -25,6 +24,5 @@ void bk_trap_swi() {
     panic_blink(5);
     panic("bk_trap_swi");
 }
-
 
 // eof

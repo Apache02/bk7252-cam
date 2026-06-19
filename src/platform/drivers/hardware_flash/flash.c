@@ -4,51 +4,37 @@
 #include "platform/init.h"
 
 
-#define FLASH_READ_WORDS_COUNT      (FLASH_READ_BLOCK_SIZE / sizeof(uint32_t))
+#define FLASH_READ_WORDS_COUNT (FLASH_READ_BLOCK_SIZE / sizeof(uint32_t))
 
 
-static inline uint32_t min_u32(uint32_t a, uint32_t b) {
-    return a < b ? a : b;
-}
+static inline uint32_t min_u32(uint32_t a, uint32_t b) { return a < b ? a : b; }
 
 static inline void wait_busy_bit() {
-    while (hw_flash->operate_sw.busy);
+    while (hw_flash->operate_sw.busy)
+        ;
 }
 
 /* Single atomic write to operate_sw: sets addr, opcode, wp=1, op_sw=1 together.
  * Avoids read-modify-write races on operate_sw and matches the SDK pattern. */
 static inline void trigger(uint32_t addr, FLASH_OPCODE op) {
-    hw_write_fields(hw_flash->operate_sw,
-        .addr = addr,
-        .op_type_sw = op,
-        .op_sw = 1,
-        .wp = 1,
-    );
+    hw_write_fields(hw_flash->operate_sw, .addr = addr, .op_type_sw = op, .op_sw = 1, .wp = 1, );
     wait_busy_bit();
 }
 
 /* Issue Write Enable (WREN). Required before every SE and PP — the BK7252
  * controller does not auto-issue WREN and suppresses PP/SE without it. */
-static void wren(void) {
-    trigger(0, FLASH_OPCODE_WREN);
-}
+static void wren(void) { trigger(0, FLASH_OPCODE_WREN); }
 
 void flash_init(void) {
     wait_busy_bit();
     trigger(0, FLASH_OPCODE_RDID);
 
-    hw_write_fields(hw_flash->conf,
-        .clk_conf  = 5,
-        .model_sel = 1,
-        .crc_en = 1,
-    );
+    hw_write_fields(hw_flash->conf, .clk_conf = 5, .model_sel = 1, .crc_en = 1, );
     hw_flash->sr_data_crc_cnt.m_value = 0xA5;
 }
 INIT_AT(flash_init, 02);
 
-uint32_t flash_id() {
-    return hw_flash->JEDEC_ID;
-}
+uint32_t flash_id() { return hw_flash->JEDEC_ID; }
 
 /* Write one 32-byte hardware block to flash using Page Program (PP).
  * aligned_addr must be 32-byte aligned. */
@@ -68,7 +54,7 @@ void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
     while (count > 0) {
         const uint32_t aligned_addr = addr & ~FLASH_READ_BLOCK_MASK;
         const uint32_t block_offset = addr - aligned_addr;
-        const uint32_t available = FLASH_READ_BLOCK_SIZE - block_offset;
+        const uint32_t available    = FLASH_READ_BLOCK_SIZE - block_offset;
 
         trigger(aligned_addr, FLASH_OPCODE_READ);
 
@@ -77,7 +63,7 @@ void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
         }
 
         const uint32_t c = min_u32(available, count);
-        memcpy(dst, ((const uint8_t *) buf) + block_offset, c);
+        memcpy(dst, ((const uint8_t *)buf) + block_offset, c);
 
         addr += c;
         dst += c;
@@ -135,8 +121,8 @@ void flash_write(uint32_t addr, const uint8_t *src, uint32_t count) {
         memcpy((uint8_t *)buf + block_offset, src, c);
         write_block(aligned_addr, buf);
 
-        addr  += c;
-        src   += c;
+        addr += c;
+        src += c;
         count -= c;
     }
 }

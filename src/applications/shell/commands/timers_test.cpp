@@ -4,10 +4,8 @@
 #include "hardware/timer.h"
 #include "hardware/sys_counter.h"
 
-
-#define TRACE(var)                                  printf(#var " = 0x%lx\r\n", var)
-#define TRACE_CHANGE(var, new_value)                printf(#var ": 0x%lx -> 0x%lx\r\n", var, new_value)
-
+#define TRACE(var)                   printf(#var " = 0x%lx\r\n", var)
+#define TRACE_CHANGE(var, new_value) printf(#var ": 0x%lx -> 0x%lx\r\n", var, new_value)
 
 static void timer_complete(int timer_num) {
     putchar('-');

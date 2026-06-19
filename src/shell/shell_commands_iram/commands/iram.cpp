@@ -8,15 +8,12 @@
 #include "utils/crc32.h"
 #include "utils/busy_wait.h"
 
-
 static bool inline valid_ram(uint32_t addr) {
-    return (addr >= 0x00400000 && addr < 0x00400000 + 0x00040000)
-        || (addr >= 0x00900000 && addr < 0x00900000 + 0x00040000);
+    return (addr >= 0x00400000 && addr < 0x00400000 + 0x00040000) ||
+           (addr >= 0x00900000 && addr < 0x00900000 + 0x00040000);
 }
 
-static bool inline valid_checksum(uint32_t addr, uint32_t size, uint32_t checksum) {
-    return addr + size == checksum;
-}
+static bool inline valid_checksum(uint32_t addr, uint32_t size, uint32_t checksum) { return addr + size == checksum; }
 
 int command_iram_load(int argc, const char *argv[]) {
     if (argc != 4) {
@@ -24,8 +21,8 @@ int command_iram_load(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
+    uint32_t addr  = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
+    uint32_t size  = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
     uint32_t check = static_cast<uint32_t>(take_int(argv[3]).ok_or(0));
 
     if (!valid_ram(addr)) {

@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 
-
 // Bitmask of currently reserved channels. Bit N set => channel N is owned by
 // some caller. Modified by gdma_reserve_channel / gdma_release_channel.
 static uint32_t g_reserved_channels = 0;
@@ -14,8 +13,6 @@ static uint32_t g_reserved_channels = 0;
 // spinlock_t exists. For now: single-threaded use only (bare-metal app, or
 // reservation only from one FreeRTOS task at init time).
 // static spinlock_t g_reserve_lock = {0};
-
-
 
 static void gdma_isr(void) {
     typeof(hw_gdma->int_status) status;
@@ -46,13 +43,10 @@ static void gdma_init(void) {
     intc_enable_irq_source(IRQ_SOURCE_GDMA);
 }
 
-static void gdma_fini(void) {
-    gdma_reset();
-}
+static void gdma_fini(void) { gdma_reset(); }
 
 INIT_AT(gdma_init, 03);
 FINI_AT(gdma_fini, 03);
-
 
 // ============================================================================
 // Channel reservation
@@ -88,7 +82,6 @@ void gdma_release_channel(int channel) {
     // spinlock_release(&g_reserve_lock);
 }
 
-
 // ============================================================================
 // Low-level per-channel control
 // ============================================================================
@@ -110,29 +103,21 @@ int gdma_configure(int channel, const gdma_config_t *cfg) {
     // residual enable bit so we don't accidentally start mid-write.
     hw_gdma->channels[channel].config.v = 0;
 
-    hw_gdma->channels[channel].src_start_addr = cfg->src.addr;
+    hw_gdma->channels[channel].src_start_addr      = cfg->src.addr;
     hw_gdma->channels[channel].src_loop_start_addr = 0;
-    hw_gdma->channels[channel].src_loop_end_addr = 0;
+    hw_gdma->channels[channel].src_loop_end_addr   = 0;
 
-    hw_gdma->channels[channel].dst_start_addr = cfg->dst.addr;
+    hw_gdma->channels[channel].dst_start_addr      = cfg->dst.addr;
     hw_gdma->channels[channel].dst_loop_start_addr = 0;
-    hw_gdma->channels[channel].dst_loop_end_addr = 0;
+    hw_gdma->channels[channel].dst_loop_end_addr   = 0;
 
-    hw_write_fields(hw_gdma->channels[channel].mux_reqs,
-        .src_req = cfg->src.mode,
-        .dst_req = cfg->dst.mode,
-    );
+    hw_write_fields(hw_gdma->channels[channel].mux_reqs, .src_req = cfg->src.mode, .dst_req = cfg->dst.mode, );
 
     // enable bit is left zero here; channel is started separately via gdma_start.
     // transfer_length stores (size - 1) per the model in soc/gdma.h.
-    hw_write_fields(hw_gdma->channels[channel].config,
-        .fin_int_enable = 1,
-        .src_data_width = cfg->src.dw,
-        .dst_data_width = cfg->dst.dw,
-        .src_addr_inc = cfg->src.incr,
-        .dst_addr_inc = cfg->dst.incr,
-        .transfer_length = cfg->size - 1,
-    );
+    hw_write_fields(hw_gdma->channels[channel].config, .fin_int_enable = 1, .src_data_width = cfg->src.dw,
+                    .dst_data_width = cfg->dst.dw, .src_addr_inc = cfg->src.incr, .dst_addr_inc = cfg->dst.incr,
+                    .transfer_length = cfg->size - 1, );
 
     return 0;
 }
@@ -166,7 +151,6 @@ void gdma_wait(int channel) {
         // busy-poll; hw clears enable on completion
     }
 }
-
 
 // ============================================================================
 // Convenience

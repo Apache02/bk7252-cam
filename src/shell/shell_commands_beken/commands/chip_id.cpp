@@ -3,20 +3,14 @@
 #include "hardware/sctrl.h"
 #include "hardware/flash.h"
 
-
 struct id_name_map {
-    uint32_t id;
+    uint32_t    id;
     const char *name;
 };
 
 const struct id_name_map chip_id_map[] = {
-    {0x7111, "DEFAULT"},
-    {0x7231C, "BK7231N"},
-    {0x7221a, "BK7251"},
-    {0x7231a, "BK7231U"},
-    {0x7238, "BK7238"},
-    {0x7252a, "BK7252N"},
-    {0, "unknown"},
+    {0x7111, "DEFAULT"}, {0x7231C, "BK7231N"}, {0x7221a, "BK7251"}, {0x7231a, "BK7231U"},
+    {0x7238, "BK7238"},  {0x7252a, "BK7252N"}, {0, "unknown"},
 };
 
 const struct id_name_map device_id_map[] = {
@@ -42,11 +36,8 @@ const struct id_name_map device_id_map[] = {
 };
 
 const struct id_name_map flash_id_map[] = {
-    {0x1C7016, "en_25qh32b"},
-    {0x1C7015, "en_25qh16b"},
-    {0x0B4015, "xtx_25f16b"},
-    {0x0B4016, "xtx_25f32b"},
-    {0, "unknown"},
+    {0x1C7016, "en_25qh32b"}, {0x1C7015, "en_25qh16b"}, {0x0B4015, "xtx_25f16b"},
+    {0x0B4016, "xtx_25f32b"}, {0, "unknown"},
 };
 
 const struct id_name_map manufacturer_id_map[] = {
@@ -54,7 +45,6 @@ const struct id_name_map manufacturer_id_map[] = {
     {0x0B, "xtx"},
     {0, "unknown"},
 };
-
 
 static const char *get_name_by_id(const struct id_name_map *map, uint32_t id) {
     for (int i = 0;; i++) {
@@ -80,8 +70,8 @@ int command_chip_id(__unused int argc, __unused const char *argv[]) {
 
     printf("\r\n");
 
-    uint32_t fid = flash_id();
-    uint8_t capacity = (fid >> 0) & 0xFF;
+    uint32_t fid      = flash_id();
+    uint8_t  capacity = (fid >> 0) & 0xFF;
 
     printf("flash id: 0x%08lx | %s\r\n", fid, get_name_by_id(flash_id_map, fid));
     printf("    capacity: %d Mb\r\n", (1 << capacity) / (1 << 20));

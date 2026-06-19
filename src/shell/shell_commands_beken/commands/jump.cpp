@@ -10,11 +10,9 @@
 #include "hardware/timer.h"
 #include "utils/busy_wait.h"
 
-
-#define BOOTLOADER_ADDR     0x00000000ul
-#define APP_ADDR            0x00010000ul
-#define IRAM_ADDR           0x00900000ul
-
+#define BOOTLOADER_ADDR 0x00000000ul
+#define APP_ADDR        0x00010000ul
+#define IRAM_ADDR       0x00900000ul
 
 static void jump(uint32_t addr, unsigned int delay) {
     // Give UART time to flush output before we kill interrupts

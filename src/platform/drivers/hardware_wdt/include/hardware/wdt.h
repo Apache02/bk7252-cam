@@ -3,7 +3,6 @@
 
 #include "stdint.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,7 +20,6 @@ void wdt_down(void);
 int wdt_is_active(void);
 
 void wdt_reboot(uint16_t delay);
-
 
 #ifdef __cplusplus
 }

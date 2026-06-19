@@ -6,20 +6,14 @@
 #include "shell/Parser.h"
 #include "utils/busy_wait.h"
 
+#define UART_CLOCK_HZ    (26000000)
+#define MIN_BAUDRATE     (UART_CLOCK_HZ / ((1 << 14) - 1))
+#define MAX_BAUDRATE     (UART_CLOCK_HZ / 2)
+#define DEFAULT_BAUDRATE (115200)
 
-#define UART_CLOCK_HZ       (26000000)
-#define MIN_BAUDRATE        (UART_CLOCK_HZ / ((1<<14) - 1))
-#define MAX_BAUDRATE        (UART_CLOCK_HZ / 2)
-#define DEFAULT_BAUDRATE    (115200)
+static bool valid_baudrate(int baud) { return baud > MIN_BAUDRATE && baud <= MAX_BAUDRATE; }
 
-
-static bool valid_baudrate(int baud) {
-    return baud > MIN_BAUDRATE && baud <= MAX_BAUDRATE;
-}
-
-static int take_baudrate(const char *baud) {
-    return take_int(baud).ok_or(0);
-}
+static int take_baudrate(const char *baud) { return take_int(baud).ok_or(0); }
 
 int command_uart1_baudrate(int argc, const char *argv[]) {
     if (argc != 2) {

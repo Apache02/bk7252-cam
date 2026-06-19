@@ -7,12 +7,9 @@
 #include "platform/cpu.h"
 #include "soc/sctrl.h"
 
-
 int command_cpu_speed(int argc, const char *argv[]) {
     // ~33 ms window at 120 MHz — well above the 1 us timer resolution.
-    uint32_t iterations = argc == 2
-                              ? static_cast<uint32_t>(take_int(argv[1]).ok_or(0))
-                              : 1000000;
+    uint32_t iterations = argc == 2 ? static_cast<uint32_t>(take_int(argv[1]).ok_or(0)) : 1000000;
     if (iterations < 10000) {
         printf(COLOR_RED("Error: iterations must be >= 10000") "\r\n");
         return 1;
@@ -23,12 +20,12 @@ int command_cpu_speed(int argc, const char *argv[]) {
     GLOBAL_INT_DISABLE();
     absolute_time_t start = get_absolute_time();
     // ARM968E-S Thumb: subs(1 cycle) + bne taken(3 cycles, pipeline refill) = 4 cycles/iter.
-    __asm volatile(
-        ".syntax unified\n"
-        "1: subs %0, #1\n"
-        "bne 1b\n"
-        : "+l"(loop) : : "cc", "memory"
-    );
+    __asm volatile(".syntax unified\n"
+                   "1: subs %0, #1\n"
+                   "bne 1b\n"
+                   : "+l"(loop)
+                   :
+                   : "cc", "memory");
     int64_t us_spend = absolute_time_diff_us(start, get_absolute_time());
     GLOBAL_INT_RESTORE();
 
@@ -38,29 +35,24 @@ int command_cpu_speed(int argc, const char *argv[]) {
     }
 
     uint64_t cycles = static_cast<uint64_t>(iterations) * 4ULL;
-    uint64_t hz = cycles * 1'000'000ULL / static_cast<uint64_t>(us_spend);
+    uint64_t hz     = cycles * 1'000'000ULL / static_cast<uint64_t>(us_spend);
 
     printf("Iterations: %lu\r\n", static_cast<unsigned long>(iterations));
     printf("Cycles:     %lu\r\n", static_cast<unsigned long>(cycles));
     printf("Elapsed:    %lu us\r\n", static_cast<unsigned long>(us_spend));
-    printf(
-        "CPU freq:   %lu Hz (%lu.%02lu MHz)\r\n",
-        static_cast<unsigned long>(hz),
-        static_cast<unsigned long>(hz / 1000000),
-        static_cast<unsigned long>((hz % 1000000) / 10000)
-    );
+    printf("CPU freq:   %lu Hz (%lu.%02lu MHz)\r\n", static_cast<unsigned long>(hz),
+           static_cast<unsigned long>(hz / 1000000), static_cast<unsigned long>((hz % 1000000) / 10000));
 
     return 0;
 }
 
-
-#define MCLK_FIELD_DCO                      (0x0)
-#define MCLK_FIELD_26M_XTAL                 (0x1)
-#define MCLK_FIELD_DPLL                     (0x2)
-#define MCLK_FIELD_LPO                      (0x3)
+#define MCLK_FIELD_DCO      (0x0)
+#define MCLK_FIELD_26M_XTAL (0x1)
+#define MCLK_FIELD_DPLL     (0x2)
+#define MCLK_FIELD_LPO      (0x3)
 
 struct id_name_map {
-    int id;
+    int         id;
     const char *name;
 };
 
@@ -96,13 +88,8 @@ int command_mclk(int argc, const char *argv[]) {
         printf("Usage:\r\n");
         printf("    %s <source> [divider]\r\n", argv[0]);
         printf("\r\n");
-        printf(
-            "    source: %s %s %s %s\r\n",
-            mclk_name_map[0].name,
-            mclk_name_map[1].name,
-            mclk_name_map[2].name,
-            mclk_name_map[3].name
-        );
+        printf("    source: %s %s %s %s\r\n", mclk_name_map[0].name, mclk_name_map[1].name, mclk_name_map[2].name,
+               mclk_name_map[3].name);
         printf("\r\n");
 
         return 0;
@@ -117,13 +104,8 @@ int command_mclk(int argc, const char *argv[]) {
 
         if (set_source < 0) {
             printf(COLOR_RED("Error: unknown source") "\r\n");
-            printf(
-                "Expected: %s %s %s %s\r\n",
-                mclk_name_map[0].name,
-                mclk_name_map[1].name,
-                mclk_name_map[2].name,
-                mclk_name_map[3].name
-            );
+            printf("Expected: %s %s %s %s\r\n", mclk_name_map[0].name, mclk_name_map[1].name, mclk_name_map[2].name,
+                   mclk_name_map[3].name);
 
             return 1;
         }

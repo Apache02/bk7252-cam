@@ -7,7 +7,6 @@ typedef struct {
     uint64_t time_raw;
 } absolute_time_t;
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif

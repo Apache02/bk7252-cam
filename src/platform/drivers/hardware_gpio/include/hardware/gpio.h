@@ -4,9 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-
 typedef enum {
-    GPIO_IN = 0,
+    GPIO_IN  = 0,
     GPIO_OUT = 1,
     GPIO_IN_PULLUP,
     GPIO_IN_PULLDOWN,
@@ -27,13 +26,11 @@ typedef enum {
 
 typedef unsigned char gpio_num_t;
 
-#define GPIO_NUM_MAX        39
-
+#define GPIO_NUM_MAX 39
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 void gpio_config(gpio_num_t gpio, gpio_dir_t dir);
 
@@ -48,6 +45,5 @@ void gpio_toggle(gpio_num_t gpio);
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif // _HARDWARE_GPIO_H

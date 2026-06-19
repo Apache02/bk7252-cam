@@ -11,7 +11,7 @@
 // Tally + helpers
 // ============================================================================
 
-static unsigned g_total = 0;
+static unsigned g_total  = 0;
 static unsigned g_passed = 0;
 
 static void report(const char *name, bool ok) {
@@ -21,18 +21,18 @@ static void report(const char *name, bool ok) {
 }
 
 static void fill_pattern(uint8_t *buf, size_t n, uint8_t seed) {
-    for (size_t i = 0; i < n; i++) buf[i] = (uint8_t) (seed + i);
+    for (size_t i = 0; i < n; i++)
+        buf[i] = (uint8_t)(seed + i);
 }
 
 // Compare buf to the same pattern fill_pattern() would produce.
 // On mismatch, reports the first byte that differs.
-static bool verify_pattern(const uint8_t *buf, size_t n, uint8_t seed,
-                           const char *what) {
+static bool verify_pattern(const uint8_t *buf, size_t n, uint8_t seed, const char *what) {
     for (size_t i = 0; i < n; i++) {
-        uint8_t expected = (uint8_t) (seed + i);
+        uint8_t expected = (uint8_t)(seed + i);
         if (buf[i] != expected) {
-            printf("       %s: mismatch at offset %u: got 0x%02x, expected 0x%02x\r\n",
-                   what, (unsigned) i, buf[i], expected);
+            printf("       %s: mismatch at offset %u: got 0x%02x, expected 0x%02x\r\n", what, (unsigned)i, buf[i],
+                   expected);
             return false;
         }
     }
@@ -40,18 +40,15 @@ static bool verify_pattern(const uint8_t *buf, size_t n, uint8_t seed,
 }
 
 // Quick check that no bytes outside [0, n) were touched.
-static bool verify_guard(const uint8_t *buf, size_t guard_size, uint8_t guard_val,
-                         const char *what) {
+static bool verify_guard(const uint8_t *buf, size_t guard_size, uint8_t guard_val, const char *what) {
     for (size_t i = 0; i < guard_size; i++) {
         if (buf[i] != guard_val) {
-            printf("       %s: guard byte %u corrupted: 0x%02x\r\n",
-                   what, (unsigned) i, buf[i]);
+            printf("       %s: guard byte %u corrupted: 0x%02x\r\n", what, (unsigned)i, buf[i]);
             return false;
         }
     }
     return true;
 }
-
 
 // ============================================================================
 // Buffers. Sized to comfortably fit large transfers without straining RAM.
@@ -60,11 +57,10 @@ static bool verify_guard(const uint8_t *buf, size_t guard_size, uint8_t guard_va
 // ============================================================================
 
 static constexpr size_t BUF_SIZE = 8192;
-static constexpr size_t GUARD = 16;
+static constexpr size_t GUARD    = 16;
 
 static uint8_t *src_buf;
 static uint8_t *dst_buf;
-
 
 // ============================================================================
 // Sanity: dump a few key registers so we can see the block is alive.
@@ -72,16 +68,14 @@ static uint8_t *dst_buf;
 
 __unused static void dump_regs(const char *when) {
     // direct memory access; same address as in the driver
-    auto rd = [](uint32_t addr) { return *(volatile uint32_t *) addr; };
+    auto rd = [](uint32_t addr) { return *(volatile uint32_t *)addr; };
     printf("  regs %s:\r\n", when);
     for (int ch = 0; ch < GDMA_NUM_CHANNELS; ch++) {
-        printf("    ch%d.config = 0x%08lx\r\n", ch,
-               (unsigned long) rd(0x00809000 + ch * 0x20));
+        printf("    ch%d.config = 0x%08lx\r\n", ch, (unsigned long)rd(0x00809000 + ch * 0x20));
     }
-    printf("    int_status = 0x%08lx\r\n", (unsigned long) rd(0x00809000 + 0x38 * 4));
-    printf("    prio_mode  = 0x%08lx\r\n", (unsigned long) rd(0x00809000 + 0x37 * 4));
+    printf("    int_status = 0x%08lx\r\n", (unsigned long)rd(0x00809000 + 0x38 * 4));
+    printf("    prio_mode  = 0x%08lx\r\n", (unsigned long)rd(0x00809000 + 0x37 * 4));
 }
-
 
 // ============================================================================
 // Local gdma_memcpy used by the tests.
@@ -108,18 +102,20 @@ static void *gdma_memcpy(void *dst, const void *src, size_t n) {
     }
 
     gdma_config_t cfg = {
-        .src = {
-            .mode = GDMA_MODE_DTCM,
-            .addr = (uint32_t) src,
-            .incr = true,
-            .dw = GDMA_DATA_WIDTH_32,
-        },
-        .dst = {
-            .mode = GDMA_MODE_DTCM,
-            .addr = (uint32_t) dst,
-            .incr = true,
-            .dw = GDMA_DATA_WIDTH_32,
-        },
+        .src =
+            {
+                .mode = GDMA_MODE_DTCM,
+                .addr = (uint32_t)src,
+                .incr = true,
+                .dw   = GDMA_DATA_WIDTH_32,
+            },
+        .dst =
+            {
+                .mode = GDMA_MODE_DTCM,
+                .addr = (uint32_t)dst,
+                .incr = true,
+                .dw   = GDMA_DATA_WIDTH_32,
+            },
         .size = n,
     };
 
@@ -134,7 +130,6 @@ static void *gdma_memcpy(void *dst, const void *src, size_t n) {
     return dst;
 }
 
-
 // ============================================================================
 // Correctness tests
 // ----------------------------------------------------------------------------
@@ -148,60 +143,59 @@ static void *gdma_memcpy(void *dst, const void *src, size_t n) {
 
 __unused static void test_basic_aligned() {
     // both src and dst aligned to 4
-    uint8_t *src = src_buf + GUARD;
-    uint8_t *dst = dst_buf + GUARD;
-    constexpr size_t N = 1024;
+    uint8_t         *src = src_buf + GUARD;
+    uint8_t         *dst = dst_buf + GUARD;
+    constexpr size_t N   = 1024;
 
     memset(dst_buf, 0xAA, GUARD + BUF_SIZE + GUARD);
     fill_pattern(src, N, 0x10);
 
-    void *r = gdma_memcpy(dst, src, N);
-    bool ok = (r == dst)
-              && verify_pattern(dst, N, 0x10, "aligned body")
-              && verify_guard(dst_buf, GUARD, 0xAA, "aligned head guard")
-              && verify_guard(dst_buf + GUARD + N, GUARD, 0xAA, "aligned tail guard");
+    void *r  = gdma_memcpy(dst, src, N);
+    bool  ok = (r == dst) && verify_pattern(dst, N, 0x10, "aligned body") &&
+              verify_guard(dst_buf, GUARD, 0xAA, "aligned head guard") &&
+              verify_guard(dst_buf + GUARD + N, GUARD, 0xAA, "aligned tail guard");
     report("aligned src/dst, 1024 bytes", ok);
 }
 
 __unused static void test_align2() {
     // both aligned to 2 but not 4
-    uint8_t *src = src_buf + GUARD + 2;
-    uint8_t *dst = dst_buf + GUARD + 2;
-    constexpr size_t N = 510;
+    uint8_t         *src = src_buf + GUARD + 2;
+    uint8_t         *dst = dst_buf + GUARD + 2;
+    constexpr size_t N   = 510;
 
     memset(dst_buf, 0xAA, GUARD + BUF_SIZE + GUARD);
     fill_pattern(src, N, 0x20);
 
-    void *r = gdma_memcpy(dst, src, N);
-    bool ok = (r == dst) && verify_pattern(dst, N, 0x20, "align2 body");
+    void *r  = gdma_memcpy(dst, src, N);
+    bool  ok = (r == dst) && verify_pattern(dst, N, 0x20, "align2 body");
     report("src/dst aligned to 2, 510 bytes", ok);
 }
 
 __unused static void test_unaligned() {
     // odd offsets and odd length
-    uint8_t *src = src_buf + GUARD + 1;
-    uint8_t *dst = dst_buf + GUARD + 1;
-    constexpr size_t N = 257;
+    uint8_t         *src = src_buf + GUARD + 1;
+    uint8_t         *dst = dst_buf + GUARD + 1;
+    constexpr size_t N   = 257;
 
     memset(dst_buf, 0xAA, GUARD + BUF_SIZE + GUARD);
     fill_pattern(src, N, 0x30);
 
-    void *r = gdma_memcpy(dst, src, N);
-    bool ok = (r == dst) && verify_pattern(dst, N, 0x30, "unaligned body");
+    void *r  = gdma_memcpy(dst, src, N);
+    bool  ok = (r == dst) && verify_pattern(dst, N, 0x30, "unaligned body");
     report("unaligned src/dst, 257 bytes", ok);
 }
 
 __unused static void test_mixed_alignment() {
     // src aligned to 4, dst aligned to 1
-    uint8_t *src = src_buf + GUARD;
-    uint8_t *dst = dst_buf + GUARD + 3;
-    constexpr size_t N = 200;
+    uint8_t         *src = src_buf + GUARD;
+    uint8_t         *dst = dst_buf + GUARD + 3;
+    constexpr size_t N   = 200;
 
     memset(dst_buf, 0xAA, GUARD + BUF_SIZE + GUARD);
     fill_pattern(src, N, 0x40);
 
-    void *r = gdma_memcpy(dst, src, N);
-    bool ok = (r == dst) && verify_pattern(dst, N, 0x40, "mixed body");
+    void *r  = gdma_memcpy(dst, src, N);
+    bool  ok = (r == dst) && verify_pattern(dst, N, 0x40, "mixed body");
     report("mixed alignment (src@4, dst@1)", ok);
 }
 
@@ -209,20 +203,19 @@ __unused static void test_patterns() {
     // Run a few stuck-bit patterns; helps catch a wired-OR or wired-AND bug
     // somewhere in the path.
     static const uint8_t patterns[] = {0x00, 0xFF, 0xAA, 0x55};
-    uint8_t *src = src_buf + GUARD;
-    uint8_t *dst = dst_buf + GUARD;
-    constexpr size_t N = 256;
-    bool all_ok = true;
+    uint8_t             *src        = src_buf + GUARD;
+    uint8_t             *dst        = dst_buf + GUARD;
+    constexpr size_t     N          = 256;
+    bool                 all_ok     = true;
 
-    for (uint8_t p: patterns) {
+    for (uint8_t p : patterns) {
         memset(src, p, N);
         memset(dst, ~p, N);
         gdma_memcpy(dst, src, N);
 
         for (size_t i = 0; i < N; i++) {
             if (dst[i] != p) {
-                printf("       pattern 0x%02x failed at %u: got 0x%02x\r\n",
-                       p, (unsigned) i, dst[i]);
+                printf("       pattern 0x%02x failed at %u: got 0x%02x\r\n", p, (unsigned)i, dst[i]);
                 all_ok = false;
                 break;
             }
@@ -233,18 +226,17 @@ __unused static void test_patterns() {
 
 __unused static void test_large_transfer() {
     // Largest transfer that fits the buffer; checks that long bursts work.
-    uint8_t *src = src_buf + GUARD;
-    uint8_t *dst = dst_buf + GUARD;
-    constexpr size_t N = BUF_SIZE;
+    uint8_t         *src = src_buf + GUARD;
+    uint8_t         *dst = dst_buf + GUARD;
+    constexpr size_t N   = BUF_SIZE;
 
     memset(dst, 0, N);
     fill_pattern(src, N, 0x80);
 
-    void *r = gdma_memcpy(dst, src, N);
-    bool ok = (r == dst) && verify_pattern(dst, N, 0x80, "large body");
+    void *r  = gdma_memcpy(dst, src, N);
+    bool  ok = (r == dst) && verify_pattern(dst, N, 0x80, "large body");
     report("large transfer, 8192 bytes", ok);
 }
-
 
 // ============================================================================
 // Edge cases
@@ -256,8 +248,8 @@ __unused static void test_zero_length() {
     uint8_t *dst = dst_buf + GUARD;
 
     memset(dst, 0xCC, 16);
-    void *r = gdma_memcpy(dst, src, 0);
-    bool ok = (r == dst) && (dst[0] == 0xCC) && (dst[15] == 0xCC);
+    void *r  = gdma_memcpy(dst, src, 0);
+    bool  ok = (r == dst) && (dst[0] == 0xCC) && (dst[15] == 0xCC);
     report("zero-length is no-op", ok);
 }
 
@@ -267,7 +259,7 @@ __unused static void test_oversize_rejected() {
     uint8_t *src = src_buf + GUARD;
     uint8_t *dst = dst_buf + GUARD;
 
-    void *r = gdma_memcpy(dst, src, (size_t) 262144 + 4);
+    void *r = gdma_memcpy(dst, src, (size_t)262144 + 4);
     report("oversize transfer rejected (returns NULL)", r == nullptr);
 }
 
@@ -281,19 +273,16 @@ __unused static void test_null_args() {
     // NULL src or dst must be rejected without crashing.
     uint8_t *src = src_buf + GUARD;
     uint8_t *dst = dst_buf + GUARD;
-    bool ok = (gdma_memcpy(nullptr, src, 16) == nullptr)
-              && (gdma_memcpy(dst, nullptr, 16) == nullptr);
+    bool     ok  = (gdma_memcpy(nullptr, src, 16) == nullptr) && (gdma_memcpy(dst, nullptr, 16) == nullptr);
     report("NULL src/dst rejected", ok);
 }
-
 
 // ============================================================================
 // Benchmark
 // ============================================================================
 
 // Compiler barrier - prevents reordering of measured ops across the line.
-#define COMPILER_BARRIER()      __asm__ volatile("" ::: "memory")
-
+#define COMPILER_BARRIER() __asm__ volatile("" ::: "memory")
 
 // Run `iters` copies of `n` bytes from src to dst using GDMA, blocking.
 // Returns total elapsed microseconds.
@@ -334,11 +323,10 @@ static uint32_t kb_per_sec(size_t bytes_total, uint64_t elapsed_us) {
     if (elapsed_us == 0) return 0;
     // bytes_total / elapsed_us = MB/s, *1000 = KB/s. Compute as
     // (bytes_total * 1000) / elapsed_us, careful with overflow.
-    return (uint32_t) ((uint64_t) bytes_total * 1000 / elapsed_us);
+    return (uint32_t)((uint64_t)bytes_total * 1000 / elapsed_us);
 }
 
-static void bench_one(const char *label, void *dst, const void *src,
-                      size_t n, unsigned iters) {
+static void bench_one(const char *label, void *dst, const void *src, size_t n, unsigned iters) {
     // warm-up: one call before each measurement to avoid first-iteration cost
     // dominating small-N timings.
     gdma_memcpy(dst, src, n);
@@ -346,18 +334,17 @@ static void bench_one(const char *label, void *dst, const void *src,
 
     uint64_t t_dma = bench_gdma(dst, src, n, iters);
     uint64_t t_cpu = bench_memcpy(dst, src, n, iters);
-    size_t total = n * iters;
+    size_t   total = n * iters;
 
-    printf("  %-36s n=%5u x%-4u  gdma=%6lu us (%5lu KB/s)  memcpy=%6lu us (%5lu KB/s)\r\n",
-           label, (unsigned) n, iters,
-           (unsigned long) t_dma, (unsigned long) kb_per_sec(total, t_dma),
-           (unsigned long) t_cpu, (unsigned long) kb_per_sec(total, t_cpu));
+    printf("  %-36s n=%5u x%-4u  gdma=%6lu us (%5lu KB/s)  memcpy=%6lu us (%5lu KB/s)\r\n", label, (unsigned)n, iters,
+           (unsigned long)t_dma, (unsigned long)kb_per_sec(total, t_dma), (unsigned long)t_cpu,
+           (unsigned long)kb_per_sec(total, t_cpu));
 }
 
 __unused static void run_benchmark() {
     printf("\r\n-- benchmark (gdma vs libc memcpy) --\r\n");
 
-    uint8_t *src4 = src_buf + GUARD;     // aligned to 4
+    uint8_t *src4 = src_buf + GUARD; // aligned to 4
     uint8_t *dst4 = dst_buf + GUARD;
     uint8_t *src2 = src_buf + GUARD + 2; // aligned to 2 only
     uint8_t *dst2 = dst_buf + GUARD + 2;
@@ -381,7 +368,6 @@ __unused static void run_benchmark() {
     bench_one("align sweep, src/dst @2", dst2, src2, 1024, 500);
     bench_one("align sweep, src/dst @1", dst1, src1, 1023, 500);
 }
-
 
 extern "C" void test_gdma() {
     printf("\r\n== GDMA driver test ==\r\n");

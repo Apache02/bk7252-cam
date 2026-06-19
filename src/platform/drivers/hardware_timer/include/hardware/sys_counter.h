@@ -8,9 +8,7 @@
 extern "C" {
 #endif
 
-
 uint32_t sys_counter_get_count();
-
 
 #ifdef __cplusplus
 }

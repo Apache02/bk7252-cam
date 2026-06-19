@@ -4,33 +4,32 @@
 #include "soc/sctrl.h"
 
 
-#define EFUSE_BASE         (SCTRL_BASE + 0x1D * 4)
+#define EFUSE_BASE (SCTRL_BASE + 0x1D * 4)
 
 
 typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t en: 1;                     // [0]      efuse operate enable, sw set 1, hw clear it after operate finished
-            uint32_t dir: 1;                    // [1]      =0: read, =1: write
-            uint32_t reserved_2_7: 6;           // [2:7]
-            uint32_t addr: 5;                   // [8:12]
-            uint32_t reserved_13_15: 3;         // [13:15]
-            uint32_t wr_data: 5;                // [16:20]  efuse write data
-            uint32_t reserved_21_31: 11;        // [21:31]
+            uint32_t en : 1;              // [0]      efuse operate enable, sw set 1, hw clear it after operate finished
+            uint32_t dir : 1;             // [1]      =0: read, =1: write
+            uint32_t reserved_2_7 : 6;    // [7:2]
+            uint32_t addr : 5;            // [12:8]
+            uint32_t reserved_13_15 : 3;  // [15:13]
+            uint32_t wr_data : 5;         // [20:16]  efuse write data
+            uint32_t reserved_21_31 : 11; // [31:21]
         };
     } ctrl;
 
     union {
         uint32_t v;
         struct {
-            uint32_t rd_data: 8;                // [0:7]    efuse read data
-            uint32_t is_valid: 1;               // [8]      read data valid indication
-            uint32_t reserved_9_31: 23;         // [9:31]
+            uint32_t rd_data : 8;        // [7:0]    efuse read data
+            uint32_t is_valid : 1;       // [8]      read data valid indication
+            uint32_t reserved_9_31 : 23; // [31:9]
         };
     } optr;
 
-} efuse_hw_t;
+} hw_efuse_t;
 
-
-#define hw_efuse                ((volatile efuse_hw_t *)EFUSE_BASE)
+#define hw_efuse ((volatile hw_efuse_t *)EFUSE_BASE)

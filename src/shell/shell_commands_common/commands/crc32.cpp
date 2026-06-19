@@ -4,8 +4,7 @@
 #include "shell/Parser.h"
 #include "utils/crc32.h"
 
-
-#define MAX_SIZE        (1<<20) // 1Mb
+#define MAX_SIZE (1 << 20) // 1Mb
 
 int command_crc32(int argc, const char *argv[]) {
     if (argc != 3) {
@@ -14,7 +13,7 @@ int command_crc32(int argc, const char *argv[]) {
     }
 
     void *addr = take_pointer(argv[1]).ok_or(nullptr);
-    int size = take_int(argv[2]).ok_or(-1);
+    int   size = take_int(argv[2]).ok_or(-1);
 
     if (size < 1 || size > MAX_SIZE) {
         printf(COLOR_RED("Invalid size") "\r\n");

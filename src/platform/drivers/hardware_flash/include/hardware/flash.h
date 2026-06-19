@@ -3,13 +3,11 @@
 
 #include <stdint.h>
 
+#define FLASH_READ_BLOCK_SIZE (32u)
+#define FLASH_READ_BLOCK_MASK (FLASH_READ_BLOCK_SIZE - 1u)
 
-#define FLASH_READ_BLOCK_SIZE       (32u)
-#define FLASH_READ_BLOCK_MASK       (FLASH_READ_BLOCK_SIZE - 1u)
-
-#define FLASH_SECTOR_SIZE           (4096u)
-#define FLASH_SECTOR_MASK           (FLASH_SECTOR_SIZE - 1u)
-
+#define FLASH_SECTOR_SIZE (4096u)
+#define FLASH_SECTOR_MASK (FLASH_SECTOR_SIZE - 1u)
 
 #ifdef __cplusplus
 extern "C" {

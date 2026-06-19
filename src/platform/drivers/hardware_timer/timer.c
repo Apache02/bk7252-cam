@@ -7,27 +7,24 @@
 #include "platform/assert.h"
 #include "platform/init.h"
 
-
 typedef struct {
     timer_alarm_handler_t *handler;
-    uint32_t type;
+    uint32_t               type;
 } hw_timer_t;
 
 enum {
-    TYPE_NONE = 0,
-    TYPE_ONCE = 1,
+    TYPE_NONE     = 0,
+    TYPE_ONCE     = 1,
     TYPE_PERIODIC = 2,
 };
 
 static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 
-
-#define assert_timer_number(i)       assert_true((i >= 0) && (i < TIMERS_TOTAL), "Invalid timer number")
-
+#define assert_timer_number(i) assert_true((i >= 0) && (i < TIMERS_TOTAL), "Invalid timer number")
 
 static void timer_isr() {
-    uint32_t status0 = hw_timer_bank0->ctl.irq_status;
-    uint32_t status1 = hw_timer_bank1->ctl.irq_status;
+    uint32_t status0    = hw_timer_bank0->ctl.irq_status;
+    uint32_t status1    = hw_timer_bank1->ctl.irq_status;
     uint32_t status_all = status0 | (status1 << TIMERS_IN_BANK);
 
     for (int i = 0; i < TIMERS_TOTAL; i++) {
@@ -41,12 +38,12 @@ static void timer_isr() {
 
         if (timers_handlers[i].type == TYPE_ONCE) {
             // disable hw timer
-            volatile hw_timer_bank_t *bank = get_timer_bank_by_index(i);
-            int timer_num_in_bank = get_timer_num_in_bank_by_index(i);
+            volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(i);
+            int                       timer_num_in_bank = get_timer_num_in_bank_by_index(i);
             bank->ctl.enable &= ~(1 << timer_num_in_bank);
 
             timers_handlers[i].handler = NULL;
-            timers_handlers[i].type = TYPE_NONE;
+            timers_handlers[i].type    = TYPE_NONE;
         }
     }
 
@@ -103,12 +100,12 @@ static void register_sys_counter(void) {
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
 
-    int timer_num = find_free_timer(1);
-    const int timer_clock_freq = get_timer_frequency(timer_num);
-    const int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
-    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
+    int                       timer_num         = find_free_timer(1);
+    const int                 timer_clock_freq  = get_timer_frequency(timer_num);
+    const int                 timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
 
-    timers_handlers[timer_num].type = TYPE_PERIODIC;
+    timers_handlers[timer_num].type    = TYPE_PERIODIC;
     timers_handlers[timer_num].handler = &sys_counter_tick;
 
     bank->counter[timer_num_in_bank] = timer_clock_freq;
@@ -120,7 +117,6 @@ static void register_sys_counter(void) {
 
 INIT_AT(register_sys_counter, 03);
 
-
 int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
@@ -131,10 +127,10 @@ int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
         return -1;
     }
 
-    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
-    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
+    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
-    timers_handlers[timer_num].type = once ? TYPE_ONCE : TYPE_PERIODIC;
+    timers_handlers[timer_num].type    = once ? TYPE_ONCE : TYPE_PERIODIC;
     timers_handlers[timer_num].handler = func;
 
     bank->counter[timer_num_in_bank] = count;
@@ -154,10 +150,10 @@ int timer_create_by_freq(uint32_t freq, timer_alarm_handler_t *func, bool once) 
         return -1;
     }
 
-    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
-    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
+    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
-    timers_handlers[timer_num].type = once ? TYPE_ONCE : TYPE_PERIODIC;
+    timers_handlers[timer_num].type    = once ? TYPE_ONCE : TYPE_PERIODIC;
     timers_handlers[timer_num].handler = func;
 
     bank->counter[timer_num_in_bank] = get_timer_frequency(timer_num) / freq;
@@ -171,8 +167,8 @@ void timer_start(int timer_num) {
     assert_timer_number(timer_num);
     assert_true(timers_handlers[timer_num].type != TYPE_NONE, "Timer is empty");
 
-    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
-    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
+    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
     bank->ctl.enable |= (1 << timer_num_in_bank);
 }
@@ -180,11 +176,11 @@ void timer_start(int timer_num) {
 void timer_remove(int timer_num) {
     assert_timer_number(timer_num);
 
-    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
-    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
+    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
     bank->ctl.enable &= ~(1 << timer_num_in_bank);
 
-    timers_handlers[timer_num].type = TYPE_NONE;
+    timers_handlers[timer_num].type    = TYPE_NONE;
     timers_handlers[timer_num].handler = NULL;
 }
 
@@ -192,10 +188,10 @@ void timer_remove(int timer_num) {
 int timer_read(int timer_num) {
     assert_timer_number(timer_num);
 
-    volatile hw_timer_bank_t *bank = get_timer_bank_by_index(timer_num);
-    int timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
-    bank->read_ctl.read_index = timer_num_in_bank;
-    bank->read_ctl.read_op = 1;
+    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
+    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    bank->read_ctl.read_index                   = timer_num_in_bank;
+    bank->read_ctl.read_op                      = 1;
 
     int timeout = 120000;
     while (bank->read_ctl.read_op) {

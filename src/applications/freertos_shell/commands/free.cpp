@@ -21,7 +21,6 @@ int command_free(__unused int argc, __unused const char *argv[]) {
         return 0;
     }
 
-
     printf("\r\n");
 
     HeapStats_t xHeapStats;

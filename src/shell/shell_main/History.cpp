@@ -62,7 +62,8 @@ void History::add(int argc, const char *argv[]) {
     for (int i = 0; i < argc; i++) {
         if (i > 0) *ptr++ = ' ';
         const char *src = argv[i];
-        while (*src) *ptr++ = *src++;
+        while (*src)
+            *ptr++ = *src++;
     }
     *ptr = '\0';
 
@@ -72,7 +73,7 @@ void History::add(int argc, const char *argv[]) {
 
 const char *History::prev() {
     if (size == 0) return nullptr;
-    if (index + 1 < (int8_t) size) index++;
+    if (index + 1 < (int8_t)size) index++;
     return tokens[index];
 }
 
@@ -85,6 +86,4 @@ const char *History::next() {
     return tokens[index];
 }
 
-void History::reset_index() {
-    index = -1;
-}
+void History::reset_index() { index = -1; }

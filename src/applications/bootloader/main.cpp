@@ -3,7 +3,6 @@
 #include "platform/init.h"
 #include "platform/stdio.h"
 #include "platform/cpu.h"
-#include "hardware/flash.h"
 #include "hardware/intc.h"
 #include "hardware/sctrl.h"
 #include "hardware/uart.h"
@@ -14,19 +13,16 @@
 
 
 extern "C" {
-    // filled by BACKUP_REGISTERS macro
-    __used
-    __section(".noinit")
-    struct {
-        uint32_t cpsr;
-        uint32_t r[13];
-        uint32_t sp;
-        uint32_t lr;
-    } boot_entry_state;
+// filled by BACKUP_REGISTERS macro
+__used __section(".noinit") struct {
+    uint32_t cpsr;
+    uint32_t r[13];
+    uint32_t sp;
+    uint32_t lr;
+} boot_entry_state;
 }
 
-#define STEP_MS             100
-
+#define STEP_MS 100
 
 static bool enter_shell(int seconds) {
     for (int i = seconds; i > 0; i--) {
@@ -47,32 +43,30 @@ static bool enter_shell(int seconds) {
     return false;
 }
 
-static void print_version() {
-    printf("Bootloader by Apache02\r\n\n");
-}
+static void print_version() { printf("Bootloader by Apache02\r\n\n"); }
 
-static inline int hex_digit(int digit) {
-    return (digit > 9 ? 'a' - 0xa : '0') + digit;
-}
+static inline int hex_digit(int digit) { return (digit > 9 ? 'a' - 0xa : '0') + digit; }
 
 void uart2_print_uint32(uint32_t value) {
     char buf[12] = {0};
-    int i = 0;
-    buf[i++] = '0';
-    buf[i++] = 'x';
-    buf[i++] = hex_digit((value >> (4 * 7)) & 0xf);
-    buf[i++] = hex_digit((value >> (4 * 6)) & 0xf);
-    buf[i++] = hex_digit((value >> (4 * 5)) & 0xf);
-    buf[i++] = hex_digit((value >> (4 * 4)) & 0xf);
-    buf[i++] = hex_digit((value >> (4 * 3)) & 0xf);
-    buf[i++] = hex_digit((value >> (4 * 2)) & 0xf);
-    buf[i++] = hex_digit((value >> (4 * 1)) & 0xf);
-    buf[i++] = hex_digit((value >> (4 * 0)) & 0xf);
-    buf[i] = '\0';
+    int  i       = 0;
+    buf[i++]     = '0';
+    buf[i++]     = 'x';
+    buf[i++]     = hex_digit((value >> (4 * 7)) & 0xf);
+    buf[i++]     = hex_digit((value >> (4 * 6)) & 0xf);
+    buf[i++]     = hex_digit((value >> (4 * 5)) & 0xf);
+    buf[i++]     = hex_digit((value >> (4 * 4)) & 0xf);
+    buf[i++]     = hex_digit((value >> (4 * 3)) & 0xf);
+    buf[i++]     = hex_digit((value >> (4 * 2)) & 0xf);
+    buf[i++]     = hex_digit((value >> (4 * 1)) & 0xf);
+    buf[i++]     = hex_digit((value >> (4 * 0)) & 0xf);
+    buf[i]       = '\0';
     uart2_puts(buf);
 }
 
-#define PRINT_REG(name, value)      uart2_puts(name); uart2_print_uint32(value);
+#define PRINT_REG(name, value) \
+    uart2_puts(name);          \
+    uart2_print_uint32(value);
 
 static void print_registers() {
     PRINT_REG("\r\nCPSR:    ", boot_entry_state.cpsr);

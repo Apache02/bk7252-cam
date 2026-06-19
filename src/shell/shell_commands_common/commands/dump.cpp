@@ -4,9 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-
-#define DUMP_DEFAULT_ADDRESS        0x00000000
-
+#define DUMP_DEFAULT_ADDRESS 0x00000000
 
 static bool validate_addr_or_print_error(uint32_t addr) {
     if (addr & 3) {
@@ -16,9 +14,8 @@ static bool validate_addr_or_print_error(uint32_t addr) {
     return true;
 }
 
-
 int command_dump(int argc, const char *argv[]) {
-    auto addr = take_int(argv[1]).ok_or(DUMP_DEFAULT_ADDRESS);
+    auto         addr  = take_int(argv[1]).ok_or(DUMP_DEFAULT_ADDRESS);
     unsigned int count = 16 * 16;
 
     printf("addr 0x%08x\r\n", addr);
@@ -39,7 +36,7 @@ int command_dump(int argc, const char *argv[]) {
 }
 
 int command_dump32(int argc, const char *argv[]) {
-    auto addr = take_int(argv[1]).ok_or(DUMP_DEFAULT_ADDRESS);
+    auto         addr  = take_int(argv[1]).ok_or(DUMP_DEFAULT_ADDRESS);
     unsigned int count = 16 * 16;
 
     printf("addr 0x%08x\r\n", addr);

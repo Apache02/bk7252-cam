@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 
-
 // efuse structure
 //  0 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ENCRYPT_WORD
 // 16 | 00 00 00 00                                     | CHARGE_CAL
@@ -14,37 +13,34 @@
 // 30 | 00                                              | USER_AREA
 // 31 | 00                                              | CTRL
 
+#define EFUSE_ENCRYPT_WORD_OFFSET (0)
+#define EFUSE_ENCRYPT_WORD_LEN    (16)
 
-#define EFUSE_ENCRYPT_WORD_OFFSET                       (0)
-#define EFUSE_ENCRYPT_WORD_LEN                          (16)
+#define EFUSE_CHARGE_CAL_OFFSET (16)
+#define EFUSE_CHARGE_CAL_LEN    (4)
 
-#define EFUSE_CHARGE_CAL_OFFSET                         (16)
-#define EFUSE_CHARGE_CAL_LEN                            (4)
+#define EFUSE_UID_OFFSET (20)
+#define EFUSE_UID_LEN    (4)
 
-#define EFUSE_UID_OFFSET                                (20)
-#define EFUSE_UID_LEN                                   (4)
+#define EFUSE_MAC_OFFSET (24)
+#define EFUSE_MAC_LEN    (6)
 
-#define EFUSE_MAC_OFFSET                                (24)
-#define EFUSE_MAC_LEN                                   (6)
+#define EFUSE_USER_AREA_OFFSET (30)
+#define EFUSE_USER_AREA_LEN    (1)
 
-#define EFUSE_USER_AREA_OFFSET                          (30)
-#define EFUSE_USER_AREA_LEN                             (1)
-
-#define EFUSE_CTRL_OFFSET                               (31)
-#define EFUSE_CTRL_LEN                                  (1)
-
+#define EFUSE_CTRL_OFFSET (31)
+#define EFUSE_CTRL_LEN    (1)
 
 typedef struct __packed {
-    uint8_t disable_write: 1;
-    uint8_t mac_disable_write: 1;
-    uint8_t uid_disable_write: 1;
-    uint8_t encrypt_disable_write: 1;
-    uint8_t encrypt_disable_read: 1;
-    uint8_t encrypt_enable: 1;
-    uint8_t flash_download_disable: 1;
-    uint8_t jtag_disable: 1;
+    uint8_t disable_write : 1;
+    uint8_t mac_disable_write : 1;
+    uint8_t uid_disable_write : 1;
+    uint8_t encrypt_disable_write : 1;
+    uint8_t encrypt_disable_read : 1;
+    uint8_t encrypt_enable : 1;
+    uint8_t flash_download_disable : 1;
+    uint8_t jtag_disable : 1;
 } efuse_ctrl_byte_t;
-
 
 #ifdef __cplusplus
 extern "C" {

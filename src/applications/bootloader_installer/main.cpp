@@ -11,9 +11,8 @@ extern const uint8_t _bootloader_payload_start[];
 extern const uint8_t _bootloader_payload_end[];
 }
 
-static const uint8_t  *const payload      = _bootloader_payload_start;
-static const uint32_t        payload_size =
-    static_cast<uint32_t>(_bootloader_payload_end - _bootloader_payload_start);
+static const uint8_t *const payload      = _bootloader_payload_start;
+static const uint32_t       payload_size = static_cast<uint32_t>(_bootloader_payload_end - _bootloader_payload_start);
 
 static constexpr uint32_t FLASH_ADDR  = 0x000000u;
 static constexpr uint32_t SECTOR_SIZE = 4096u;

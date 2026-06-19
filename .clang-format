@@ -8,11 +8,14 @@ UseTab: Never
 SortIncludes: Never
 IndentCaseLabels: true
 BreakStringLiterals: false
-ColumnLimit: 160
+ColumnLimit: 120
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AttributeMacros:
   - __data
   - __noinline
+  - __section
+  - __used
+BreakAfterAttributes: Leave
 
 BraceWrapping:
   AfterClass: false
@@ -25,3 +28,20 @@ BraceWrapping:
   BeforeCatch: false
   BeforeElse: false
 BreakBeforeBraces: Custom
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+MaxEmptyLinesToKeep: 2
+AlignEscapedNewlines: Left

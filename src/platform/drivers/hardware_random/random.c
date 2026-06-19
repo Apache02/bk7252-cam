@@ -2,7 +2,6 @@
 #include "hardware/random.h"
 #include "utils/busy_wait.h"
 
-
 void trng_enable() {
     hw_trng->ctrl.enable = 1;
 
@@ -11,10 +10,7 @@ void trng_enable() {
 
 void trng_disable() {
     hw_trng->ctrl.enable = 0;
-    hw_trng->data = 0x1234;
+    hw_trng->data        = 0x1234;
 }
 
-uint32_t get_random() {
-    return hw_trng->data;
-}
-
+uint32_t get_random() { return hw_trng->data; }

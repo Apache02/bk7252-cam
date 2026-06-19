@@ -4,9 +4,9 @@
 #include "utils/busy_wait.h"
 
 
-#define LED_PIN         26
-#define KEY_PWR_PIN     2       // pull up
-#define KEY_MODE_PIN    7       // pull up
+#define LED_PIN      26
+#define KEY_PWR_PIN  2 // pull up
+#define KEY_MODE_PIN 7 // pull up
 
 
 int main() {

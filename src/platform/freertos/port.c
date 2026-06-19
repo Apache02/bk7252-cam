@@ -5,9 +5,7 @@
 
 #include <sys/cdefs.h>
 
-
 uint32_t ulCriticalNesting;
-
 
 void vPortEnableInterrupts() {
     if (portIsInFIQ()) return;
@@ -60,10 +58,10 @@ extern void vPortStartFirstTask(void);
 
 BaseType_t xPortStartScheduler(void) {
     ulCriticalNesting = 0;
-    sys_tick_timer = -1;
+    sys_tick_timer    = -1;
 
     /* Start the timer that generates the tick ISR. Interrupts are disabled here already. */
-    int timer = timer_create_by_freq(configTICK_RATE_HZ, xPortSysTickHandler, false);
+    int timer      = timer_create_by_freq(configTICK_RATE_HZ, xPortSysTickHandler, false);
     sys_tick_timer = timer;
 
     if (timer < 0) return 0;
@@ -75,9 +73,7 @@ BaseType_t xPortStartScheduler(void) {
     return 0;
 }
 
-void vPortEndScheduler(void) {
-    timer_remove(sys_tick_timer);
-}
+void vPortEndScheduler(void) { timer_remove(sys_tick_timer); }
 
 /*-----------------------------------------------------------*/
 /*
@@ -99,47 +95,46 @@ StackType_t *pxPortInitialiseStack(StackType_t *pxTopOfStack, TaskFunction_t pxC
     /* First on the stack is the return address - which in this case is the
     start of the task.  The offset is added to make the return address appear
     as it would within an IRQ ISR. */
-    *pxTopOfStack = (StackType_t) pxCode + portINSTRUCTION_SIZE;
+    *pxTopOfStack = (StackType_t)pxCode + portINSTRUCTION_SIZE;
     pxTopOfStack--;
 
-    *pxTopOfStack = (StackType_t) 0xaaaaaaaa;    /* R14 */
+    *pxTopOfStack = (StackType_t)0xaaaaaaaa; /* R14 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) pxOriginalTOS; /* Stack used when task starts goes in R13. */
+    *pxTopOfStack = (StackType_t)pxOriginalTOS; /* Stack used when task starts goes in R13. */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x12121212;    /* R12 */
+    *pxTopOfStack = (StackType_t)0x12121212; /* R12 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x11111111;    /* R11 */
+    *pxTopOfStack = (StackType_t)0x11111111; /* R11 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x10101010;    /* R10 */
+    *pxTopOfStack = (StackType_t)0x10101010; /* R10 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x09090909;    /* R9 */
+    *pxTopOfStack = (StackType_t)0x09090909; /* R9 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x08080808;    /* R8 */
+    *pxTopOfStack = (StackType_t)0x08080808; /* R8 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x07070707;    /* R7 */
+    *pxTopOfStack = (StackType_t)0x07070707; /* R7 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x06060606;    /* R6 */
+    *pxTopOfStack = (StackType_t)0x06060606; /* R6 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x05050505;    /* R5 */
+    *pxTopOfStack = (StackType_t)0x05050505; /* R5 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x04040404;    /* R4 */
+    *pxTopOfStack = (StackType_t)0x04040404; /* R4 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x03030303;    /* R3 */
+    *pxTopOfStack = (StackType_t)0x03030303; /* R3 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x02020202;    /* R2 */
+    *pxTopOfStack = (StackType_t)0x02020202; /* R2 */
     pxTopOfStack--;
-    *pxTopOfStack = (StackType_t) 0x01010101;    /* R1 */
+    *pxTopOfStack = (StackType_t)0x01010101; /* R1 */
     pxTopOfStack--;
 
     /* When the task starts is will expect to find the function parameter in
     R0. */
-    *pxTopOfStack = (StackType_t) pvParameters; /* R0 */
+    *pxTopOfStack = (StackType_t)pvParameters; /* R0 */
     pxTopOfStack--;
 
     /* The status register is set for system mode, with interrupts enabled. */
-    *pxTopOfStack = ((uint32_t) pxCode & 0x01)
-                    ? (StackType_t) portINITIAL_SPSR | portTHUMB_MODE_BIT
-                    : (StackType_t) portINITIAL_SPSR;
+    *pxTopOfStack =
+        ((uint32_t)pxCode & 0x01) ? (StackType_t)portINITIAL_SPSR | portTHUMB_MODE_BIT : (StackType_t)portINITIAL_SPSR;
     pxTopOfStack--;
 
     /* Interrupt flags cannot always be stored on the stack and will

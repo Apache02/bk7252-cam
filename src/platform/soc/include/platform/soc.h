@@ -23,7 +23,8 @@
 //   );
 //
 // Naming follows the pico-sdk hw_* convention for register helpers.
-#define hw_write_fields(reg, ...) do {                  \
-    typeof(reg) _tmp = { __VA_ARGS__ };                 \
-    (reg).v = _tmp.v;                                   \
-} while (0)
+#define hw_write_fields(reg, ...)         \
+    do {                                  \
+        typeof(reg) _tmp = {__VA_ARGS__}; \
+        (reg).v          = _tmp.v;        \
+    } while (0)

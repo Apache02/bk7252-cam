@@ -1,10 +1,12 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define FAL_PART_MAGIC_WORD     0x45503130UL
-#define FAL_DEV_NAME_MAX        24
 
-#define KB                      1024
+#define FAL_PART_MAGIC_WORD 0x45503130UL
+#define FAL_DEV_NAME_MAX    24
+
+#define KB 1024
+
 
 typedef struct {
     uint32_t     magic_word;
@@ -15,8 +17,7 @@ typedef struct {
     uint32_t     reserved;
 } fal_partition_t;
 
-__attribute__((section(".fal_partition_table")))
-__used const fal_partition_t partition_table_def[] = {
+__section(".fal_partition_table") __used const fal_partition_t partition_table_def[] = {
     {
         .magic_word = FAL_PART_MAGIC_WORD,
         .name       = "bootloader",

@@ -7,8 +7,7 @@
 #include "soc/intc.h"
 #include "intc_manager.h"
 
-
-#define count_of(x)     (sizeof(x) / sizeof(x[0]))
+#define count_of(x) (sizeof(x) / sizeof(x[0]))
 
 
 extern void do_irq(void);
@@ -21,13 +20,13 @@ extern void do_reserved(void);
 
 
 static inline void init_ram_vectors() {
-    ram_vectors->irq = do_irq;
-    ram_vectors->fiq = do_fiq;
-    ram_vectors->swi = do_swi;
+    ram_vectors->irq       = do_irq;
+    ram_vectors->fiq       = do_fiq;
+    ram_vectors->swi       = do_swi;
     ram_vectors->undefined = do_undefined;
-    ram_vectors->pabort = do_pabort;
-    ram_vectors->dabort = do_dabort;
-    ram_vectors->reserved = do_reserved;
+    ram_vectors->pabort    = do_pabort;
+    ram_vectors->dabort    = do_dabort;
+    ram_vectors->reserved  = do_reserved;
 }
 
 static void intc_init(void) {
@@ -35,27 +34,16 @@ static void intc_init(void) {
 
     init_ram_vectors();
 
-    hw_write_fields(*icu_interrupt_enable_reg,
-        .fiq_mac_general = 1,
-        .fiq_mac_prot_trigger = 1,
-        .fiq_mac_tx_trigger = 1,
-        .fiq_mac_rx_trigger = 1,
-        .fiq_mac_tx_rx_misc = 1,
-        .fiq_mac_tx_rx_timer = 1,
-        .fiq_modem = 1,
-    );
+    hw_write_fields(*hw_intc_enable, .fiq_mac_general = 1, .fiq_mac_prot_trigger = 1, .fiq_mac_tx_trigger = 1,
+                    .fiq_mac_rx_trigger = 1, .fiq_mac_tx_rx_misc = 1, .fiq_mac_tx_rx_timer = 1, .fiq_modem = 1, );
 
-    icu_global_interrupt_enable_reg->v = GINTR_IRQ_EN | GINTR_FIQ_EN;
+    hw_intc_global_en->v = GINTR_IRQ_EN | GINTR_FIQ_EN;
 }
 
 INIT_AT(intc_init, 01);
 
-static int find_handlers(
-    const struct handlers_collection_t *collection,
-    const uint32_t source,
-    interrupt_handler_cb **handlers,
-    const size_t length
-) {
+static int find_handlers(const struct handlers_collection_t *collection, const uint32_t source,
+                         interrupt_handler_cb **handlers, const size_t length) {
     int count = 0;
 
     for (int i = 0; i < collection->count; i++) {
@@ -71,7 +59,7 @@ static int find_handlers(
 }
 
 void intc_irq(void) {
-    icu_interrupts_reg_t status = *icu_interrupt_status_reg;
+    hw_intc_irq_mask_t status = *hw_intc_status;
 
     status.v &= ICU_INT_IRQ_MASK;
     if (!status.v) {
@@ -79,7 +67,7 @@ void intc_irq(void) {
     }
 
     // clear status
-    icu_interrupt_status_reg->v = status.v;
+    hw_intc_status->v = status.v;
 
     uint32_t source = 0;
     if (status.irq_uart1) source |= IRQ_SOURCE_UART1;
@@ -102,7 +90,7 @@ void intc_irq(void) {
     if (!source) return;
 
     interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
-    int count = find_handlers(&intc_manager.irq, source, handlers, count_of(handlers));
+    int                   count = find_handlers(&intc_manager.irq, source, handlers, count_of(handlers));
 
     for (int i = 0; i < count; i++) {
         handlers[i]();
@@ -110,7 +98,7 @@ void intc_irq(void) {
 }
 
 void intc_fiq(void) {
-    icu_interrupts_reg_t status = *icu_interrupt_status_reg;
+    hw_intc_irq_mask_t status = *hw_intc_status;
 
     status.v &= ICU_INT_FIQ_MASK;
     if (!status.v) {
@@ -118,7 +106,7 @@ void intc_fiq(void) {
     }
 
     // clear status
-    icu_interrupt_status_reg->v = status.v;
+    hw_intc_status->v = status.v;
 
     uint32_t source = 0;
     if (status.fiq_modem) source |= FIQ_SOURCE_MODEM;
@@ -138,7 +126,7 @@ void intc_fiq(void) {
     if (!source) return;
 
     interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
-    int count = find_handlers(&intc_manager.fiq, source, handlers, count_of(handlers));
+    int                   count = find_handlers(&intc_manager.fiq, source, handlers, count_of(handlers));
 
     for (int i = 0; i < count; i++) {
         handlers[i]();
@@ -164,7 +152,7 @@ bool intc_unregister_fiq_handler(uint32_t source, interrupt_handler_cb *func) {
 }
 
 static uint32_t irq_source_to_reg(uint32_t source) {
-    volatile icu_interrupts_reg_t reg = {0};
+    volatile hw_intc_irq_mask_t reg = {0};
 
     if (source & IRQ_SOURCE_UART1) reg.irq_uart1 = 1;
     if (source & IRQ_SOURCE_UART2) reg.irq_uart2 = 1;
@@ -186,16 +174,12 @@ static uint32_t irq_source_to_reg(uint32_t source) {
     return reg.v;
 }
 
-void intc_enable_irq_source(uint32_t source) {
-    icu_interrupt_enable_reg->v |= irq_source_to_reg(source);
-}
+void intc_enable_irq_source(uint32_t source) { hw_intc_enable->v |= irq_source_to_reg(source); }
 
-void intc_disable_irq_source(uint32_t source) {
-    icu_interrupt_enable_reg->v &= ~irq_source_to_reg(source);
-}
+void intc_disable_irq_source(uint32_t source) { hw_intc_enable->v &= ~irq_source_to_reg(source); }
 
 static uint32_t fiq_source_to_reg(uint32_t source) {
-    volatile icu_interrupts_reg_t reg = {0};
+    volatile hw_intc_irq_mask_t reg = {0};
 
     if (source & FIQ_SOURCE_MODEM) reg.fiq_modem = 1;
     if (source & FIQ_SOURCE_MAC_TX_RX_TIMER) reg.fiq_mac_tx_rx_timer = 1;
@@ -217,17 +201,13 @@ static uint32_t fiq_source_to_reg(uint32_t source) {
     return reg.v;
 }
 
-void intc_enable_fiq_source(uint32_t source) {
-    icu_interrupt_enable_reg->v |= fiq_source_to_reg(source);
-}
+void intc_enable_fiq_source(uint32_t source) { hw_intc_enable->v |= fiq_source_to_reg(source); }
 
-void intc_disable_fiq_source(uint32_t source) {
-    icu_interrupt_enable_reg->v &= ~fiq_source_to_reg(source);
-}
+void intc_disable_fiq_source(uint32_t source) { hw_intc_enable->v &= ~fiq_source_to_reg(source); }
 
 void intc_reset() {
-    icu_interrupt_enable_reg->v = 0;
-    icu_global_interrupt_enable_reg->v = 0;
-    icu_interrupt_raw_status_reg->v = icu_interrupt_raw_status_reg->v;
-    icu_interrupt_status_reg->v = icu_interrupt_status_reg->v;
+    hw_intc_enable->v     = 0;
+    hw_intc_global_en->v  = 0;
+    hw_intc_raw_status->v = hw_intc_raw_status->v;
+    hw_intc_status->v     = hw_intc_status->v;
 }

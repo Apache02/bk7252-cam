@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include "platform/init.h"
 
-
 void _sysboot_zi_init() {
     extern uint32_t _bss_start;
     extern uint32_t _bss_end;
@@ -24,7 +23,6 @@ void _sysboot_copy_data_to_ram(void) {
     }
 }
 
-__attribute__((weak)) void heap_init() {
-}
+__attribute__((weak)) void heap_init() {}
 
 PREINIT(heap_init);

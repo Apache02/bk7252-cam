@@ -5,18 +5,15 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 void trng_enable();
 
 void trng_disable();
 
 uint32_t get_random();
-
 
 #ifdef __cplusplus
 }

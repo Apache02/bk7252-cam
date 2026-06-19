@@ -17,8 +17,7 @@ static constexpr uint8_t busy_pins[] = {
 
 static bool is_pin_busy(uint8_t pin) {
     for (auto i : busy_pins) {
-        if (i == pin)
-            return true;
+        if (i == pin) return true;
     }
     return false;
 }
@@ -81,7 +80,7 @@ static int scan(const uint8_t count, const uint8_t *pins) {
 // gpio <pin> out|in|in_pu|in_pd|get|set <0|1>
 int command_gpio(int argc, const char *argv[]) {
     uint8_t pins[GPIO_NUM_MAX + 1] = {};
-    uint8_t pins_count = 0;
+    uint8_t pins_count             = 0;
 
     if (argc >= 2) {
         if (strcmp(argv[1], "scan") == 0) {
