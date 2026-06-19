@@ -1,7 +1,7 @@
+#include "soc/gdma.h"
 #include "hardware/gdma.h"
 #include "hardware/intc.h"
 #include "platform/init.h"
-#include "gdma_regs.h"
 
 #include <stdio.h>
 
@@ -124,7 +124,7 @@ int gdma_configure(int channel, const gdma_config_t *cfg) {
     );
 
     // enable bit is left zero here; channel is started separately via gdma_start.
-    // transfer_length stores (size - 1) per the model in gdma_regs.h.
+    // transfer_length stores (size - 1) per the model in soc/gdma.h.
     hw_write_fields(hw_gdma->channels[channel].config,
         .fin_int_enable = 1,
         .src_data_width = cfg->src.dw,

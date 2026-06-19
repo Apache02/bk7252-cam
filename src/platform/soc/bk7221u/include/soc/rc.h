@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <assert.h>
-#include "register_defs.h"
+#include "platform/soc.h"
 
 
 #define REG_RC_BASE                         (0x01050000)
@@ -347,7 +347,7 @@ typedef volatile struct {
 
     volatile uint32_t reserved_5d_63[7];        // 0x174..0x18C
 
-    // 0x190..0x1A4: ADDA_REG0..ADDA_REG5 (повністю 32-бітні значення без внутрішньої структури)
+    // 0x190..0x1A4: ADDA_REG0..ADDA_REG5 (opaque 32-bit values, no documented internal structure)
     volatile uint32_t ADDA_REG0;                // 0x190
     volatile uint32_t ADDA_REG1;                // 0x194
     volatile uint32_t ADDA_REG2;                // 0x198

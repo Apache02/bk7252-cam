@@ -1,6 +1,7 @@
+#include "soc/random.h"
 #include "hardware/random.h"
-#include "random_regs.h"
 #include "utils/busy_wait.h"
+
 
 void trng_enable() {
     hw_trng->ctrl.enable = 1;

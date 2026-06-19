@@ -1,6 +1,6 @@
 #pragma once
 
-#include "register_defs.h"
+#include "platform/soc.h"
 
 #define FLASH_BASE                          (0x00803000)
 

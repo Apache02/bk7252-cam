@@ -1,8 +1,6 @@
-#ifndef _HARDWARE_ICU_H
-#define _HARDWARE_ICU_H
+#pragma once
 
-#include "register_defs.h"
-
+#include "platform/soc.h"
 
 /*******************************************************************/
 
@@ -229,4 +227,3 @@ static inline void icu_i2c1_power_down() {
 }
 #endif
 
-#endif // _HARDWARE_ICU_H

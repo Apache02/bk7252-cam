@@ -1,6 +1,7 @@
+#include "soc/sctrl.h"
 #include "hardware/sctrl.h"
-#include "hardware/sctrl_regs.h"
 #include "hardware/icu.h"
+
 
 typedef enum {
     MCLK_SOURCE_DCO = 0,

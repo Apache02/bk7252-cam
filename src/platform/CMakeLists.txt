@@ -1,3 +1,4 @@
+add_subdirectory(soc)
 add_subdirectory(boot)
 add_subdirectory(cpu)
 add_subdirectory(drivers)

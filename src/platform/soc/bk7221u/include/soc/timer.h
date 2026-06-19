@@ -1,8 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include "register_defs.h"
-
+#include "platform/soc.h"
 
 #define PWM_NEW_BASE                (0x00802A00)
 
@@ -25,6 +24,7 @@ typedef struct {
             uint32_t enable: 3;
             uint32_t clk_divider: 4;
             uint32_t irq_status: 3;
+            uint32_t reserved_10_31: 22;
         };
     } ctl;
 
@@ -32,8 +32,9 @@ typedef struct {
         uint32_t v;
         struct {
             uint32_t read_op: 1;
-            uint32_t _pad0: 1;
+            uint32_t reserved_1: 1;
             uint32_t read_index: 2;
+            uint32_t reserved_4_31: 28;
         };
     } read_ctl;
 

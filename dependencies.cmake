@@ -1,5 +1,13 @@
 include(FetchContent)
 
+# FetchContent_Populate() is deprecated in CMake 3.30+ (CMP0169 NEW). The
+# three dependencies below are integrated manually via their source-dir
+# variables, not via add_subdirectory, so we keep the old populate-only
+# pattern rather than switching to FetchContent_MakeAvailable.
+if(POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+endif()
+
 # FreeRTOS
 message("Fetching FreeRTOS-Kernel ...")
 FetchContent_Declare(

@@ -1,5 +1,5 @@
 #include "hardware/gpio.h"
-#include "gpio_regs.h"
+#include "soc/gpio.h"
 
 void gpio_config(gpio_num_t gpio, gpio_dir_t dir) {
     if (gpio > GPIO_NUM_MAX) return;

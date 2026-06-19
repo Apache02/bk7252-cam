@@ -1,11 +1,11 @@
 #pragma once
 
 #include <stdint.h>
-#include "register_defs.h"
+#include "platform/soc.h"
 
 
 #define GDMA_BASE_ADDR              (0x00809000)
-#define GDMA_CHANNELS               (6)
+#define GDMA_NUM_CHANNELS           (6)
 
 
 typedef volatile struct {
@@ -81,7 +81,7 @@ typedef volatile struct {
 
 
 typedef volatile struct {
-    hw_gdma_channel_t channels[GDMA_CHANNELS];      // word 0x00..0x2F: 8 words per channel x 6 channels
+    hw_gdma_channel_t channels[GDMA_NUM_CHANNELS];      // word 0x00..0x2F: 8 words per channel x 6 channels
 
     union {
         struct {
@@ -93,7 +93,7 @@ typedef volatile struct {
         };
 
         uint32_t v;
-    } int_counts[GDMA_CHANNELS];                    // word 0x30..0x35
+    } int_counts[GDMA_NUM_CHANNELS];                    // word 0x30..0x35
 
     uint32_t reserved_word_0x36;                    // word 0x36
 
@@ -120,15 +120,15 @@ typedef volatile struct {
 
     uint32_t reserved_word_0x39_0x3F[7];            // word 0x39..0x3F
 
-    uint32_t src_pause_addr[GDMA_CHANNELS];         // word 0x40..0x45
+    uint32_t src_pause_addr[GDMA_NUM_CHANNELS];         // word 0x40..0x45
     uint32_t reserved_word_0x46_0x47[2];            // word 0x46..0x47
-    uint32_t dst_pause_addr[GDMA_CHANNELS];         // word 0x48..0x4D
+    uint32_t dst_pause_addr[GDMA_NUM_CHANNELS];         // word 0x48..0x4D
     uint32_t reserved_word_0x4E_0x4F[2];            // word 0x4E..0x4F
-    uint32_t src_rd_addr[GDMA_CHANNELS];            // word 0x50..0x55. Internal src read counter; does NOT
+    uint32_t src_rd_addr[GDMA_NUM_CHANNELS];            // word 0x50..0x55. Internal src read counter; does NOT
                                                     // map to the current source address in a straightforward way.
                                                     // Debug only.
     uint32_t reserved_word_0x56_0x57[2];            // word 0x56..0x57
-    uint32_t dst_wr_addr[GDMA_CHANNELS];            // word 0x58..0x5D. Internal dst write counter; same caveat
+    uint32_t dst_wr_addr[GDMA_NUM_CHANNELS];            // word 0x58..0x5D. Internal dst write counter; same caveat
                                                     // as src_rd_addr. Debug only.
 } hw_gdma_t;
 

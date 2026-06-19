@@ -1,5 +1,5 @@
+#include "soc/efuse.h"
 #include "hardware/efuse.h"
-#include "efuse_regs.h"
 
 
 int efuse_read_byte(uint8_t addr) {

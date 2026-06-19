@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "register_defs.h"
+#include "platform/soc.h"
 
 
 #define SECURITY_BASE                   (0x00806000)

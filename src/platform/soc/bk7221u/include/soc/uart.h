@@ -1,7 +1,6 @@
 #pragma once
 
-#include "register_defs.h"
-
+#include "platform/soc.h"
 
 #define UART1_BASE_ADDR                 (0x0802100)
 #define UART2_BASE_ADDR                 (0x0802200)

@@ -1,8 +1,7 @@
 #pragma once
 
 #include <assert.h>
-#include "register_defs.h"
-
+#include "platform/soc.h"
 
 #define SCTRL_BASE                  (0x00800000)
 
@@ -166,7 +165,7 @@ typedef volatile struct {
     } analog_ctrl6;
 
     // efuse_ctrl and efuse_optr are mapped here (offsets 0x1D-0x1E) but owned by hardware_efuse
-    // via hw_efuse (efuse_regs.h); access through hw_sctrl->efuse_ctrl only when bypassing that driver.
+    // via hw_efuse (soc/efuse.h); access through hw_sctrl->efuse_ctrl only when bypassing that driver.
     uint32_t efuse_ctrl;
     uint32_t efuse_optr;
 

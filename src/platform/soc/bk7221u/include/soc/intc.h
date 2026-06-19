@@ -1,7 +1,6 @@
 #pragma once
 
-#include "register_defs.h"
-
+#include "platform/soc.h"
 
 #define ICU_BASE                            (0x00802000)
 #define ICU_INTERRUPT_ENABLE                (ICU_BASE + 16 * 4)
@@ -78,6 +77,7 @@ typedef struct {
         struct {
             uint32_t irq: 1;
             uint32_t fiq: 1;
+            uint32_t reserved_2_31: 30;
         };
     };
 } icu_global_interrupt_enable_reg_t;
@@ -86,4 +86,3 @@ typedef struct {
 #define icu_interrupt_enable_reg            ((volatile icu_interrupts_reg_t *)ICU_INTERRUPT_ENABLE)
 #define icu_interrupt_raw_status_reg        ((volatile icu_interrupts_reg_t *)ICU_INT_RAW_STATUS)
 #define icu_interrupt_status_reg            ((volatile icu_interrupts_reg_t *)ICU_INT_STATUS)
-

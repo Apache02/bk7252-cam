@@ -1,6 +1,6 @@
 #pragma once
 
-#include "register_defs.h"
+#include "platform/soc.h"
 
 
 #define JPEG_BASE_ADDR              (0x0080A000)

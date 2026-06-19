@@ -5,7 +5,7 @@
 #include <string.h>
 #include "hardware/time.h"
 #include "platform/cpu.h"
-#include "hardware/sctrl_regs.h"
+#include "soc/sctrl.h"
 
 
 int command_cpu_speed(int argc, const char *argv[]) {

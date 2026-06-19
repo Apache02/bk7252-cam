@@ -1,5 +1,5 @@
 #include "hardware/timer.h"
-#include "timer_regs.h"
+#include "soc/timer.h"
 #include "sys_counter.h"
 #include "hardware/icu.h"
 #include "hardware/intc.h"

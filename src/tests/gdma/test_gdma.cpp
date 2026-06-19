@@ -88,7 +88,7 @@ __unused static void dump_regs(const char *when) {
 // Lives in the test file (not the driver) - the driver intentionally exposes
 // only the low-level API. Always uses dw=32/32 regardless of alignment: that
 // gives BE=1111 on both sides and full bus throughput (4 bytes per dst write).
-// Narrower widths are strictly slower for memcpy (see gdma_regs.h transfer
+// Narrower widths are strictly slower for memcpy (see soc/gdma.h transfer
 // model notes - they leave 3-byte gaps in dst between values).
 // Returns dst on success, NULL on failure. n=0 is a no-op returning dst.
 // Max single transfer is 262144 bytes (65536 dst writes * 4 bytes).

@@ -1,6 +1,6 @@
-#include "string.h"
-#include "flash_regs.h"
+#include "soc/flash.h"
 #include "hardware/flash.h"
+#include <string.h>
 #include "platform/init.h"
 
 

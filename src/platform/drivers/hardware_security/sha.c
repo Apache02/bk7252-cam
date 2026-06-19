@@ -1,4 +1,4 @@
-#include "security_regs.h"
+#include "soc/security.h"
 #include "hardware/sha.h"
 #include <stdbool.h>
 #include <stdlib.h>

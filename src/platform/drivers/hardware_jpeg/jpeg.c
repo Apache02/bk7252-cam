@@ -1,2 +1,2 @@
+#include "soc/jpeg.h"
 #include "hardware/jpeg.h"
-#include "hardware/jpeg_regs.h"

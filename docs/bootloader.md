@@ -84,7 +84,7 @@ The sequence was reverse-engineered from `bootloaders/bootloader_a9_v720.bin`
 (Ghidra disassembly) and verified by flashing a minimal proof-of-concept that
 produced UART2 output.
 The description below maps each raw register write to the named fields in
-`hardware/sctrl_regs.h` and `hardware/icu.h`.
+`soc/sctrl.h` and `hardware/icu.h`.
 
 ---
 
@@ -173,7 +173,7 @@ hw_sctrl->analog_ctrl3 = 0x4FE06C50u;
 hw_sctrl->analog_ctrl4 = 0x59C04520u;
 ```
 
-`analog_ctrl0–4` are not field-decoded in `sctrl_regs.h`.  Known details:
+`analog_ctrl0–4` are not field-decoded in `soc/sctrl.h`.  Known details:
 
 - `analog_ctrl0` bit 31 — XTAL drive current.  The BK7252 vendor bootloader
   sets it (`0xF819A59B`); the BK7231U SDK clears it (`0x0819A59B`).  The
@@ -266,5 +266,5 @@ hw_sctrl->analog_ctrl0 = val;
 ```
 
 `SPI_TRIG_BIT` and `SPI_DET_EN` are bit positions within `analog_ctrl0` that
-are not yet decoded in `sctrl_regs.h`.  The same sequence is required after
+are not yet decoded in `soc/sctrl.h`.  The same sequence is required after
 wakeup from hardware sleep before switching `mclk` back to DPLL.

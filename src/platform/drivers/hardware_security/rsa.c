@@ -1,3 +1,3 @@
-#include "security_regs.h"
+#include "soc/security.h"
 #include "hardware/rsa.h"
 

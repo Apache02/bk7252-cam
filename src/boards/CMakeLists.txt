@@ -5,20 +5,23 @@ if(NOT DEFINED BOARD AND DEFINED ENV{BOARD})
     message("Using BOARD from environment '${BOARD}'")
 endif()
 
-set(BOARD ${BOARD} CACHE STRING "Target board configuration")
-set_property(CACHE BOARD PROPERTY STRINGS "BOARD_A" "BOARD_B" "BOARD_C")
-
 if(NOT BOARD)
     set(BOARD A9_B_V1_3)
 endif()
+set(BOARD ${BOARD} CACHE STRING "Target board")
 
-if(BOARD STREQUAL "A9_B_V1_3")
-    target_compile_definitions(board_config INTERFACE BOARD_A9_B_V1_3)
-else()
-    message(FATAL_ERROR "Unknown or unset board type specified. Please set BOARD or ENV{BOARD} to one of: BOARD_A, BOARD_B, BOARD_C")
+if(NOT IS_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/${BOARD})
+    message(FATAL_ERROR "Unknown board '${BOARD}'. Create src/boards/${BOARD}/board.h")
 endif()
 
-target_include_directories(
-        board_config INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
+file(STRINGS ${CMAKE_CURRENT_LIST_DIR}/${BOARD}/board.h _soc_line REGEX "BOARD_SOC_CHIP")
+string(REGEX REPLACE ".*BOARD_SOC_CHIP[ \t]+([^ \t\r\n]+).*" "\\1" SOC_CHIP_ID "${_soc_line}")
+
+if(NOT SOC_CHIP_ID)
+    message(FATAL_ERROR "board.h for '${BOARD}' is missing BOARD_SOC_CHIP definition")
+endif()
+
+set(SOC_CHIP_ID ${SOC_CHIP_ID} PARENT_SCOPE)
+
+target_include_directories(board_config INTERFACE ${CMAKE_CURRENT_LIST_DIR}/${BOARD})
+target_compile_definitions(board_config INTERFACE BOARD_${BOARD})

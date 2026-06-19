@@ -1,4 +1,4 @@
-#include "uart_regs.h"
+#include "soc/uart.h"
 
 #include "hardware/icu.h"
 #include "hardware/gpio.h"

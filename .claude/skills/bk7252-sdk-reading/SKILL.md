@@ -7,7 +7,7 @@ description: Use when reading or navigating Beken SDK source code for the BK7252
 
 Reference for navigating and interpreting `beken_freertos_sdk` source when working on the BK7252 project. Always resolve chip identity and branch gating before porting any SDK code.
 
-**REQUIRED SUB-SKILL for register output:** Use `bk7252-register-headers` when the goal is to produce a canonical `*_regs.h`.
+**REQUIRED SUB-SKILL for register output:** Use `bk7252-register-headers` when the goal is to produce a canonical `soc/<block>.h`.
 
 ## Chip identity
 

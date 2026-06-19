@@ -148,7 +148,7 @@ to peripheral registers are not supported unless noted.
 
 | Base address   | Peripheral    | Driver header              | Notes                                              |
 |----------------|---------------|----------------------------|----------------------------------------------------|
-| `0x00800000`   | SCTRL         | `hardware/sctrl_regs.h`    | System control: clocks, power, PLL, resets         |
+| `0x00800000`   | SCTRL         | `soc/sctrl.h`    | System control: clocks, power, PLL, resets         |
 | `0x00800074`   | eFuse         | `hardware/efuse.h`         | Embedded in SCTRL register space (`SCTRL + 0x1D×4`) |
 | `0x00802000`   | ICU / INTC    | `hardware/icu.h`, `hardware/intc.h` | Interrupt Controller Unit; clock gating and interrupt routing share this block |
 | `0x00802100`   | UART1         | `hardware/uart.h`          | —                                                  |
@@ -176,14 +176,14 @@ to peripheral registers are not supported unless noted.
 
 ### RC — `0x01050000`
 
-RF transceiver control block (`hw_rc`, `rc_regs.h`). Spans
+RF transceiver control block (`hw_rc`, `soc/rc.h`). Spans
 `0x01050000`–`0x010501A8` (107 words). `TRX_REG28` is accessed at the
 anomalous address `0x08628078`, outside all mapped regions; the access
 mechanism is not characterised.
 
 ### MPB — `0x01060000`
 
-MAC PHY Bypass (`hw_mpb`, `mpb_regs.h`). Two sub-blocks: main at
+MAC PHY Bypass (`hw_mpb`, `soc/mpb.h`). Two sub-blocks: main at
 `0x01060000` (`hw_mpb`, `r0`–`r11`) and TX-vector extra at `0x01060200`
 (`hw_mpb_extra`, `r128`–`r143`).
 

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "register_defs.h"
-
+#include "platform/soc.h"
 
 #define GPIO_BASE_ADDR                      (0x00802800)
 #define REG_GPIO_0_CONFIG                   (GPIO_BASE_ADDR + 0*4)

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "register_defs.h"
-#include "hardware/sctrl_regs.h"
+#include "platform/soc.h"
+#include "soc/sctrl.h"
 
 
 #define EFUSE_BASE         (SCTRL_BASE + 0x1D * 4)

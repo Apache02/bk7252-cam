@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "intc_regs.h"
+#include "soc/intc.h"
 #include "intc_manager.h"
 
 

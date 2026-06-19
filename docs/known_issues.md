@@ -261,7 +261,7 @@ Files: `hardware_security/rsa.c`, `hardware_security/include/hardware/rsa.h`.
 
 `rsa.c` only includes its headers; `rsa.h` is an empty stub with a `TODO`
 comment. Register layout for the RSA engine is documented in
-`security_regs.h` (`hw_rsa`), but no driver code is planned. Treat the
+`soc/security.h` (`hw_rsa`), but no driver code is planned. Treat the
 header as reserved — do not add stubbed functions or sample callers; if
 RSA is ever needed, design the API from scratch then.
 
@@ -273,7 +273,7 @@ These are larger pieces that require a design pass, not a patch.
 
 ### Arch1. Audit remaining register-write call sites
 
-The `hw_write_fields` helper in `register_defs.h` is the project-wide idiom
+The `hw_write_fields` helper in `soc.h` is the project-wide idiom
 for atomic multi-field MMIO writes. Known multi-field call sites (`efuse`,
 `gdma`, `intc::intc_init`, `uart::uart_init`) have been converted. Future
 drivers should follow the same shape; existing single-bit RMW writes
@@ -299,7 +299,7 @@ Today each driver invents its own return scheme:
 Pick one of:
 - Per-driver named enums (current `gdma` style) for everything.
 - A single `enum driver_status { OK = 0, ERR_INVAL = -1, ERR_BUSY = -2, ... }`
-  in `register_defs.h`.
+  in `soc.h`.
 
 ### Arch3. Uniform init lifecycle
 
@@ -372,6 +372,30 @@ Implications:
 Workaround: for the bypass driver (see `wip/flash-bypass` branch), IRAM firmware is
 used for now.  A production flash-firmware version of `flash_bypass_xfer` will need an
 explicit IRAM section attribute.
+
+### Arch7. `FetchContent_Populate` deprecated in CMake 3.30+ (CMP0169)
+
+CMake 4.2 (shipped with CLion 2026.1.3) emits a deprecation warning for the
+direct `FetchContent_Populate()` calls in `dependencies.cmake` — all three
+dependencies (FreeRTOS-Kernel, lwIP, tlsf) use the old populate-only pattern.
+
+The modern replacement is `FetchContent_MakeAvailable`, which also calls
+`add_subdirectory` on the fetched content. The current code intentionally
+skips that step — each dependency is integrated manually via its source-dir
+variable (`FREERTOS_KERNEL_PATH`, `LWIP_DIR`, tlsf source) rather than
+through CMake's own targets.
+
+Migration path:
+1. Verify that the FreeRTOS-Kernel V11.1.0 `CMakeLists.txt` can be loaded via
+   `FetchContent_MakeAvailable` without conflicting with the port's manual
+   integration (setting `FREERTOS_KERNEL_PORT` will be required).
+2. Do the same for lwIP (requires the port's `lwipopts.h` to be on the
+   include path before `add_subdirectory`).
+3. tlsf has a trivial `CMakeLists.txt`; a thin wrapper target may suffice.
+
+Until the migration is done, set `cmake_policy(SET CMP0169 OLD)` in
+`dependencies.cmake` (guarded with `if(POLICY CMP0169)`) to suppress the
+warning.
 
 ---
 

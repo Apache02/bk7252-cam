@@ -1,7 +1,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <stdio.h>
-#include "hardware/sctrl_regs.h"
+#include "soc/sctrl.h"
 
 
 int command_temp_sensor(__unused int argc, __unused const char *argv[]) {
