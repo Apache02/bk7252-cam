@@ -9,10 +9,7 @@
 
 static inline uint32_t min_u32(uint32_t a, uint32_t b) { return a < b ? a : b; }
 
-static inline void wait_busy_bit() {
-    while (hw_flash->operate_sw.busy)
-        ;
-}
+static inline void wait_busy_bit() { while (hw_flash->operate_sw.busy); }
 
 /* Single atomic write to operate_sw: sets addr, opcode, wp=1, op_sw=1 together.
  * Avoids read-modify-write races on operate_sw and matches the SDK pattern. */

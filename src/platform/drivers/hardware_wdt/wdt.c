@@ -30,6 +30,5 @@ int wdt_is_active(void) { return hw_icu->peri_clk_pwd.arm_wdt == 0; }
 void wdt_reboot(uint16_t delay) {
     wdt_set(delay);
     wdt_up();
-    while (true)
-        ;
+    while (true);
 }

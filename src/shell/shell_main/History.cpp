@@ -62,8 +62,7 @@ void History::add(int argc, const char *argv[]) {
     for (int i = 0; i < argc; i++) {
         if (i > 0) *ptr++ = ' ';
         const char *src = argv[i];
-        while (*src)
-            *ptr++ = *src++;
+        while (*src) *ptr++ = *src++;
     }
     *ptr = '\0';
 

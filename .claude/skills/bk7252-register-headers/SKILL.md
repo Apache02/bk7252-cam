@@ -58,7 +58,7 @@ typedef volatile struct {
 |---|------|
 | 1 | Union layout: `uint32_t v;` first, struct second |
 | 2 | Bit-range comments: `[hi:lo]` (MSB:LSB). Single bit: `// [N]`. Legacy `[lo:hi]` is wrong — fix on refactor. |
-| 3 | Every bit-field gets an inline `// [bits]` comment; add semantic note when name isn't self-evident |
+| 3 | Bit-fields may have an inline `// [bits]` comment; add when it aids readability — multi-bit and reserved ranges benefit most |
 | 4 | Reserved naming: `reserved_<lo>_<hi>: N;` for ranges, `reserved_<n>: 1;` for single bits. Union must sum to 32. |
 | 5 | `#include "platform/soc.h"` required |
 | 6 | Typedef: `hw_<block>_t`; sub-engine: `hw_<block>_<sub>_t`. Legacy `*_reg_t` / `efuse_hw_t` / `icu_*_reg_t` → fix on refactor. |
@@ -79,7 +79,7 @@ typedef volatile struct {
     - Convert mask → width: `0x1`→1, `0x3`→2, `0x7`→3, `0xF`→4, `0x1F`→5, `0xFF`→8, `0x3FF`→10, `0xFFF`→12, `0xFFFF`→16.
     - Lay out fields in ascending `POSI` order inside `union { uint32_t v; struct { ... }; }`.
     - Fill unallocated ranges with `reserved_<lo>_<hi>` so every union totals 32.
-    - Add `// [bits]` + semantic comment per field (rule 3).
+    - Add `// [bits]` comment where it aids readability (rule 3); always add for multi-bit and reserved fields.
 5. **Translate data registers** as plain `uint32_t name;`.
 6. **Insert gap padding** for non-contiguous offsets (rule 9).
 7. **Apply naming**: `hw_<block>_t`, `hw_<block>`, `<BLOCK>_BASE_ADDR`. Rename only for C-keyword collisions (rule 11).

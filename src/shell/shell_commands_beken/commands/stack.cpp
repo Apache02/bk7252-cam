@@ -42,8 +42,7 @@ int command_stack(__unused int argc, __unused const char *argv[]) {
         int       count = size / sizeof(uint32_t);
         uint32_t *top   = reinterpret_cast<uint32_t *>(const_cast<uint8_t *>(r.end));
         int       used  = 0;
-        while ((used < count) && top[-1 - used] != r.color)
-            used++;
+        while ((used < count) && top[-1 - used] != r.color) used++;
 
         auto *row = table->createRow();
         row->set("name", r.name);

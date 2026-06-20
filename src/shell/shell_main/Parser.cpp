@@ -103,8 +103,7 @@ static bool parse_octal_literal(const char *&cursor, int &out) {
 
 static bool parse_int_literal(const char *s, int &out) {
     // Skip leading whitespace
-    while (isspace(*s))
-        s++;
+    while (isspace(*s)) s++;
 
     if (*s != '0') return parse_decimal_literal(s, out);
 

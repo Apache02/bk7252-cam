@@ -21,8 +21,7 @@ static void report(const char *name, bool ok) {
 }
 
 static void fill_pattern(uint8_t *buf, size_t n, uint8_t seed) {
-    for (size_t i = 0; i < n; i++)
-        buf[i] = (uint8_t)(seed + i);
+    for (size_t i = 0; i < n; i++) buf[i] = (uint8_t)(seed + i);
 }
 
 // Compare buf to the same pattern fill_pattern() would produce.

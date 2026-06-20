@@ -36,10 +36,7 @@ static inline void store_be32(uint8_t *p, uint32_t w) {
     p[3] = (uint8_t)w;
 }
 
-static inline void wait_ready(void) {
-    while (!hw_aes->status.ready)
-        ;
-}
+static inline void wait_ready(void) { while (!hw_aes->status.ready); }
 
 // Load direction + mode, push the key, and run INIT to derive the key schedule.
 // After this call the engine is ready to consume 16-byte blocks via NEXT.

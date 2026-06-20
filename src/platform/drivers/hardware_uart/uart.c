@@ -36,8 +36,7 @@ static int uart_read_byte(volatile hw_uart_t *uart) {
 }
 
 static int uart_write_byte(volatile hw_uart_t *uart, char byte) {
-    while (!uart->fifo_status.wr_ready)
-        ;
+    while (!uart->fifo_status.wr_ready);
     // uart->fifo_data.tx = byte; is unsafe: compiler may emit read-modify-write
     // for bitfield write, which reads the whole register first.
     // Use .v to guarantee a single 32-bit store.
@@ -49,8 +48,7 @@ static int uart_write_byte(volatile hw_uart_t *uart, char byte) {
 static void uart_flush(volatile hw_uart_t *uart) {
     uint32_t tmp = uart->config.v;
 
-    while (!uart->fifo_status.tx_empty)
-        ;
+    while (!uart->fifo_status.tx_empty);
     uart->config.rx_enable = 0;
     uart->config.tx_enable = 0;
     uart->config.v         = tmp;
@@ -95,15 +93,13 @@ int uart2_write_byte(char c) { return uart_write_byte(hw_uart2, c); }
 
 int uart1_puts(const char *s) {
     int i = 0;
-    while (*s)
-        i += uart1_write_byte(*s++);
+    while (*s) i += uart1_write_byte(*s++);
     return i;
 }
 
 int uart2_puts(const char *s) {
     int i = 0;
-    while (*s)
-        i += uart2_write_byte(*s++);
+    while (*s) i += uart2_write_byte(*s++);
     return i;
 }
 

@@ -7,16 +7,11 @@
 #define BLOCK_SIZE_STX 1024
 
 static void xmodem_abort(void) {
-    for (int i = 0; i < 3; i++)
-        xmodem_putc(XMODEM_CAN);
-    for (int i = 0; i < 3; i++)
-        xmodem_putc(0x08); /* BS */
+    for (int i = 0; i < 3; i++) xmodem_putc(XMODEM_CAN);
+    for (int i = 0; i < 3; i++) xmodem_putc(0x08); /* BS */
 }
 
-static void xmodem_flush(void) {
-    while (xmodem_getc(50) >= 0)
-        ;
-}
+static void xmodem_flush(void) { while (xmodem_getc(50) >= 0); }
 
 static int xmodem_recv_exact(uint8_t *dst, uint32_t len, int timeout_ms) {
     for (uint32_t i = 0; i < len; i++) {

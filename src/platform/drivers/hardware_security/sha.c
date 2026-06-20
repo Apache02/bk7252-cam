@@ -40,10 +40,7 @@ static inline void store_be32(uint8_t *p, uint32_t w) {
     p[3] = (uint8_t)w;
 }
 
-static inline void wait_ready(void) {
-    while (!hw_sha->status.ready)
-        ;
-}
+static inline void wait_ready(void) { while (!hw_sha->status.ready); }
 
 static void process_block(sha_context_t *c) {
     // Block layout (empirical, BK7252):

@@ -68,9 +68,10 @@ uint32_t length: 16;       // [31:16]
 
 Matches datasheet and `docs/hardware/*.md` convention. Legacy files using `[lo:hi]` are wrong; fix on refactor.
 
-### 3. Every bit-field gets an inline `// [bits]` comment
+### 3. Bit-fields may have an inline `// [bits]` comment
 
-Single-bit fields too — placement is cheap; future readers benefit.
+Add when it aids readability — multi-bit fields and reserved ranges benefit most.
+Single-bit fields with self-evident names can omit the comment.
 
 ```c
 uint32_t repeat_mode: 1;   // [3]  0: single-shot, 1: loop using *_loop_*_addr (NOT TESTED)

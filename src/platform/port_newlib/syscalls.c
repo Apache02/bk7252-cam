@@ -2,10 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-__attribute__((weak)) void _exit(int code) {
-    while (1)
-        ;
-}
+__attribute__((weak)) void _exit(int code) { while (1); }
 
 __attribute__((weak)) int _kill(int pid, int signal) {
     errno = ESRCH;

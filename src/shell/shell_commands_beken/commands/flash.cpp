@@ -149,8 +149,7 @@ int command_flash_read_binary(int argc, const char *argv[]) {
         uint32_t n = size - off;
         if (n > CHUNK) n = CHUNK;
         flash_read(addr + off, buf, n);
-        for (uint32_t i = 0; i < n; i++)
-            putchar(buf[i]);
+        for (uint32_t i = 0; i < n; i++) putchar(buf[i]);
         crc = crc32_update(crc, buf, n);
     }
 

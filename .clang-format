@@ -10,6 +10,7 @@ IndentCaseLabels: true
 BreakStringLiterals: false
 ColumnLimit: 120
 AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
 AttributeMacros:
   - __data
   - __noinline

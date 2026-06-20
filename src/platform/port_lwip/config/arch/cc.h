@@ -32,8 +32,7 @@ typedef uintptr_t mem_ptr_t;
 #define LWIP_PLATFORM_ASSERT(x)                        \
     do {                                               \
         printf("ASSERT: %s:%d\n", __FILE__, __LINE__); \
-        for (;;)                                       \
-            ;                                          \
+        for (;;);                                      \
     } while (0)
 
 #define PACK_STRUCT_BEGIN

@@ -41,13 +41,11 @@ struct Input {
 
     void set(const char *s) {
         reset();
-        while (*s)
-            put(*s++);
+        while (*s) put(*s++);
     }
 
     void put_strn(const char *s, int n) {
-        while (*s && n-- > 0)
-            put(*s++);
+        while (*s && n-- > 0) put(*s++);
     }
 
     bool is_empty() { return buffer[0] == '\0'; }

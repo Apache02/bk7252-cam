@@ -51,20 +51,17 @@ int Shell::handle_input() {
     char *end = input->buffer + input->size;
 
     while (ptr < end && argc < static_cast<int>(count_of(argv) - 1)) {
-        while (ptr < end && *ptr == ' ')
-            ptr++;
+        while (ptr < end && *ptr == ' ') ptr++;
         if (ptr >= end) break;
 
         if (*ptr == '"') {
             ptr++;
             argv[argc++] = ptr;
-            while (ptr < end && *ptr != '"')
-                ptr++;
+            while (ptr < end && *ptr != '"') ptr++;
             *ptr++ = '\0';
         } else {
             argv[argc++] = ptr;
-            while (ptr < end && *ptr != ' ')
-                ptr++;
+            while (ptr < end && *ptr != ' ') ptr++;
             *ptr++ = '\0';
         }
     }

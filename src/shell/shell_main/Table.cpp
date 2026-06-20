@@ -10,8 +10,7 @@
 Table::Row::Row(const Table *table) : table_(table) {
     int n  = table_->col_count_;
     cells_ = new char *[n];
-    for (int i = 0; i < n; i++)
-        cells_[i] = nullptr;
+    for (int i = 0; i < n; i++) cells_[i] = nullptr;
 }
 
 Table::Row::~Row() {
@@ -48,14 +47,12 @@ Table::Table(std::initializer_list<ColumnDef> cols) {
     col_count_ = cols.size();
     cols_      = new ColumnDef[col_count_];
     int i      = 0;
-    for (const auto &c : cols)
-        cols_[i++] = c;
+    for (const auto &c : cols) cols_[i++] = c;
 }
 
 Table::Table(const ColumnDef *cols, int col_count) : col_count_(col_count) {
     cols_ = new ColumnDef[col_count_];
-    for (int i = 0; i < col_count_; i++)
-        cols_[i] = cols[i];
+    for (int i = 0; i < col_count_; i++) cols_[i] = cols[i];
 }
 
 Table::~Table() { delete[] cols_; }
@@ -93,8 +90,7 @@ void Table::printSeparator() const {
     for (int i = 0; i < col_count_; i++) {
         putchar('+');
         putchar('-');
-        for (int j = 0; j < cols_[i].width; j++)
-            putchar('-');
+        for (int j = 0; j < cols_[i].width; j++) putchar('-');
         putchar('-');
     }
     putchar('+');
