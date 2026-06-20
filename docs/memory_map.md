@@ -146,29 +146,39 @@ to peripheral registers are not supported unless noted.
 
 ### Peripheral base addresses
 
-| Base address   | Peripheral    | Driver header              | Notes                                              |
-|----------------|---------------|----------------------------|----------------------------------------------------|
-| `0x00800000`   | SCTRL         | `soc/sctrl.h`    | System control: clocks, power, PLL, resets         |
-| `0x00800074`   | eFuse         | `hardware/efuse.h`         | Embedded in SCTRL register space (`SCTRL + 0x1D×4`) |
-| `0x00802000`   | ICU / INTC    | `hardware/icu.h`, `hardware/intc.h` | Interrupt Controller Unit; clock gating and interrupt routing share this block |
-| `0x00802100`   | UART1         | `hardware/uart.h`          | —                                                  |
-| `0x00802200`   | UART2         | `hardware/uart.h`          | —                                                  |
-| `0x00802300`   | I2C1          | `hardware/i2c.h`           | —                                                  |
-| `0x00802480`   | TRNG          | `hardware/random.h`        | True Random Number Generator                       |
-| `0x00802600`   | I2C2          | `hardware/i2c.h`           | —                                                  |
-| `0x00802800`   | GPIO Bank 0   | `hardware/gpio.h`          | GPIO 0–31 (`+0x00` per pin)                        |
-| `0x008028C0`   | GPIO Bank 1   | `hardware/gpio.h`          | GPIO 32+ (`GPIO_BASE + 48×4`)                      |
-| `0x00802900`   | WDT           | `hardware/wdt.h`           | Watchdog timer                                     |
-| `0x00802A00`   | Timer Bank 0  | `hardware/timer.h`         | 6 timers, 26 MHz source                            |
-| `0x00802A40`   | Timer Bank 1  | `hardware/timer.h`         | 6 timers, 32 kHz source (`PWM_NEW + 0x10×4`)       |
-| `0x00802C00`   | SAR ADC       | `hardware/saradc.h`        | Successive-approximation ADC                       |
-| `0x00803000`   | Flash ctrl    | `hardware/flash.h`         | SPI flash controller (XIP config, erase, program)  |
-| `0x00805000`   | FFT           | `hardware/fft.h`           | Hardware FFT accelerator                           |
-| `0x00806000`   | Security — AES | `hardware/security.h`     | AES sub-block (`SECURITY_BASE + 0×4`)              |
-| `0x00806100`   | Security — SHA | `hardware/security.h`     | SHA sub-block (`SECURITY_BASE + 0x40×4`)           |
-| `0x00806200`   | Security — RSA | `hardware/rsa.h`          | RSA sub-block (`SECURITY_BASE + 0x80×4`)           |
-| `0x00809000`   | GDMA          | `hardware/gdma.h`          | General-purpose DMA, 6 channels                    |
-| `0x0080A000`   | JPEG encoder  | `hardware/jpeg_encoder.h`  | Hardware JPEG encoder                              |
+| Base address   | Peripheral     | MMIO header               | Driver                          | Notes                                              |
+|----------------|----------------|---------------------------|---------------------------------|----------------------------------------------------|
+| `0x00800000`   | SCTRL          | `soc/sctrl.h`             | `hardware_sctrl`                | System control: clocks, power, PLL, resets         |
+| `0x00800074`   | eFuse          | `soc/efuse.h`             | `hardware_efuse`                | Embedded in SCTRL register space (`SCTRL + 0x1D×4`) |
+| `0x00801000`   | SDIO           | `soc/sdio.h`              | —                               | SDIO slave DMA engine (master/slave, 1–4 bit, ≤50 MHz) |
+| `0x00802000`   | ICU / INTC     | `soc/icu.h`               | `hardware_icu`, `hardware_intc` | Interrupt Controller Unit; clock gating and interrupt routing share this block |
+| `0x00802100`   | UART1          | `soc/uart.h`              | `hardware_uart`                 | —                                                  |
+| `0x00802200`   | UART2          | `soc/uart.h`              | `hardware_uart`                 | —                                                  |
+| `0x00802300`   | I2C1           | —                         | —                               | —                                                  |
+| `0x00802400`   | IRDA           | —                         | —                               | IrDA NEC decoder and UART-mode receiver            |
+| `0x00802480`   | TRNG           | `soc/random.h`            | `hardware_random`               | True Random Number Generator                       |
+| `0x00802500`   | I2S / PCM      | —                         | —                               | I2S/PCM audio interface; 3 TX FIFOs + 1 RX FIFO   |
+| `0x00802600`   | I2C2           | —                         | —                               | —                                                  |
+| `0x00802700`   | SPI            | `soc/spi.h`               | —                               | SPI master/slave, 8/16-bit, up to 30 MHz           |
+| `0x00802800`   | GPIO Bank 0    | `soc/gpio.h`              | `hardware_gpio`                 | GPIO 0–31 (`+0x00` per pin)                        |
+| `0x008028C0`   | GPIO Bank 1    | `soc/gpio.h`              | `hardware_gpio`                 | GPIO 32+ (`GPIO_BASE + 48×4`)                      |
+| `0x00802900`   | WDT            | `soc/wdt.h`               | `hardware_wdt`                  | Watchdog timer                                     |
+| `0x00802A00`   | Timer Bank 0   | `soc/timer.h`             | `hardware_timer`                | 3 timers, 26 MHz source                            |
+| `0x00802A40`   | Timer Bank 1   | `soc/timer.h`             | `hardware_timer`                | 3 timers, 32 kHz source (`PWM_NEW_BASE + 0x10×4`)  |
+| `0x00802A80`   | PWM            | —                         | —                               | 6-channel PWM (`PWM_NEW_BASE + 0x20×4`); per-channel counter, duty cycle, capture |
+| `0x00802B00`   | Audio          | —                         | —                               | Audio codec: ADC, DAC, DTMF generator              |
+| `0x00802C00`   | SAR ADC        | —                         | —                               | Successive-approximation ADC                       |
+| `0x00802D00`   | SD card host   | —                         | —                               | SD/MMC host controller (BK7221U register layout)   |
+| `0x00803000`   | Flash ctrl     | `soc/flash.h`             | `hardware_flash`                | SPI flash controller (XIP config, erase, program)  |
+| `0x00804000`   | USB            | —                         | —                               | USB 2.0 FS OTG; byte-addressed MUSB-style register map |
+| `0x00805000`   | FFT            | —                         | —                               | Hardware FFT accelerator                           |
+| `0x00806000`   | Security — AES | `soc/security.h`          | `hardware_security`             | AES sub-block (`SECURITY_BASE + 0×4`)              |
+| `0x00806100`   | Security — SHA | `soc/security.h`          | `hardware_security`             | SHA sub-block (`SECURITY_BASE + 0x40×4`)           |
+| `0x00806200`   | Security — RSA | `soc/security.h`          | —                               | RSA sub-block (`SECURITY_BASE + 0x80×4`); not implemented — SDK has no `.c` exercising it, register layout unverified |
+| `0x00808000`   | SPI DMA        | —                         | —                               | SPI slave DMA engine; RX/TX FIFOs with timeout interrupt |
+| `0x00809000`   | GDMA           | `soc/gdma.h`              | `hardware_gdma`                 | General-purpose DMA, 6 channels                    |
+| `0x0080A000`   | JPEG encoder   | `soc/jpeg.h`              | `hardware_jpeg`                 | Hardware JPEG encoder                              |
+| `0x0080D000`   | QSPI           | —                         | —                               | Quad-SPI controller                                |
 
 ---
 
