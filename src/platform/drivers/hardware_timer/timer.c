@@ -184,19 +184,3 @@ void timer_remove(int timer_num) {
     timers_handlers[timer_num].handler = NULL;
 }
 
-// not working
-int timer_read(int timer_num) {
-    assert_timer_number(timer_num);
-
-    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
-    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
-    bank->read_ctl.read_index                   = timer_num_in_bank;
-    bank->read_ctl.read_op                      = 1;
-
-    int timeout = 120000;
-    while (bank->read_ctl.read_op) {
-        if (--timeout <= 0) return -1;
-    }
-
-    return bank->read_value;
-}

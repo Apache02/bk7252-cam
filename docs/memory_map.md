@@ -165,7 +165,7 @@ to peripheral registers are not supported unless noted.
 | `0x00802900`   | WDT            | `soc/wdt.h`               | `hardware_wdt`                  | Watchdog timer                                     |
 | `0x00802A00`   | Timer Bank 0   | `soc/timer.h`             | `hardware_timer`                | 3 timers, 26 MHz source                            |
 | `0x00802A40`   | Timer Bank 1   | `soc/timer.h`             | `hardware_timer`                | 3 timers, 32 kHz source (`PWM_NEW_BASE + 0x10×4`)  |
-| `0x00802A80`   | PWM            | —                         | —                               | 6-channel PWM (`PWM_NEW_BASE + 0x20×4`); per-channel counter, duty cycle, capture |
+| `0x00802A80`   | PWM            | `soc/pwm.h`               | `hardware_pwm`                  | 6-channel PWM/timer (`PWM_NEW_BASE + 0x20×4`); modes: PWM output, timer IRQ, capture |
 | `0x00802B00`   | Audio          | —                         | —                               | Audio codec: ADC, DAC, DTMF generator              |
 | `0x00802C00`   | SAR ADC        | —                         | —                               | Successive-approximation ADC                       |
 | `0x00802D00`   | SD card host   | —                         | —                               | SD/MMC host controller (BK7221U register layout)   |

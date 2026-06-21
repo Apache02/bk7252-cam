@@ -215,21 +215,22 @@ Fix: validate inputs in `register_handler` itself and return `false` on
 unrecognised cases. Update the callers to surface the failure (currently the
 return is mostly ignored).
 
-### A3. `timer_read` is marked "not working" in source
+### A3. Timer counter read-back registers absent on BK7221U — resolved
 
-File: `hardware_timer/timer.c`, function `timer_read`.
+The `read_ctl` and `read_value` registers described in some Beken documentation
+do not exist on BK7221U silicon. The SDK `beken378/driver/pwm/bk_timer.h`
+explicitly excludes them:
 
 ```c
-// not working
-int timer_read(int timer_num) { ... }
+#if (CFG_SOC_NAME != SOC_BK7221U)
+#define TIMER0_2_READ_CTL    (PWM_NEW_BASE + 4 * 4)
+#define TIMER0_2_READ_VALUE  (PWM_NEW_BASE + 5 * 4)
+#endif
 ```
 
-The function is exported in `include/hardware/timer.h` and called from
-`src/applications/shell/commands/timers_test.cpp:41`. Either:
-- fix the read-back sequence (the `read_op` / `read_index` / `read_value`
-  handshake; investigate whether the `read_value` needs a particular alignment
-  or whether the bank's `clk_divider` masks the read), or
-- remove the function from the public header and from `timers_test.cpp`.
+Both timer banks are affected. Reading the current counter value mid-period is
+not possible on this chip. `timer_read()` has been removed from the driver and
+public API. `soc/timer.h` no longer declares `read_ctl` / `read_value` fields.
 
 ### A4. `flash_read` has no error reporting
 
