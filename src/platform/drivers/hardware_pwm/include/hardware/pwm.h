@@ -3,6 +3,10 @@
 #include <stdint.h>
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // PWM / timer driver for the BK7221U PWM block (6 channels, base 0x00802A80).
 //
 // Each channel can run in one of two modes:
@@ -36,3 +40,7 @@ void pwm_timer_init(unsigned ch, uint32_t period, pwm_timer_cb_t cb);
 
 // Stop timer and power down the channel clock.
 void pwm_timer_deinit(unsigned ch);
+
+#ifdef __cplusplus
+}
+#endif
