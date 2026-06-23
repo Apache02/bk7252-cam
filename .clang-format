@@ -46,3 +46,4 @@ AlignTrailingComments:
   OverEmptyLines: 0
 MaxEmptyLinesToKeep: 2
 AlignEscapedNewlines: Left
+BitFieldColonSpacing: After

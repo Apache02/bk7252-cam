@@ -10,8 +10,8 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t enable : 1;         // [0]     1 = TRNG running; keep set while reading
-            uint32_t reserved_1_31 : 31; // [31:1]
+            uint32_t enable: 1;         // [0]     1 = TRNG running; keep set while reading
+            uint32_t reserved_1_31: 31; // [31:1]
         };
     } ctrl;
 

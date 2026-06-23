@@ -43,15 +43,15 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t input : 1;           // [0]
-            uint32_t output : 1;          // [1]
-            uint32_t input_enable : 1;    // [2]
-            uint32_t output_enable : 1;   // [3]
-            uint32_t pull_mode : 1;       // [4]
-            uint32_t pull_enable : 1;     // [5]
-            uint32_t function_enable : 1; // [6]
-            uint32_t input_monitor : 1;   // [7]
-            uint32_t reserved_8_31 : 24;  // [31:8]
+            uint32_t input: 1;           // [0]
+            uint32_t output: 1;          // [1]
+            uint32_t input_enable: 1;    // [2]
+            uint32_t output_enable: 1;   // [3]
+            uint32_t pull_mode: 1;       // [4]
+            uint32_t pull_enable: 1;     // [5]
+            uint32_t function_enable: 1; // [6]
+            uint32_t input_monitor: 1;   // [7]
+            uint32_t reserved_8_31: 24;  // [31:8]
         };
     };
 } hw_gpio_pin_t;

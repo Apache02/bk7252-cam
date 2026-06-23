@@ -16,33 +16,33 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t init : 1; // [0]     start AES operation; sw sets, hw clears
-            uint32_t next : 1; // [1]     continue next block
+            uint32_t init: 1; // [0]     start AES operation; sw sets, hw clears
+            uint32_t next: 1; // [1]     continue next block
             // "auteo" is intentional: the SDK uses this misspelling instead of
             // "auto" (which is a C++ keyword). Renaming was tried and breaks
             // SDK compatibility, so it stays.
-            uint32_t auteo : 1;          // [2]     auto-continue mode (misspelled in SDK; "auto" is C++ keyword)
-            uint32_t int_en : 1;         // [3]     interrupt enable
-            uint32_t reserved_4_31 : 28; // [31:4]
+            uint32_t auteo: 1;          // [2]     auto-continue mode (misspelled in SDK; "auto" is C++ keyword)
+            uint32_t int_en: 1;         // [3]     interrupt enable
+            uint32_t reserved_4_31: 28; // [31:4]
         };
     } control;
 
     union {
         uint32_t v;
         struct {
-            uint32_t ready : 1;          // [0]     1 = engine idle
-            uint32_t valid : 1;          // [1]     1 = result ready
-            uint32_t int_flag : 1;       // [2]     interrupt flag; W1C
-            uint32_t reserved_3_31 : 29; // [31:3]
+            uint32_t ready: 1;          // [0]     1 = engine idle
+            uint32_t valid: 1;          // [1]     1 = result ready
+            uint32_t int_flag: 1;       // [2]     interrupt flag; W1C
+            uint32_t reserved_3_31: 29; // [31:3]
         };
     } status;
 
     union {
         uint32_t v;
         struct {
-            uint32_t encode : 1;         // [0]     0 = decrypt, 1 = encrypt
-            uint32_t mode : 2;           // [2:1]   0 = ECB, 1 = CBC, 2 = CTR
-            uint32_t reserved_3_31 : 29; // [31:3]
+            uint32_t encode: 1;         // [0]     0 = decrypt, 1 = encrypt
+            uint32_t mode: 2;           // [2:1]   0 = ECB, 1 = CBC, 2 = CTR
+            uint32_t reserved_3_31: 29; // [31:3]
         };
     } config;
 
@@ -59,28 +59,28 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t init : 1;           // [0]     start SHA operation
-            uint32_t next : 1;           // [1]     continue next block
-            uint32_t reserved_2_31 : 30; // [31:2]
+            uint32_t init: 1;           // [0]     start SHA operation
+            uint32_t next: 1;           // [1]     continue next block
+            uint32_t reserved_2_31: 30; // [31:2]
         };
     } control;
 
     union {
         uint32_t v;
         struct {
-            uint32_t ready : 1;          // [0]     1 = engine idle
-            uint32_t valid : 1;          // [1]     1 = result ready
-            uint32_t int_flag : 1;       // [2]     interrupt flag; W1C
-            uint32_t reserved_3_31 : 29; // [31:3]
+            uint32_t ready: 1;          // [0]     1 = engine idle
+            uint32_t valid: 1;          // [1]     1 = result ready
+            uint32_t int_flag: 1;       // [2]     interrupt flag; W1C
+            uint32_t reserved_3_31: 29; // [31:3]
         };
     } status;
 
     union {
         uint32_t v;
         struct {
-            uint32_t mode : 3;           // [2:0]   0 = SHA1, 1 = SHA224, 2 = SHA256
-            uint32_t enable : 1;         // [3]     SHA enable
-            uint32_t reserved_4_31 : 28; // [31:4]
+            uint32_t mode: 3;           // [2:0]   0 = SHA1, 1 = SHA224, 2 = SHA256
+            uint32_t enable: 1;         // [3]     SHA enable
+            uint32_t reserved_4_31: 28; // [31:4]
         };
     } config;
 } hw_security_sha_t;

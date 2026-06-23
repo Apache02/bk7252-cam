@@ -22,10 +22,10 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t enable : 3;          // [2:0]   one bit per timer (timers 0/1/2 in bank), 1 = running
-            uint32_t clk_divider : 4;     // [6:3]   clock pre-divider: effective_clock = source / (clk_divider + 1)
-            uint32_t irq_status : 3;      // [9:7]   one bit per timer; W1C
-            uint32_t reserved_10_31 : 22; // [31:10]
+            uint32_t enable: 3;          // [2:0]   one bit per timer (timers 0/1/2 in bank), 1 = running
+            uint32_t clk_divider: 4;     // [6:3]   clock pre-divider: effective_clock = source / (clk_divider + 1)
+            uint32_t irq_status: 3;      // [9:7]   one bit per timer; W1C
+            uint32_t reserved_10_31: 22; // [31:10]
         };
     } ctl;
     // NOTE: read_ctl and read_value registers are NOT PRESENT on BK7221U silicon.
