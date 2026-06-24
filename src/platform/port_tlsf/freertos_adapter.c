@@ -58,6 +58,13 @@ void vPortFree(void *pv) {
     xTaskResumeAll();
 }
 
+void *pvPortRealloc(void *pv, size_t xWantedSize) {
+    vTaskSuspendAll();
+    void *result = tlsf_realloc(g_pvTLSF, pv, xWantedSize);
+    xTaskResumeAll();
+    return result;
+}
+
 size_t xPortGetFreeHeapSize(void) {
     HeapStats_t s = {0};
 

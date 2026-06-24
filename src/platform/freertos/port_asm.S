@@ -1,106 +1,172 @@
-#include "portmacro.inc"
+.syntax unified
+.arm
 
-;/* exports */
-	.global do_irq
-	.global do_fiq
-	.global do_swi
-	.global do_undefined
-	.global do_pabort
-	.global do_dabort
-	.global do_reserved
+.text
 
-;/* imports */
-	.global intc_irq
-	.global intc_fiq
-    .global bk_trap_swi
-    .global bk_trap_udef
-    .global bk_trap_pabt
-    .global bk_trap_dabt
-    .global bk_trap_resv
+/////////////////// GLOBALS ///////////////////
 
-    .global vTaskSwitchContext
+// FreeRTOS state (defined in tasks.c)
+.global ulCriticalNesting
+.global pxCurrentTCB
 
-    .align  4
+// Exports
+.global do_irq
+.global do_fiq
+.global do_swi
+.global do_undefined
+.global do_pabort
+.global do_dabort
+.global do_reserved
 
-/* ========================================================================
- *                                Functions
- * ======================================================================== */
+.global vPortStartFirstTask
+.global vPortYield
 
-		.align	5
+// Imports
+.global intc_irq
+.global intc_fiq
+.global bk_trap_swi
+.global bk_trap_udef
+.global bk_trap_pabt
+.global bk_trap_dabt
+.global bk_trap_resv
+
+.global vTaskSwitchContext
+
+/////////////////// MACROS ///////////////////
+
+.macro PUSH_SVC_REG
+    sub     sp, sp, #17 * 4
+    stmia   sp, {r0 - r12}
+    mov     r0, sp
+    mrs     r6, spsr
+    str     lr, [r0, #15*4]
+    str     r6, [r0, #16*4]
+    str     sp, [r0, #13*4]
+    str     lr, [r0, #14*4]
+.endm
+
+.macro PORT_SAVE_CONTEXT
+    stmdb   sp!, {r0}               // Store r0 first as we need to use it.
+
+    stmdb   sp, {sp}^               // Store user-mode sp so we can load it into r0.
+    nop
+    sub     sp, sp, #4
+    ldmia   sp!, {r0}               // r0 = user-mode (task) sp.
+
+    stmdb   r0!, {lr}               // Push return address onto task stack.
+    mov     lr, r0                  // lr now holds the task sp; r0 is free.
+    ldmia   sp!, {r0}               // Pop r0 to save it onto the system mode stack.
+
+    stmdb   lr, {r0-r14}^           // Push all system mode registers onto task stack.
+    nop
+    sub     lr, lr, #60
+
+    mrs     r0, spsr                // Push SPSR onto task stack.
+    stmdb   lr!, {r0}
+
+    ldr     r0, =ulCriticalNesting
+    ldr     r0, [r0]
+    stmdb   lr!, {r0}
+
+    ldr     r0, =pxCurrentTCB       // Store new top of stack for the task.
+    ldr     r1, [r0]
+    str     lr, [r1]
+.endm
+
+.macro PORT_RESTORE_CONTEXT
+    ldr     r0, =pxCurrentTCB       // Load task stack pointer from pxCurrentTCB.
+    ldr     r0, [r0]
+    ldr     lr, [r0]
+
+    ldr     r0, =ulCriticalNesting  // Critical nesting depth is first item on stack.
+    ldmfd   lr!, {r1}
+    str     r1, [r0]
+
+    ldmfd   lr!, {r0}               // Get SPSR from stack.
+    msr     spsr_cxsf, r0
+
+    ldmfd   lr, {r0-r14}^           // Restore all system mode registers.
+    nop
+
+    ldr     lr, [lr, #60]           // Restore return address.
+
+    subs    pc, lr, #4              // Return, correcting lr offset.
+.endm
+
+/////////////////// EXCEPTION HANDLERS ///////////////////
+
+.align 4
+.type do_irq, %function
 do_irq:
-    LDMFD   SP!, {R0-R1}
-	portSAVE_CONTEXT
-	LDR R0, =intc_irq
-	MOV LR, PC
-	BX R0
-	portRESTORE_CONTEXT
+    ldmfd   sp!, {r0-r1}
+    PORT_SAVE_CONTEXT
+    ldr     r0, =intc_irq
+    mov     lr, pc
+    bx      r0
+    PORT_RESTORE_CONTEXT
 
-		.align	5
+.align 4
+.type do_fiq, %function
 do_fiq:
-    LDMFD   SP!, {R0-R1}
-	portSAVE_CONTEXT
-	LDR R0, =intc_fiq
-	MOV LR, PC
-	BX R0
-	portRESTORE_CONTEXT
+    ldmfd   sp!, {r0-r1}
+    PORT_SAVE_CONTEXT
+    ldr     r0, =intc_fiq
+    mov     lr, pc
+    bx      r0
+    PORT_RESTORE_CONTEXT
 
-		.align	5
+.align 4
+.type do_swi, %function
 do_swi:
-    LDMFD   SP!, {R0-R1}
-    B vPortYieldProcessor
+    ldmfd   sp!, {r0-r1}
+    b       vPortYieldProcessor
 
-		.align	5
+.align 4
+.type do_undefined, %function
 do_undefined:
-    LDMFD   SP!, {R0-R1}
+    ldmfd   sp!, {r0-r1}
     PUSH_SVC_REG
-    B bk_trap_udef
+    b       bk_trap_udef
 
-		.align	5
+.align 4
+.type do_pabort, %function
 do_pabort:
-    LDMFD   SP!, {R0-R1}
+    ldmfd   sp!, {r0-r1}
     PUSH_SVC_REG
-    B bk_trap_pabt
+    b       bk_trap_pabt
 
-		.align	5
+.align 4
+.type do_dabort, %function
 do_dabort:
-    LDMFD   SP!, {R0-R1}
+    ldmfd   sp!, {r0-r1}
     PUSH_SVC_REG
-    B bk_trap_dabt
+    b       bk_trap_dabt
 
-		.align	5
+.align 4
+.type do_reserved, %function
 do_reserved:
-    LDMFD   SP!, {R0-R1}
+    ldmfd   sp!, {r0-r1}
     PUSH_SVC_REG
-    B bk_trap_resv
+    b       bk_trap_resv
 
-    .text
-    .align  4
+/////////////////// FREERTOS PORT ///////////////////
 
-    .global vPortStartFirstTask
-    .type vPortStartFirstTask, %function
+.align 4
+.type vPortStartFirstTask, %function
 vPortStartFirstTask:
-    portRESTORE_CONTEXT
+    PORT_RESTORE_CONTEXT
 
-
-    .global vPortYield
-    .type vPortYield, %function
+.align 4
+.type vPortYield, %function
 vPortYield:
-    SVC 0
-    BX LR
+    svc     0
+    bx      lr
 
-
+.align 4
 vPortYieldProcessor:
-	ADD		LR, LR, #4			// Add 4 to the LR to make the LR appear exactly
-								// as if the context was saved during and IRQ
-								// handler.
-
-	portSAVE_CONTEXT			// Save the context of the current task...
-
-	LDR R0, =vTaskSwitchContext
-	MOV LR, PC
-	BX R0
-
-	portRESTORE_CONTEXT			// Restore the context of the selected task.
-
-
-/*eof*/
+    add     lr, lr, #4              // Adjust lr to appear as if saved during an IRQ handler.
+    PORT_SAVE_CONTEXT
+    ldr     r0, =vTaskSwitchContext
+    mov     lr, pc
+    bx      r0
+    PORT_RESTORE_CONTEXT

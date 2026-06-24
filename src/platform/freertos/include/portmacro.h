@@ -34,9 +34,17 @@ typedef uint32_t       TickType_t;
 #define portTICK_PERIOD_MS ((TickType_t)1000 / configTICK_RATE_HZ)
 #define portBYTE_ALIGNMENT 8
 #define portDONT_DISCARD   __attribute__((used))
-// #define portYIELD()         __asm ( "SWI 0" )
+
 extern void vPortYield(void);
-#define portYIELD() vPortYield()
+#define portEND_SWITCHING_ISR(xSwitchRequired) \
+    do {                                       \
+        if (xSwitchRequired) {                 \
+            vTaskSwitchContext();              \
+        }                                      \
+    } while (0)
+#define portYIELD()             vPortYield()
+#define portYIELD_FROM_ISR(x)   portEND_SWITCHING_ISR(x)
+
 
 /*-----------------------------------------------------------*/
 

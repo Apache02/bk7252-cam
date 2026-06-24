@@ -30,7 +30,7 @@ target_include_directories(FreeRTOS-Kernel-Core INTERFACE ${FREERTOS_KERNEL_PATH
 
 # FreeRTOS other
 add_library(FreeRTOS-newlib-allocator-adapter INTERFACE)
-target_sources(FreeRTOS-newlib-allocator-adapter INTERFACE newlib_adapter.c)
+target_sources(FreeRTOS-newlib-allocator-adapter INTERFACE newlib_adapter.c heap.c)
 target_link_libraries(FreeRTOS-newlib-allocator-adapter INTERFACE platform_freertos)
 
 add_library(FreeRTOS-Kernel-Heap1 INTERFACE)
@@ -90,3 +90,9 @@ target_link_libraries(
         hardware_time
 )
 
+# platform_freertos_beken
+add_library(platform_freertos_beken INTERFACE)
+target_sources(
+        platform_freertos_beken INTERFACE
+        rtos.c
+)

@@ -1,6 +1,8 @@
 #ifndef HEAP_H
 #define HEAP_H
 
+#include <stddef.h>
+
 typedef struct {
     size_t used;
     size_t total;

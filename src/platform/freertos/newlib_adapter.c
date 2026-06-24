@@ -1,5 +1,6 @@
 #include <string.h>
 #include <errno.h>
+#include <stddef.h>
 #include "heap.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -39,18 +40,8 @@ void free(void *ptr) { vPortFree(ptr); }
 
 void *calloc(size_t n, size_t size) { return pvPortCalloc(n, size); }
 
+extern void *pvPortRealloc(void *ptr, size_t size);
+
 void *realloc(void *ptr, size_t size) {
-    if (!ptr) {
-        return pvPortMalloc(size);
-    }
-    if (!size) {
-        vPortFree(ptr);
-        return NULL;
-    }
-    void *p = pvPortMalloc(size);
-    if (p) {
-        memcpy(p, ptr, size);
-        vPortFree(ptr);
-    }
-    return p;
+    return pvPortRealloc(ptr, size);
 }

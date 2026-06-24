@@ -256,6 +256,20 @@ Fix: return `int` with a meaningful error code, validate `addr + count`.
 
 ## Cosmetic
 
+### C3. SDK names the IRAM block "PSRAM"
+
+The Beken SDK defines:
+```c
+// CFG_SOC_NAME == SOC_BK7221U
+#define PSRAM_START_ADDRESS  (void*)(0x00900000)
+#define PSRAM_END_ADDRESS    (void*)(0x00900000 + 256 * 1024)
+```
+This is the same 256 KB block that this project calls **IRAM** (RAM block 2, used for
+iram-linked firmware images and the `FreeRTOS-TLSF-Heap-All` overflow allocator).
+The SDK's `psram_malloc` and the `os_malloc` BK7221U branch that calls it refer to this
+block. In our firmware the TLSF adapter already handles IRAM allocation; `os_malloc` in
+`port_wifi` is wired directly to `pvPortMalloc` (main heap) without the psram branch.
+
 ### C2. RSA driver is a placeholder, no implementation planned
 
 Files: `hardware_security/rsa.c`, `hardware_security/include/hardware/rsa.h`.
