@@ -31,6 +31,8 @@ const Shell::Handler shell_handlers[] = {
     {"dump", command_dump, "hex dump of memory: [addr]"},
     {"dump32", command_dump32, "32-bit word dump of memory: [addr]"},
     {"gpio", command_gpio, nullptr},
+    {"cpu_speed", command_cpu_speed, nullptr},
+    {"mclk", command_mclk, nullptr},
 
     {nullptr, nullptr, nullptr},
 };

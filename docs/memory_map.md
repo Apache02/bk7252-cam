@@ -137,6 +137,19 @@ fully characterised.
 IRAM firmware is loaded via `tools/bkloader iram` over UART and entered directly
 at `0x00900000`.
 
+**Instruction cache covers flash, not IRAM.** The chip has an instruction cache
+that covers the flash XIP address space. Code running from flash executes at rated
+speed (cache hits, zero extra wait states). IRAM addresses are not cached; every
+instruction fetch from IRAM is a cache miss and pays full memory latency.
+
+Measured effect: effective instruction throughput from IRAM is ~57 % of rated CPU
+speed (stable 4/7 ratio across clock divider settings: ~68.6 MHz throughput at
+120 MHz rated, ~91.4 MHz at 160 MHz rated).
+
+Practical consequence: `busy_wait_*` and any other loop calibrated to a fixed
+cycles-per-iteration count delivers **~1.75× the requested delay** when executing
+from IRAM. Use `hardware_timer` for accurate delays in IRAM code.
+
 ---
 
 ## Peripheral Bus (`0x00800000`–`0x008FFFFF`)

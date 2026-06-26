@@ -77,6 +77,25 @@ int main() {
 }
 ```
 
+## Timing from IRAM
+
+All probe experiments run from IRAM. The chip's instruction cache covers only the
+flash XIP address space — IRAM fetches are always cache misses and pay full memory
+latency. Effective code throughput from IRAM is ~57 % of rated CPU speed (stable
+4/7 ratio confirmed by `cpu_speed` shell command). The CPU oscillator is unchanged.
+
+Consequences for probe experiments:
+
+- `busy_wait_ms(20)` in the template delivers ~35 ms, not 20 ms — this is fine
+  for the UART settle delay but do not rely on it for precise timing.
+- Do not use `busy_wait_*` to measure or create calibrated delays in experiments.
+  Use `hardware_time` (`get_absolute_time`, `absolute_time_diff_us`) instead —
+  the hardware timer is independent of the CPU fetch path and is accurate.
+- The `cpu_speed` shell command run from IRAM reports a lower "CPU freq" than the
+  actual oscillator. This is misleading: it reflects reduced throughput due to
+  wait states, not a lower clock. Disregard `cpu_speed` output when the chip is
+  running IRAM firmware.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
