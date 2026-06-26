@@ -2,16 +2,6 @@
 #include "hardware/sctrl.h"
 #include "hardware/icu.h"
 
-typedef enum {
-    MCLK_SOURCE_DCO = 0,
-    MCLK_SOURCE_26M_XTAL,
-    MCLK_SOURCE_DPLL,
-    MCLK_SOURCE_LPO,
-} mclk_source_t;
-
-#define DPLL_CLOCK_HZ (480000000)
-#define CPU_CLOCK_HZ  (120000000)
-#define MCLK_DIVIDER  ((DPLL_CLOCK_HZ / CPU_CLOCK_HZ) - 1)
 
 // ARM968E-S (5-stage pipeline, Thumb): `subs` = 1 cycle, taken `bcs` = 3 cycles,
 // so one loop iteration is 4 cycles — subtract 4 per iteration to match.
@@ -90,13 +80,7 @@ void sctrl_init() {
 
     // mclk_source + divider must change atomically — transient DPLL/1 = 480 MHz
     // if written separately, so preserve all other bits with read-modify-write.
-    {
-        typeof(hw_sctrl->control) reg;
-        reg.v               = hw_sctrl->control.v;
-        reg.mclk_source     = MCLK_SOURCE_DPLL;
-        reg.divider         = MCLK_DIVIDER;
-        hw_sctrl->control.v = reg.v;
-    }
+    sctrl_set_cpu_freq_hz(DEFAULT_CPU_FREQ);
 
     coarse_delay(100);
 
@@ -107,7 +91,10 @@ void sctrl_init() {
     icu_pwms_clk(PERI_CLK_26M_XTAL);
     coarse_delay(100);
 
-    hw_write_fields(hw_sctrl->bias, .cal_manual = 1, .ldo_val_manual = 20, );
+    hw_write_fields(hw_sctrl->bias,
+        .cal_manual = 1,
+        .ldo_val_manual = 20,
+    );
 }
 
 #define REG_RC_BASE_ADDR  (0x01050000)
