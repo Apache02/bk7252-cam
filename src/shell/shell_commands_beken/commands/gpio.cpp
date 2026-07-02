@@ -8,7 +8,7 @@
 static constexpr uint8_t busy_pins[] = {
 // Skip stdio UART pins during scan — reconfiguring them kills the console.
 #if defined(PLATFORM_STDIO_UART1_ENABLED)
-    10, 11, 12, 13,
+    10, 11,
 #endif
 #if defined(PLATFORM_STDIO_UART2_ENABLED)
     0,  1,
