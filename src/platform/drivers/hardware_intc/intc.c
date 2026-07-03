@@ -6,6 +6,7 @@
 
 #include "soc/icu.h"
 #include "intc_manager.h"
+#include "soc/gpio.h"
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
 
@@ -209,4 +210,5 @@ void intc_reset() {
     hw_icu->global_int_en.v  = 0;
     hw_icu->irq_raw_status.v = hw_icu->irq_raw_status.v;
     hw_icu->irq_status.v     = hw_icu->irq_status.v;
+    hw_gpio->extra_int_cfg.v = 0;
 }

@@ -1,6 +1,8 @@
 #include "soc/sctrl.h"
+#include "soc/gpio.h"
 #include "hardware/sctrl.h"
 #include "hardware/icu.h"
+#include "hardware/intc.h"
 
 
 // ARM968E-S (5-stage pipeline, Thumb): `subs` = 1 cycle, taken `bcs` = 3 cycles,
@@ -95,6 +97,56 @@ void sctrl_init() {
         .cal_manual = 1,
         .ldo_val_manual = 20,
     );
+}
+
+void sctrl_dpll_int_open(void) {
+    intc_enable_fiq_source(FIQ_SOURCE_DPLL_UNLOCK);
+    gpio_extra_int_set(dpll_unlock_int_en = 1);
+}
+
+void sctrl_dpll_int_close(void) {
+    gpio_extra_int_set(dpll_unlock_int_en = 0);
+    intc_disable_fiq_source(FIQ_SOURCE_DPLL_UNLOCK);
+}
+
+// Pulses the modem-core reset. Ported from SDK sys_ctrl.c, case
+// CMD_SCTRL_MODEM_CORE_RESET: write MODEM_CORE_RESET_WORD into reset_word
+// (preserving phy_hclk_enable/mac_hclk_enable), wait, clear reset_word back
+// to 0, then poll reset.modem_core_reset until hardware deasserts it.
+void sctrl_modem_core_reset(void)
+{
+    typeof(hw_sctrl->modem_core_reset_phy_hclk) reg;
+    reg.v = hw_sctrl->modem_core_reset_phy_hclk.v;
+
+    reg.reset_word                        = MODEM_CORE_RESET_WORD;
+    hw_sctrl->modem_core_reset_phy_hclk.v = reg.v;
+
+    // SDK's delay(1) is a fixed instruction-count busy loop, not a calibrated
+    // time — it never checks frequency either. 0x400 cycles approximates its
+    // own loop body (100 volatile-counter iterations x ~7 instructions each).
+    busy_wait_at_least_cycles(0x400); // approx SDK delay(1)
+
+    reg.reset_word                        = 0;
+    hw_sctrl->modem_core_reset_phy_hclk.v = reg.v;
+
+    while (hw_sctrl->reset.modem_core_reset) {
+        busy_wait_at_least_cycles(0x400 * 8); // approx SDK delay(10)
+    }
+}
+
+void sctrl_overclock(__unused bool enable) {
+    // SDK (BK7221U branch): refcounted toggle around MCU power-save clock
+    // division, not a real "overclock". enable=1 calls sctrl_mcu_exit() to
+    // force the full DPLL clock while mcu_ps_is_on(); enable=0 re-arms
+    // sctrl_mcu_init() to drop back to the power-save divided clock once the
+    // last caller releases it (refcounted, so nested enable/disable pairs
+    // nest correctly).
+    //
+    // This project has no power-save mode yet (see port_wifi/power_save.c:
+    // "stage 1 — RF always on", all predicates/setters are stubs), so the
+    // CPU is assumed to already run at its nominal frequency at all times.
+    // Nothing to do here until MCU power-save (mcu_ps_is_on/sctrl_mcu_init/
+    // sctrl_mcu_exit, gated by CFG_USE_MCU_PS in the SDK) is implemented.
 }
 
 #define REG_RC_BASE_ADDR  (0x01050000)

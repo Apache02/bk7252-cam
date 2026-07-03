@@ -25,14 +25,18 @@ extern "C" {
 #endif
 
 uint32_t chip_id();
-
 uint32_t device_id();
 
 void sctrl_init();
 
-bool sctrl_set_cpu_freq_hz(uint32_t freq);
-
+bool     sctrl_set_cpu_freq_hz(uint32_t freq);
 uint32_t sctrl_get_cpu_freq_hz();
+
+void sctrl_dpll_int_open(void);
+void sctrl_dpll_int_close(void);
+
+void sctrl_modem_core_reset(void);
+void sctrl_overclock(bool enable);
 
 #ifdef __cplusplus
 }

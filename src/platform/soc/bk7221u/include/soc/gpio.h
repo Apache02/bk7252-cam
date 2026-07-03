@@ -102,3 +102,18 @@ __unused static inline volatile hw_gpio_pin_t *get_gpio_reg(unsigned gpio) {
         ? (hw_gpio_bank1 + (gpio - GPIO_BANK0_COUNT))
         : (hw_gpio_bank0 + gpio);
 }
+
+// Sets one enable bit in hw_gpio->extra_int_cfg. Zeros the register's W1C
+// status bits before writing back so this can't accidentally acknowledge an
+// unrelated pending interrupt in the same register.
+// Usage: gpio_extra_int_set(dpll_unlock_int_en = 1)
+#define gpio_extra_int_set(int_en)                                            \
+    do {                                                                      \
+        typeof(hw_gpio->extra_int_cfg) tmp = {.v = hw_gpio->extra_int_cfg.v}; \
+        tmp.dpll_unlock_int                = 0;                               \
+        tmp.audio_dpll_unlock_int          = 0;                               \
+        tmp.usb_plug_in_int                = 0;                               \
+        tmp.usb_plug_out_int               = 0;                               \
+        tmp.int_en;                                                           \
+        hw_gpio->extra_int_cfg.v = tmp.v;                                     \
+    } while (0)
