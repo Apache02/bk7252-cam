@@ -12,7 +12,8 @@ physically separate blocks.
 |-----------------------------|--------|-------------------------------------|
 | `0x00000000`–`0x0000FFFF`   | 64 KiB   | Flash XIP — bootloader region       |
 | `0x00010000`–`0x001FFFFF`   | ~2 MiB   | Flash XIP — app / OTA region (see `docs/partitions.md`) |
-| `0x00200000`–`0x003FFFFF`   | 2 MiB  | Flash upper window: 4 MiB chip → upper 2 MiB of flash; 2 MiB chip → mirror of `0x0–0x1FFFFF` |
+| `0x00200000`–`0x003F7FFF`   | ~2 MiB  | Flash upper window: 4 MiB chip → upper 2 MiB of flash; 2 MiB chip → mirror of `0x0–0x1FFFFF`. Top edge unverified — see caveat below |
+| `0x003F8000`–`0x003FFFFF`   | 32 KiB | Upper SRAM bank (TCM-like, undocumented for this chip variant) — see below |
 | `0x00400000`–`0x0043FFFF`   | 256 KiB | RAM Block 1 (main firmware RAM)    |
 | `0x00440000`–`0x007FFFFF`   | —      | RAM Block 1 mirrors                 |
 | `0x00800000`–`0x008FFFFF`   | 1 MiB  | Peripheral bus                      |
@@ -70,6 +71,14 @@ physical space, covering both halves.
 
 `uartreader --segment full2m` dumps 2 MiB from physical `0x0`.
 `uartreader --segment full4m` dumps 4 MiB from physical `0x0` (for 4 MiB chips).
+
+**Caveat:** the top of this window, `0x003F8000`–`0x003FFFFF`, is not flash at
+all — see [Upper SRAM Bank](#upper-sram-bank-0x003f80000x003fffff) below.
+Immediately below that bank, `0x003F7F00` hangs the CPU bus outright rather
+than returning flash-mirror data. The exact extent of that hang and whether
+ordinary flash-mirror reads resume further down were not characterized —
+treat reads anywhere near the top of this window (roughly the last 64 KiB)
+as unverified until probed.
 
 ---
 
@@ -149,6 +158,57 @@ speed (stable 4/7 ratio across clock divider settings: ~68.6 MHz throughput at
 Practical consequence: `busy_wait_*` and any other loop calibrated to a fixed
 cycles-per-iteration count delivers **~1.75× the requested delay** when executing
 from IRAM. Use `hardware_timer` for accurate delays in IRAM code.
+
+---
+
+## Upper SRAM Bank (`0x003F8000`–`0x003FFFFF`)
+
+Base: `0x003F8000`. Size: 32 KiB (`0x003F8000`–`0x003FFFFF`), directly below
+RAM Block 1 (`0x00400000`).
+
+Not present in this project's own linker scripts (a `TCM` region was added
+purely for future use — see below), and not part of the vendor SDK's memory
+map for this specific chip: `beken_freertos_sdk/application.mk` links the
+`bk7251` target (BK7221U, this chip) against `bk7231.ld` / `bk7231_bsp.ld`,
+which define no `tcm`/`itcm` region at all. A same-named region *is* defined
+in the vendor SDK's linker scripts for other chips in the family —
+`bk7231n.lds` (`tcm` 56–60 KiB + `itcm` 4–8 KiB, ending exactly at
+`0x00400000`), `bk7238_bsp.lds` (`itcm` 16 KiB, `0x3F0000`–`0x3F4000`),
+`bk7252n_bsp.lds` / `bk7253_bsp.lds` (`itcm` 32 KiB, `0x3F0000`–`0x3F8000`) —
+none of those boundaries match what was measured here, so this is not simply
+an unused copy of another chip's TCM layout; treat it as a distinct,
+undocumented-for-this-variant hardware block.
+
+Confirmed by on-chip probing (`run-on-chip` skill, `src/tests/probe/`):
+
+- **Readable and writable.** Full address-as-data sweep (every word written
+  with its own address, then read back): 8192/8192 words matched, no
+  aliasing.
+- **Executable.** A small ARM routine copied to and run from `0x3F8000`,
+  `0x3FC000`, and `0x3FFFF0` all executed correctly.
+- **Idle-state fill:** `0xAAAAAAAA`, same convention as RAM Block 2 (IRAM).
+- **Faster than IRAM.** A calibrated busy loop ran at ~57 % of the
+  wall-clock time it took in IRAM (i.e. ~1.75× the instruction throughput)
+  across most of the bank — consistent with single-cycle, non-wait-stated
+  access (TCM-like), unlike IRAM's shared-bus wait states (see RAM Block 2
+  above).
+- **Edge slowdown.** The last ~48 bytes before `0x00400000` (between
+  `0x3FFFC0` and `0x3FFFF0`) drop to ~71 % of IRAM time — still faster than
+  IRAM, but a clear regression right at the RAM Block 1 boundary, likely a
+  pipeline/prefetch interaction with the adjacent bank rather than a
+  property of the SRAM itself.
+
+**Sharp lower boundary — genuine bus hang, not backed by data.** `0x3F7F00`
+(256 B below `0x3F8000`) hangs the CPU bus outright — not a Data Abort;
+confirmed by a `wdt_set` watchdog firing and the vendor bootloader's normal
+POR boot sequence appearing after reset, rather than a caught exception. The
+exact lower edge of the hang was not narrowed further below `0x3F7F00`, nor
+was it established whether ordinary flash-mirror reads (see Flash upper
+window, above) resume further down. Do not read below `0x3F8000` without
+first re-probing.
+
+Exposed in `src/linker/flash.lds`, `iram.lds`, and `bootloader.lds` as a
+`TCM` memory region (declared only — no section currently placed there).
 
 ---
 

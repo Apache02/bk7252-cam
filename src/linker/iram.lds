@@ -1,7 +1,11 @@
 MEMORY
 {
-    IRAM(rwx) : ORIGIN = 0x00900000, LENGTH = 256k
-    RAM(rw)   : ORIGIN = 0x00400020, LENGTH = 256k - 0x20
+    IRAM    (rwx) : ORIGIN = 0x00900000, LENGTH = 256k
+    RAM    (rw!x) : ORIGIN = 0x00400020, LENGTH = 256k - 0x20
+    /* Undocumented for this chip variant; confirmed by on-chip probing to be
+       readable/writable/executable, single-cycle-like (faster than IRAM).
+       See docs/memory_map.md "Upper SRAM Bank". Declared only — unused. */
+    TCM   (rwx) : ORIGIN = 0x003F8000, LENGTH = 32k
 }
 
 OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
