@@ -3,6 +3,12 @@
 #include "hardware/intc.h"
 #include "platform/init.h"
 
+// newlib's <sched.h> guards sched_yield()'s declaration behind _POSIX_THREADS /
+// _POSIX_PRIORITY_SCHEDULING; neither is defined project-wide, so define the narrower
+// one here, scoped to this translation unit, just to unlock the declaration.
+#define _POSIX_PRIORITY_SCHEDULING
+#include <sched.h>
+
 #include <stdio.h>
 
 // Bitmask of currently reserved channels. Bit N set => channel N is owned by
@@ -147,8 +153,11 @@ void gdma_wait(int channel) {
     if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
         return;
     }
+    // sched_yield() sleeps via WFI() when CPU IRQ is enabled (woken by the finish IRQ
+    // this driver already registers), switches FreeRTOS tasks under FreeRTOS, or - if
+    // CPU IRQ was never enabled - returns immediately, degrading this to a plain busy-poll.
     while (hw_gdma->channels[channel].config.enable) {
-        // busy-poll; hw clears enable on completion
+        sched_yield();
     }
 }
 

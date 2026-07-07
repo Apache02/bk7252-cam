@@ -63,6 +63,28 @@ portRestoreInt:
     msr     cpsr_c, r1
     bx      lr
 
+//      int portENABLED_IRQ( void );
+    .global portENABLED_IRQ
+    .type portENABLED_IRQ, %function
+portENABLED_IRQ:
+    mrs     r0, cpsr
+    and     r0, r0, #CPU_IRQ_MASK
+    cmp     r0, #0
+    moveq   r0, #1
+    movne   r0, #0
+    bx      lr
+
+//      int portENABLED_FIQ( void );
+    .global portENABLED_FIQ
+    .type portENABLED_FIQ, %function
+portENABLED_FIQ:
+    mrs     r0, cpsr
+    and     r0, r0, #CPU_FIQ_MASK
+    cmp     r0, #0
+    moveq   r0, #1
+    movne   r0, #0
+    bx      lr
+
 //      int portIsInIRQ( void );
     .global portIsInIRQ
     .type portIsInIRQ, %function

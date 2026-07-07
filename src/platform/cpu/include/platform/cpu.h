@@ -25,6 +25,8 @@ void portRestoreInt(int state);
 
 int portIsInIRQ(void);
 int portIsInFIQ(void);
+int portENABLED_IRQ(void); // 1 = CPU IRQ unmasked, 0 = masked. Read-only, no side effects.
+int portENABLED_FIQ(void); // 1 = CPU FIQ unmasked, 0 = masked. Read-only, no side effects.
 
 void WFI(void);
 void arm9_enable_alignfault(void);

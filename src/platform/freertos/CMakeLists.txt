@@ -69,6 +69,7 @@ target_sources(
         port_asm.S
         entry.c
         stats.c
+        syscalls.c
 )
 
 if (NOT FREERTOS_CONFIG_FILE_DIRECTORY)

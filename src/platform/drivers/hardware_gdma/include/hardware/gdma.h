@@ -54,11 +54,18 @@ typedef struct {
 typedef struct {
     gdma_endpoint_t src;
     gdma_endpoint_t dst;
-    size_t          size; // Number of dst writes to perform. Each commits 2^dst.dw bytes.
-                          // Must be >= 1 (hw cannot express zero writes; value 0 rejected).
+    size_t          size; // Total byte count to transfer, regardless of src.dw / dst.dw (empirically
+                          // derived hardware model, not documented by the SDK — see
+                          // docs/hardware/dma.md). The number of dst writes performed is
+                          // ceil(size / 2^dst.dw), NOT size itself: with GDMA_DATA_WIDTH_32 a
+                          // request for `size` bytes only issues size/4 writes.
+                          // dst_addr_inc always advances the destination address by +4 per write
+                          // regardless of dst.dw, so narrower widths leave gaps between the bytes
+                          // actually written (see dw comment on gdma_endpoint_t above) — unsuitable
+                          // for a contiguous memcpy. Use GDMA_DATA_WIDTH_32 on both sides for
+                          // DTCM-to-DTCM memcpy.
+                          // Must be >= 1 (hw cannot express zero bytes; value 0 rejected).
                           // Max 65536 (transfer_length is 16-bit, hw stores size-1).
-                          // For byte-count memcpy with dw=8/8 use size = byte_count.
-                          // For dw=8/16 use size = ceil(byte_count / 2). Etc.
 } gdma_config_t;
 
 #ifdef __cplusplus
@@ -108,8 +115,13 @@ void gdma_stop(int channel);
 // finish event. Polled by gdma_wait().
 bool gdma_busy(int channel);
 
-// Block (busy-poll) until the channel finishes. Returns immediately if idle.
-// No timeout; the caller is responsible for not waiting on a stuck channel.
+// Block until the channel finishes. Returns immediately if idle. No timeout; the
+// caller is responsible for not waiting on a stuck channel.
+// Waits via sched_yield() rather than a plain busy-poll: under FreeRTOS this switches
+// to another task; under nosys it sleeps via WFI(), woken by the finish IRQ this driver
+// already registers (see gdma_init()). If CPU IRQ was never enabled (portENABLE_IRQ()),
+// sched_yield()'s weak default returns immediately, so this safely degrades to a plain
+// busy-poll instead of hanging.
 void gdma_wait(int channel);
 
 // ============================================================================

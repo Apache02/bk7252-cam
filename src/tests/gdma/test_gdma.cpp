@@ -84,7 +84,8 @@ __unused static void dump_regs(const char *when) {
 // Narrower widths are strictly slower for memcpy (see soc/gdma.h transfer
 // model notes - they leave 3-byte gaps in dst between values).
 // Returns dst on success, NULL on failure. n=0 is a no-op returning dst.
-// Max single transfer is 262144 bytes (65536 dst writes * 4 bytes).
+// Max single transfer is 65536 bytes (transfer_length is a 16-bit field, hw stores size-1;
+// size is a byte count regardless of dw — see docs/hardware/dma.md).
 // ============================================================================
 static void *gdma_memcpy(void *dst, const void *src, size_t n) {
     // return memcpy(dst, src, n);
@@ -253,7 +254,7 @@ __unused static void test_zero_length() {
 }
 
 __unused static void test_oversize_rejected() {
-    // Max transfer is 65536 dst writes * 4 bytes = 262144 bytes.
+    // Max transfer is 65536 bytes (size is a byte count; transfer_length is 16-bit).
     // Pick a size strictly above that to force rejection.
     uint8_t *src = src_buf + GUARD;
     uint8_t *dst = dst_buf + GUARD;
