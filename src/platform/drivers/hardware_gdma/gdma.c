@@ -2,12 +2,7 @@
 #include "hardware/gdma.h"
 #include "hardware/intc.h"
 #include "platform/init.h"
-
-// newlib's <sched.h> guards sched_yield()'s declaration behind _POSIX_THREADS /
-// _POSIX_PRIORITY_SCHEDULING; neither is defined project-wide, so define the narrower
-// one here, scoped to this translation unit, just to unlock the declaration.
-#define _POSIX_PRIORITY_SCHEDULING
-#include <sched.h>
+#include "platform/sched.h"
 
 #include <stdio.h>
 
@@ -153,12 +148,18 @@ void gdma_wait(int channel) {
     if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
         return;
     }
-    // sched_yield() sleeps via WFI() when CPU IRQ is enabled (woken by the finish IRQ
-    // this driver already registers), switches FreeRTOS tasks under FreeRTOS, or - if
-    // CPU IRQ was never enabled - returns immediately, degrading this to a plain busy-poll.
+    // Avoid sched_yield()/WFI() if nothing will ever wake it.
+    bool can_wake = intc_irq_source_enabled(IRQ_SOURCE_GDMA);
     while (hw_gdma->channels[channel].config.enable) {
-        sched_yield();
+        if (can_wake) sched_yield();
     }
+    // Ack this channel's finish flag ourselves - gdma_isr() only runs if CPU IRQ
+    // happens to be enabled. Without this, an unacked flag stays asserted forever,
+    // silently turning every later WFI()-based wait (this channel's and anyone
+    // else's) into an immediate no-op instead of a real sleep.
+    hw_write_fields(hw_gdma->int_status,
+        .fin_status = (1u << channel)
+    );
 }
 
 // ============================================================================

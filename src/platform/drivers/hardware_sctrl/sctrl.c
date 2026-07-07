@@ -59,9 +59,16 @@ void sctrl_init() {
     hw_sctrl->power_usb.v       = 0;
     coarse_delay(100);
 
-    hw_write_fields(hw_sctrl->low_power_clk, .lpo_clk_mux = LPO_SRC_ROSC, );
+    hw_write_fields(hw_sctrl->low_power_clk,
+        .lpo_clk_mux = LPO_SRC_ROSC,
+    );
 
-    hw_write_fields(hw_sctrl->rosc_cal, .cal_en = 1, .cal_trig = 1, .cal_mode = 1, .cal_interval = 3, );
+    hw_write_fields(hw_sctrl->rosc_cal,
+        .cal_en = 1,
+        .cal_trig = 1,
+        .cal_mode = 1,
+        .cal_interval = 3,
+    );
 
     /* step 5: re-program analog with PLL enable bit (FUN_000015e8): | 0x08 */
     {
@@ -113,8 +120,7 @@ void sctrl_dpll_int_close(void) {
 // CMD_SCTRL_MODEM_CORE_RESET: write MODEM_CORE_RESET_WORD into reset_word
 // (preserving phy_hclk_enable/mac_hclk_enable), wait, clear reset_word back
 // to 0, then poll reset.modem_core_reset until hardware deasserts it.
-void sctrl_modem_core_reset(void)
-{
+void sctrl_modem_core_reset(void) {
     typeof(hw_sctrl->modem_core_reset_phy_hclk) reg;
     reg.v = hw_sctrl->modem_core_reset_phy_hclk.v;
 

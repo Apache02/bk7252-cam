@@ -35,8 +35,15 @@ static void intc_init(void) {
 
     init_ram_vectors();
 
-    hw_write_fields(hw_icu->irq_enable, .fiq_mac_general = 1, .fiq_mac_prot_trigger = 1, .fiq_mac_tx_trigger = 1,
-                    .fiq_mac_rx_trigger = 1, .fiq_mac_tx_rx_misc = 1, .fiq_mac_tx_rx_timer = 1, .fiq_modem = 1, );
+    hw_write_fields(hw_icu->irq_enable,
+        .fiq_mac_general = 1,
+        .fiq_mac_prot_trigger = 1,
+        .fiq_mac_tx_trigger = 1,
+        .fiq_mac_rx_trigger = 1,
+        .fiq_mac_tx_rx_misc = 1,
+        .fiq_mac_tx_rx_timer = 1,
+        .fiq_modem = 1,
+    );
 
     hw_icu->global_int_en.irq = 1;
     hw_icu->global_int_en.fiq = 1;
@@ -178,6 +185,10 @@ void intc_enable_irq_source(uint32_t source) { hw_icu->irq_enable.v |= irq_sourc
 
 void intc_disable_irq_source(uint32_t source) { hw_icu->irq_enable.v &= ~irq_source_to_reg(source); }
 
+bool intc_irq_source_enabled(uint32_t source) {
+    return (hw_icu->irq_enable.v & irq_source_to_reg(source)) != 0 && !!hw_icu->global_int_en.irq;
+}
+
 static uint32_t fiq_source_to_reg(uint32_t source) {
     hw_icu_int_t reg = {0};
 
@@ -204,6 +215,10 @@ static uint32_t fiq_source_to_reg(uint32_t source) {
 void intc_enable_fiq_source(uint32_t source) { hw_icu->irq_enable.v |= fiq_source_to_reg(source); }
 
 void intc_disable_fiq_source(uint32_t source) { hw_icu->irq_enable.v &= ~fiq_source_to_reg(source); }
+
+bool intc_fiq_source_enabled(uint32_t source) {
+    return (hw_icu->irq_enable.v & fiq_source_to_reg(source)) != 0 && !!hw_icu->global_int_en.fiq;
+}
 
 void intc_reset() {
     hw_icu->irq_enable.v     = 0;

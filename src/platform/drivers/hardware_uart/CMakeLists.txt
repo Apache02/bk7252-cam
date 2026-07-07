@@ -3,6 +3,7 @@ target_link_libraries(
         hardware_uart INTERFACE
         hardware_icu
         hardware_gpio
+        hardware_intc
 )
 target_sources(
         hardware_uart INTERFACE

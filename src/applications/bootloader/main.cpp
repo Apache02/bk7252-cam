@@ -94,15 +94,16 @@ static void preinit() {
     intc_reset();
 
     sctrl_init();
-
-    uart2_init();
-    print_registers();
-    uart2_puts("\r\n");
 }
 
 PREINIT_AT(preinit, 01);
 
 int main() {
+    uart2_init();
+    print_registers();
+    uart2_puts("\r\n");
+    uart2_flush();
+
     wdt_down();
     platform_stdio_init();
     setvbuf(stdout, NULL, _IONBF, 0);

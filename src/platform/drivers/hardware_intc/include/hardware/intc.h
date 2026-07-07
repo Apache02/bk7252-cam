@@ -99,6 +99,14 @@ void intc_enable_fiq_source(uint32_t source);
 
 void intc_disable_fiq_source(uint32_t source);
 
+// Read-only, no side effects: is this source currently forwarded to the core at the
+// ICU level (i.e. would intc_enable_irq_source(source) need to be called first)?
+// Does not reflect the CPU-level CPSR I-bit (see portENABLED_IRQ()) or whether a
+// handler is registered for it.
+bool intc_irq_source_enabled(uint32_t source);
+
+bool intc_fiq_source_enabled(uint32_t source);
+
 #ifdef __cplusplus
 }
 #endif

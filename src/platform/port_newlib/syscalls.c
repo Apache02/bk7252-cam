@@ -2,12 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-// newlib's <sched.h> guards sched_yield()'s declaration behind _POSIX_THREADS /
-// _POSIX_PRIORITY_SCHEDULING; neither is defined project-wide, so define the narrower
-// one here, scoped to this translation unit, just to unlock the declaration.
-#define _POSIX_PRIORITY_SCHEDULING
-#include <sched.h>
-
+#include "platform/sched.h"
 #include "platform/cpu.h"
 
 __attribute__((weak)) void _exit(int code) { while (1); }
@@ -39,9 +34,10 @@ __attribute__((weak)) int _read(int file, char *ptr, int len) {
 
 // Weak default for bare-metal (nosys) builds. platform_freertos provides a strong
 // override (portYIELD()) that the linker prefers when an app links FreeRTOS instead.
+// Calls WFI() unconditionally, regardless of CPU IRQ state - if IRQ is never enabled,
+// pending interrupts never get acked, so their line stays asserted forever and every
+// future WFI() call (anywhere) returns immediately instead of actually sleeping.
 __attribute__((weak)) int sched_yield(void) {
-    if (portENABLED_IRQ()) {
-        WFI();
-    }
+    WFI();
     return 0;
 }

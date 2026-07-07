@@ -116,12 +116,9 @@ void gdma_stop(int channel);
 bool gdma_busy(int channel);
 
 // Block until the channel finishes. Returns immediately if idle. No timeout; the
-// caller is responsible for not waiting on a stuck channel.
-// Waits via sched_yield() rather than a plain busy-poll: under FreeRTOS this switches
-// to another task; under nosys it sleeps via WFI(), woken by the finish IRQ this driver
-// already registers (see gdma_init()). If CPU IRQ was never enabled (portENABLE_IRQ()),
-// sched_yield()'s weak default returns immediately, so this safely degrades to a plain
-// busy-poll instead of hanging.
+// caller is responsible for not waiting on a stuck channel. Sleeps via sched_yield()
+// while IRQ_SOURCE_GDMA is enabled at the ICU level; otherwise busy-polls to avoid
+// hanging if nothing will ever wake it.
 void gdma_wait(int channel);
 
 // ============================================================================
