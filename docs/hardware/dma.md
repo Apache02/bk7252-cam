@@ -166,15 +166,6 @@ bytes, or behave unpredictably. Use 4-byte-aligned buffers.
     - Poll `channels[n].config.enable` — hw clears it to `0` on the final write.
     - Wait for the channel's bit in `int_status.fin_status` and write 1 to clear.
 
-   The driver's `gdma_wait()` polls `config.enable` in a loop that calls `sched_yield()`
-   between checks, rather than spinning tightly. `sched_yield()` sleeps the CPU via `WFI()`
-   under nosys (woken by the finish IRQ `gdma_init()` already registers and enables) or
-   switches FreeRTOS tasks under FreeRTOS; if CPU IRQ was never enabled it returns
-   immediately, so the loop still behaves like a plain busy-poll rather than hanging. WFI
-   depends entirely on an interrupt actually firing — with `IRQ_SOURCE_GDMA` disabled (or its
-   handler removed without disabling the source, which leaves the flag stuck and the IRQ line
-   asserted forever) `WFI()` never returns; there is no periodic/timeout wakeup.
-
 ## Interrupts
 
 `IRQ_SOURCE_GDMA` is a single shared line for all six channels. The ISR must

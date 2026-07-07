@@ -81,3 +81,4 @@ External dependencies are fetched into `libs/` by `dependencies.cmake` via `Fetc
 - All source content (identifiers, comments, strings, docs) must be English-only.
 - Do not run the build (`cmake`, `make`, `./smoke_build.sh`) — the user runs builds themselves. Exception: `make test_probe--iram` is allowed when using the `run-on-chip` skill for `src/tests/probe/` experiments.
 - `src/tests/probe/` is the scratch template for the `run-on-chip` skill — never commit anything in that directory unless explicitly told to (e.g. when updating the template itself).
+- `docs/hardware/*.md` describe silicon/register behavior only — no references to this project's driver function/type/macro names, file paths, or software design choices (those belong in driver source comments, e.g. `src/platform/drivers/*/*.c`); see the `hardware-block-reference` skill.
