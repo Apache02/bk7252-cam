@@ -7,6 +7,7 @@
 #include "hardware/wdt.h"
 
 #include "net.h"
+#include "utils/busy_wait.h"
 
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
@@ -25,6 +26,7 @@ static StackType_t  wdtTaskStack[40];
 
 void vTaskWdt(__unused void *pvParams) {
     wdt_init();
+    wdt_down();
     wdt_set(2000);
     wdt_up();
 
@@ -34,20 +36,29 @@ void vTaskWdt(__unused void *pvParams) {
     }
 }
 
+void vTaskInit(__unused void *pvParams) {
+    vTaskSuspendAll();
+    net_init();
+    xTaskResumeAll();
+
+    vTaskDelete(nullptr);
+}
 /*-----------------------------------------------------------*/
 
 int main() {
-    wdt_down();
     platform_stdio_init();
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    xTaskCreateStatic(vTaskShell, "shell", count_of(shellTaskStack), NULL, configMAX_PRIORITIES - 1, shellTaskStack,
-                      &(shellTaskTCB));
+    printf("FreeRTOS starting...\r\n");
+    busy_wait_ms(10);
 
-    xTaskCreateStatic(vTaskWdt, "watchdog", count_of(wdtTaskStack), NULL, configMAX_PRIORITIES - 1, wdtTaskStack,
+    xTaskCreateStatic(vTaskWdt, "watchdog", count_of(wdtTaskStack), NULL, configMAX_PRIORITIES - 2, wdtTaskStack,
                       &(wdtTaskTCB));
 
-    net_init();
+    xTaskCreateStatic(vTaskShell, "shell", count_of(shellTaskStack), NULL, configMAX_PRIORITIES - 2, shellTaskStack,
+                      &(shellTaskTCB));
+
+    xTaskCreate(vTaskInit, "init", configMINIMAL_STACK_SIZE * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 
     vTaskStartScheduler();
 

@@ -11,6 +11,7 @@
 #include "platform/panic.h"
 
 #include "utils/busy_wait.h"
+#include "hardware/wdt.h"
 
 /*-----------------------------------------------------------*/
 
@@ -39,6 +40,7 @@ static void vDynamicTask2(__unused void *parameters) {
 /*-----------------------------------------------------------*/
 
 int main(void) {
+    wdt_down();
     platform_stdio_init();
 
     printf("Example FreeRTOS Project\r\n");

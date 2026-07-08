@@ -22,6 +22,12 @@ static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 
 #define assert_timer_number(i) assert_true((i >= 0) && (i < TIMERS_TOTAL), "Invalid timer number")
 
+#define timer_clear_irq_status(bank, status) \
+    while (bank->ctl.irq_status & status) {  \
+        bank->ctl.irq_status = status;       \
+    }
+
+
 static void timer_isr() {
     uint32_t status0    = hw_timer_bank0->ctl.irq_status;
     uint32_t status1    = hw_timer_bank1->ctl.irq_status;
@@ -48,16 +54,8 @@ static void timer_isr() {
     }
 
     // clear timers
-    if (status0) {
-        do {
-            hw_timer_bank0->ctl.irq_status = status0;
-        } while (hw_timer_bank0->ctl.irq_status & status0);
-    }
-    if (status1) {
-        do {
-            hw_timer_bank1->ctl.irq_status = status1;
-        } while (hw_timer_bank1->ctl.irq_status & status1);
-    }
+    if (status0) timer_clear_irq_status(hw_timer_bank0, status0);
+    if (status1) timer_clear_irq_status(hw_timer_bank1, status1);
 }
 
 static int find_free_timer(uint32_t freq) {
@@ -78,6 +76,9 @@ static int find_free_timer(uint32_t freq) {
 void timer_reset(void) {
     hw_timer_bank0->ctl.v = 0;
     hw_timer_bank1->ctl.v = 0;
+
+    timer_clear_irq_status(hw_timer_bank0, hw_timer_bank0->ctl.irq_status);
+    timer_clear_irq_status(hw_timer_bank1, hw_timer_bank1->ctl.irq_status);
 
     hw_icu->peri_clk_pwd.timer_26m = 1;
     hw_icu->peri_clk_pwd.timer_32k = 1;
@@ -110,6 +111,8 @@ static void register_sys_counter(void) {
 
     bank->counter[timer_num_in_bank] = timer_clock_freq;
     bank->ctl.irq_status &= ~(1 << timer_num_in_bank); // start after 1 second
+    timer_clear_irq_status(bank, 1 << timer_num_in_bank);
+
     bank->ctl.enable |= (1 << timer_num_in_bank);
 
     GLOBAL_INT_RESTORE();
@@ -158,6 +161,7 @@ int timer_create_by_freq(uint32_t freq, timer_alarm_handler_t *func, bool once) 
 
     bank->counter[timer_num_in_bank] = get_timer_frequency(timer_num) / freq;
     bank->ctl.irq_status &= ~(1 << timer_num_in_bank);
+    timer_clear_irq_status(hw_timer_bank0, 1 << timer_num_in_bank);
 
     GLOBAL_INT_RESTORE();
     return timer_num;
@@ -170,6 +174,7 @@ void timer_start(int timer_num) {
     volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
     int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
+    timer_clear_irq_status(bank, 1 << timer_num_in_bank);
     bank->ctl.enable |= (1 << timer_num_in_bank);
 }
 

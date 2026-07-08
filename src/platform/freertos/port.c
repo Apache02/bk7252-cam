@@ -75,6 +75,12 @@ BaseType_t xPortStartScheduler(void) {
 
 void vPortEndScheduler(void) { timer_remove(sys_tick_timer); }
 
+// Runs every idle task iteration, i.e. whenever no other task is ready. Parks the
+// CPU via WFI() until the next interrupt (tick or otherwise) instead of spinning -
+// portSUPPRESS_TICKS_AND_SLEEP() is not implemented on this port, so this is the
+// only place the idle task actually sleeps.
+void vApplicationIdleHook(void) { WFI(); }
+
 /*-----------------------------------------------------------*/
 /*
  * Initialize the stack of a task to look exactly as if a call to

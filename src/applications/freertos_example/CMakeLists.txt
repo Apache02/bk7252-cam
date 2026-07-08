@@ -3,8 +3,6 @@ add_executable(
         main.c
 )
 
-bk_firmware(freertos_example)
-
 target_include_directories(
         freertos_example PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
@@ -15,6 +13,10 @@ target_link_libraries(
         platform_stdio_uart2
         platform_freertos
         hardware_gpio
+        hardware_wdt
         utils_busy_wait
         FreeRTOS-Kernel-Heap5
 )
+
+bk_firmware(freertos_example)
+bk_firmware_iram(freertos_example)

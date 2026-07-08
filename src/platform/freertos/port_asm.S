@@ -45,7 +45,7 @@
     str     lr, [r0, #14*4]
 .endm
 
-.macro PORT_SAVE_CONTEXT
+.macro portSAVE_CONTEXT
     stmdb   sp!, {r0}               // Store r0 first as we need to use it.
 
     stmdb   sp, {sp}^               // Store user-mode sp so we can load it into r0.
@@ -73,7 +73,7 @@
     str     lr, [r1]
 .endm
 
-.macro PORT_RESTORE_CONTEXT
+.macro portRESTORE_CONTEXT
     ldr     r0, =pxCurrentTCB       // Load task stack pointer from pxCurrentTCB.
     ldr     r0, [r0]
     ldr     lr, [r0]
@@ -99,21 +99,21 @@
 .type do_irq, %function
 do_irq:
     ldmfd   sp!, {r0-r1}
-    PORT_SAVE_CONTEXT
+    portSAVE_CONTEXT
     ldr     r0, =intc_irq
     mov     lr, pc
     bx      r0
-    PORT_RESTORE_CONTEXT
+    portRESTORE_CONTEXT
 
 .align 4
 .type do_fiq, %function
 do_fiq:
     ldmfd   sp!, {r0-r1}
-    PORT_SAVE_CONTEXT
+    portSAVE_CONTEXT
     ldr     r0, =intc_fiq
     mov     lr, pc
     bx      r0
-    PORT_RESTORE_CONTEXT
+    portRESTORE_CONTEXT
 
 .align 4
 .type do_swi, %function
@@ -154,7 +154,7 @@ do_reserved:
 .align 4
 .type vPortStartFirstTask, %function
 vPortStartFirstTask:
-    PORT_RESTORE_CONTEXT
+    portRESTORE_CONTEXT
 
 .align 4
 .type vPortYield, %function
@@ -165,8 +165,8 @@ vPortYield:
 .align 4
 vPortYieldProcessor:
     add     lr, lr, #4              // Adjust lr to appear as if saved during an IRQ handler.
-    PORT_SAVE_CONTEXT
+    portSAVE_CONTEXT
     ldr     r0, =vTaskSwitchContext
     mov     lr, pc
     bx      r0
-    PORT_RESTORE_CONTEXT
+    portRESTORE_CONTEXT

@@ -32,7 +32,7 @@
 #define configUSE_TICKLESS_IDLE                 1
 #define configCPU_CLOCK_HZ                      120000000 // 120MHz for BK7252
 #define configTICK_RATE_HZ                      1000      // FreeRTOS beats per second
-#define configMAX_PRIORITIES                    10        // Max number of priority values (0-10)
+#define configMAX_PRIORITIES                    10        // Max number of priority values (0-9)
 #define configMINIMAL_STACK_SIZE                512
 #define configMAX_TASK_NAME_LEN                 16
 #define configUSE_16_BIT_TICKS                  0

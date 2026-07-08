@@ -412,6 +412,68 @@ Until the migration is done, set `cmake_policy(SET CMP0169 OLD)` in
 `dependencies.cmake` (guarded with `if(POLICY CMP0169)`) to suppress the
 warning.
 
+### Arch8. FreeRTOS port assumes no IRQ can land before `vPortStartFirstTask()` runs — nothing enforces it
+
+Files: `platform/freertos/port.c` (`xPortStartScheduler`), `platform/freertos/port_asm.S`
+(`portSAVE_CONTEXT` / `portRESTORE_CONTEXT`).
+
+Confirmed on hardware (`freertos_shell--iram`, July 2026): jumping into the app from
+the bootloader intermittently landed back at address `0x0` (the bootloader restarting
+itself) with no watchdog reset involved. Root cause traced to a corrupted
+`pxCurrentTCB` stack frame, not a hardware or bootloader/vector-handoff issue.
+
+Mechanism:
+
+- `portSAVE_CONTEXT` / `portRESTORE_CONTEXT` (used by `do_irq`) always save/restore
+  relative to `pxCurrentTCB`, on the assumption that the CPU is genuinely executing
+  *inside* that task's context whenever an IRQ is taken.
+- `pxCurrentTCB` is already valid before `vTaskStartScheduler()` ever calls into
+  `xPortStartScheduler()` — FreeRTOS assigns it to the first created task at
+  `xTaskCreateStatic()` time.
+- If an IRQ is taken anywhere between task creation and `vPortStartFirstTask()`'s
+  final `subs pc, lr, #4` (which atomically restores the task's SPSR into CPSR —
+  unmasking IRQ — and jumps into the task, in one instruction), the CPU is not
+  actually inside any task yet; it is still on `xPortStartScheduler()`'s own C call
+  stack. `portSAVE_CONTEXT` nonetheless writes that wrongly-shaped stack content into
+  `pxCurrentTCB`'s saved-stack-pointer field, clobbering the first task's properly
+  initialised `pxPortInitialiseStack()` frame.
+- The next restore (tick-driven or otherwise) reads that garbage back as
+  `{R0-R14, SPSR, ulCriticalNesting, LR}` and branches to whatever garbage value
+  lands in the "return address" slot — observed as literal `0`: an ordinary, valid
+  branch into the bootloader's still-resident vector table (`b _reset`), not a fault
+  or a watchdog reset. This also explains why the CPSR/register dump printed by the
+  bootloader's "go" command on the failing run looked like plausible-but-wrong data
+  (e.g. `CPSR: 0x00000010`) rather than an all-zero or clearly-invalid pattern — it's
+  the same corrupted stack data being reinterpreted as a register frame.
+
+This was safe only because nothing was ever ICU-forwarded early enough to test the
+invariant: the design relies on CPU IRQ (CPSR I-bit) staying masked continuously from
+`_reset` until `vPortStartFirstTask()`'s SPSR-restore trick unmasks it, and no
+interrupt source was live during that window until commit `01e2875` made UART2's
+`rx_need_read` / `rx_stop_end` live at the ICU level for the first time
+(`uart2_init()`). Since the console UART is actively receiving bytes throughout
+normal use (typing at the shell), a byte landing at the wrong instant reliably
+reproduced the corruption. The fix applied for that regression (reverting the
+UART1/UART2 interrupt-driven TX wait, see `hardware_uart/uart.c`) only removes the
+currently-live trigger — it does not close the underlying hole. Any future change
+that ICU-forwards another interrupt source early enough (GDMA already uses the same
+`sched_yield()`-gated-by-`intc_irq_source_enabled()` pattern) can reproduce the same
+failure mode.
+
+Fix options:
+- (a) Guard `do_irq`'s context switch on an `xSchedulerRunning`-equivalent flag, so an
+  IRQ taken before the scheduler has truly started is acknowledged/serviced without
+  touching `pxCurrentTCB` (matches how upstream FreeRTOS ARM7/9 ports guard
+  tick-driven switches).
+- (b) Audit every driver's early `intc_enable_*_source()` / `INIT_AT` call site and
+  guarantee none of them can be ICU-forwarded before `vPortStartFirstTask()` runs.
+- (c) Move all peripheral interrupt enabling out of pre-`main()` init and into a
+  first, highest-priority task that runs after the scheduler has started, so nothing
+  can be live during the vulnerable window at all.
+
+Recommendation: (a) — it is the only option that stays correct regardless of what
+future drivers do, rather than depending on every call site being audited by hand.
+
 ---
 
 ## Index of fixed issues
