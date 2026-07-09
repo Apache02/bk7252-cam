@@ -148,7 +148,7 @@ and is confirmed working on this chip.
 
 ### F8. `platform_stdio_init()` requires a settle delay before first TX
 
-File: `src/platform/stdio/stdio.c`.
+File: `src/platform/misc/stdio/stdio.c`.
 
 Calling `setvbuf` or `printf` immediately after `platform_stdio_init()` (0 ms
 gap) produces a hard fault — register dump is visible on UART, then the
@@ -474,6 +474,18 @@ Fix options:
 Recommendation: (a) — it is the only option that stays correct regardless of what
 future drivers do, rather than depending on every call site being audited by hand.
 
+### Arch9. `hardware_pwm` is not wired into the build
+
+`src/platform/drivers/hardware_pwm/` has a complete `CMakeLists.txt`, `pwm.c`,
+and `include/` — the library is self-contained and ready to link — but
+`src/platform/drivers/CMakeLists.txt` has no `add_subdirectory(hardware_pwm)`
+call, so `hardware_pwm` is not part of any CMake configure and no application
+can currently link it. `docs/hardware/pwm.md` documents the silicon block, but
+nothing in the source tree references the driver.
+
+Fix: add `add_subdirectory(hardware_pwm)` to
+`src/platform/drivers/CMakeLists.txt`.
+
 ---
 
 ## Index of fixed issues
@@ -488,14 +500,12 @@ For traceability — these were fixed in commit `a7cebc0`:
 | 5 | `flash_read` mis-handled unaligned addresses       |
 | 6 | `get_absolute_time` torn 64-bit read               |
 | 7 | `sha_finish` auto-destroyed the context            |
-| 9 | `g_sys_counter` was not `volatile`                 |
 | 11 | `icu.h` used `inline` instead of `static inline`  |
 | 12 | `flash.c` `min` macro replaced with inline fn     |
 | 13 | `efuse.c` three RMW ctrl writes → one `.v` write  |
 | 14 | `gpio_{get,put,toggle}` lacked range check        |
 | 15 | `get_gpio_reg` macro → `static inline`            |
 | 16 | `GPIO_HIGH_IMPENDANCE` → `GPIO_HIGH_IMPEDANCE`    |
-| 23 | `register_sys_counter` had no IRQ-disable guard   |
 | Arch5 | `cpu.S`/`cpu.h`/`arm.h` extracted from `platform_boot` into `platform_cpu`; `shell_commands_beken` now explicitly links `platform_cpu` |
 | F9 | `flash_init()` added to `hardware_flash/flash.c` (RDID + clk_conf=5 + model_sel=1); registered `INIT_AT(02)`; called explicitly from bootloader `preinit()` |
 | C1 | `GPIO_IN_PULLUP`/`GPIO_IN_PULLDOWN` had `GPIO_PULL_MODE_BIT` swapped; confirmed against SDK (`GMODE_INPUT_PULLUP=0x3C`, `GMODE_INPUT_PULLDOWN=0x2C`); fixed in `hardware_gpio/gpio.c`. `GPIO_SECOND_FUNC_PULLUP=0x78` was already correct. |

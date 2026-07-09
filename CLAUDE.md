@@ -15,7 +15,7 @@ mkdir -p build
 (cd build && cmake -DBOARD=A9_B_V1_3 .. && make freertos_shell)
 ```
 
-Other application targets (see `src/applications/`): `hello`, `blink`, `shell`, `freertos_example`, `freertos_shell`, `ram_loader`. Standalone driver/peripheral tests live under `src/tests/` (currently `test_gdma`, `test_random`, `test_security`) — they are separate IRAM firmware images, not a unit-test harness.
+Other application targets (see `src/applications/`): `hello`, `blink`, `shell`, `freertos_example`, `freertos_shell`, `ram_loader`, `bootloader`, `bootloader_installer`. Standalone driver/peripheral tests live under `src/tests/` (currently `gdma`, `random`, `security` — building targets named `test_gdma`, `test_random`, `test_security`, the latter also producing `test_aes`/`test_sha`) — they are separate IRAM firmware images, not a unit-test harness.
 
 `src/CMakeLists.txt` auto-globs both `applications/` and `tests/` — dropping a new subdirectory with its own `CMakeLists.txt` into either is enough to register it as a target.
 
@@ -27,7 +27,7 @@ Smoke-build the main app targets in a throwaway directory:
 ./smoke_build.sh
 ```
 
-There is no unit-test framework — `smoke_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell`.
+There is no unit-test framework — `smoke_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell ram_loader`.
 
 ## Flash / backup / monitor
 
@@ -44,14 +44,14 @@ Flasher tools (`tools/flasher/uartprogram`, `uartreader`) are Python scripts usi
 Layered CMake tree under `src/` — each subdir is its own CMake library and gets composed by the application:
 
 - `src/platform/` — chip/runtime layer. Each subdir is one library:
-  - `boot/` (`platform_boot`) — ARM vector table + reset handler + `boot_init.c` + low-level ARM CPU primitives (`cpu.S`, exported as `platform/cpu.h`: IRQ/FIQ enable/disable, `WFI`, alignment-fault control). All firmware targets link this via `bk_firmware()`.
+  - `boot/` (`platform_boot`) — ARM vector table + reset handler + `boot_init.c`. All firmware targets link this via `bk_firmware()`.
+  - `cpu/` (`platform_cpu`) — low-level ARM CPU primitives (`cpu.S`, exported as `platform/cpu.h`: IRQ/FIQ enable/disable, `WFI`, alignment-fault control).
   - `nosys/` — minimal libc syscall stubs.
-  - `panic/` — panic handler.
   - `freertos/` (`platform_freertos`) — FreeRTOS kernel wrapper + port for this CPU.
   - `port_newlib/`, `port_lwip/`, `port_tlsf/` — adapters between the upstream library (fetched in `dependencies.cmake`: FreeRTOS-Kernel V11.1.0, lwIP STABLE-2_2_0, tlsf) and this firmware (locks, allocators, OS shim).
-  - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_fft`, `hardware_gdma`, `hardware_gpio`, `hardware_i2c`, `hardware_icu`, `hardware_intc`, `hardware_jpeg`, `hardware_mpb`, `hardware_random`, `hardware_rc`, `hardware_saradc`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`. Each driver is wired by `simple_drivers_library()` which links `platform_soc` transitively — no per-driver CMake boilerplate needed.
+  - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_gdma`, `hardware_gpio`, `hardware_icu`, `hardware_intc`, `hardware_jpeg`, `hardware_random`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`. Each driver is wired by `simple_drivers_library()` which links `platform_soc` transitively — no per-driver CMake boilerplate needed.
   - `soc/` — chip-scoped MMIO register struct headers. Currently one chip: `soc/bk7221u/`. Exposed as a single INTERFACE library `platform_soc` with include root `soc/bk7221u/include/`, so consumers write `#include "soc/<peripheral>.h"` (e.g. `soc/uart.h`) and `#include "platform/soc.h"` for `hw_write_fields()`. The chip name is encoded in the directory path, not the include path. All drivers receive `platform_soc` transitively via `simple_drivers_library()`.
-  - `stdio/` — `printf`/`getchar` backends bound to a chosen UART (e.g. `platform_stdio_uart2`). Note: `printf` is built with `--specs=nano.specs` and without float support — `%f`/`%g`/`%e` and 64-bit specifiers `%llu`/`%lld` do not work.
+  - `misc/` — small non-driver platform support libraries, one per subdir: `busy_wait` (`utils_busy_wait`), `panic` (`platform_panic`), `stdio` (`platform_stdio_uart*` — `printf`/`getchar` backends bound to a chosen UART; note `printf` is built with `--specs=nano.specs` and without float support — `%f`/`%g`/`%e` and 64-bit specifiers `%llu`/`%lld` do not work), and `rtc` (`platform_rtc` — software wall-clock layered on a 1Hz timer tick: `rtc_get_uptime()`/`rtc_set_time()`/`rtc_get_time()`; no hardware RTC backing, epoch resets every boot).
 
 - `src/shell/` — interactive UART shell, split so an app can pick which command groups it ships:
   - `shell_main` — `Shell`, `Parser`, `History`, `Table` — the engine, no commands.
@@ -65,9 +65,9 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/linker/` — three linker scripts: `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`), `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`), and `bootloader.lds` (bootloader image from flash @ `0x00000000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.md` for the full chip memory map.
 
-- `src/utils/` — generic helpers (`crc`, `busy_wait`).
+- `src/utils/` — generic helpers (`crc`).
 
-- `docs/` — reference documents: `memory_map.md` (chip memory map — address space, flash CRC format, RAM layout, peripheral bases), `known_issues.md` (catalogued firmware bugs / arch issues, prefixed F/A/C/Arch), `hardware/` (per-block hardware references: DMA, Security AES/SHA).
+- `docs/` — reference documents: `memory_map.md` (chip memory map — address space, flash CRC format, RAM layout, peripheral bases), `known_issues.md` (catalogued firmware bugs / arch issues, prefixed F/A/C/Arch), `bootloader.md`, `partitions.md`, `por_reset_state.md`, `hardware/` (per-block hardware references: chip overview, flash, flash SPI mode, DMA, PWM, Security AES/SHA).
 
 External dependencies are fetched into `libs/` by `dependencies.cmake` via `FetchContent` (FreeRTOS-Kernel, lwIP, tlsf). Don't edit them in place.
 
