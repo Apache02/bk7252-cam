@@ -7,6 +7,5 @@ target_link_libraries(
 target_sources(
         hardware_timer INTERFACE
         timer.c
-        sys_counter.c
 )
 

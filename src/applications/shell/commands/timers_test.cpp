@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "utils/busy_wait.h"
 #include "hardware/timer.h"
-#include "hardware/sys_counter.h"
+#include "platform/rtc.h"
 
 #define TRACE(var)                   printf(#var " = 0x%lx\r\n", var)
 #define TRACE_CHANGE(var, new_value) printf(#var ": 0x%lx -> 0x%lx\r\n", var, new_value)
@@ -31,8 +31,8 @@ int command_timers_test(int argc, const char *argv[]) {
 }
 
 int command_timers_test2(int argc, const char *argv[]) {
-    printf("%lu\r\n", sys_counter_get_count());
+    printf("%lu\r\n", rtc_get_uptime());
     busy_wait(1);
-    printf("%lu\r\n", sys_counter_get_count());
+    printf("%lu\r\n", rtc_get_uptime());
     return 0;
 }

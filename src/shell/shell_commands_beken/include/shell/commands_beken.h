@@ -18,8 +18,6 @@ int command_random_test(int argc, const char *argv[]);
 
 int command_time_delay(int argc, const char *argv[]);
 
-int command_uptime(int argc, const char *argv[]);
-
 int command_cpu_speed(int argc, const char *argv[]);
 
 int command_mclk(int argc, const char *argv[]);

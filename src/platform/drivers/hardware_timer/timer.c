@@ -1,6 +1,5 @@
 #include "hardware/timer.h"
 #include "soc/timer.h"
-#include "sys_counter.h"
 #include "hardware/icu.h"
 #include "hardware/intc.h"
 #include "platform/cpu.h"
@@ -96,29 +95,6 @@ static void timer_init(void) {
 }
 
 INIT_AT(timer_init, 02);
-
-static void register_sys_counter(void) {
-    GLOBAL_INT_DECLARATION();
-    GLOBAL_INT_DISABLE();
-
-    int                       timer_num         = find_free_timer(1);
-    const int                 timer_clock_freq  = get_timer_frequency(timer_num);
-    const int                 timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
-    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
-
-    timers_handlers[timer_num].type    = TYPE_PERIODIC;
-    timers_handlers[timer_num].handler = &sys_counter_tick;
-
-    bank->counter[timer_num_in_bank] = timer_clock_freq;
-    bank->ctl.irq_status &= ~(1 << timer_num_in_bank); // start after 1 second
-    timer_clear_irq_status(bank, 1 << timer_num_in_bank);
-
-    bank->ctl.enable |= (1 << timer_num_in_bank);
-
-    GLOBAL_INT_RESTORE();
-}
-
-INIT_AT(register_sys_counter, 03);
 
 int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     GLOBAL_INT_DECLARATION();

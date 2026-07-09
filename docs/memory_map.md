@@ -253,6 +253,39 @@ to peripheral registers are not supported unless noted.
 | `0x0080A000`   | JPEG encoder   | `soc/jpeg.h`              | `hardware_jpeg`                 | Hardware JPEG encoder                              |
 | `0x0080D000`   | QSPI           | —                         | —                               | Quad-SPI controller                                |
 
+### FFT internal memory (`0x00805800`–`0x00805FFF`)
+
+Confirmed by on-chip probing (`run-on-chip` skill, `src/tests/probe/`):
+
+- **Clock-gated.** Reads as a stable `0xAAAAAAAA` and rejects writes while
+  `hw_icu->peri_clk_pwd.fft` (bit 19) is set (the reset default). Clearing
+  that bit exposes it as genuine read/write RAM — full address-as-data sweep
+  (each word written with its own address, then read back): 512/512 words
+  matched, no aliasing.
+- **Idle-state fill:** `0xAAAAAAAA` while gated, same convention as RAM Block 2
+  (IRAM) and the Upper SRAM Bank. This is the chip-wide idle pattern, not a
+  hardware test/ID register — it only reads that way because the block's
+  clock is off by default.
+- **Size:** 2048 bytes (512 words), `0x00805800`–`0x00805FFF`, ending exactly
+  at the next peripheral (Security, `0x00806000`).
+- **Does not require `FFT_CONF.ENABLE`** (bit 3 of `0x00805000`, vendor SDK
+  `beken378/driver/fft/fft.h`) — the clock gate alone unlocks it; `FFT_CONF`
+  can stay at its reset value.
+
+**Discrepancy with the vendor SDK:** `beken378/driver/fft/fft.h` defines
+`FFT_MEMORY_BASE_ADDR` as `FFT_BASE + 0x200` (`0x00805200`), not `+0x800`. That
+address (`0x00805200`–`0x008057FF`) remains non-writable even with both the
+clock gate cleared and `FFT_CONF.ENABLE` set — it behaves like unmapped space
+(reads `0`, writes don't stick), not RAM. Possibly only reachable indirectly
+through `FFT_DATA_PORT`/`FFT_COEF_PORT` (`0x00805008`/`0x0080500C`, FIFO-style
+ports with an internal auto-incrementing pointer) rather than by direct MMIO
+addressing, or simply unimplemented on this chip variant — not characterised
+further.
+
+`0x00805020`–`0x008051FF` (between the FFT control registers at
+`0x00805000`–`0x0080501C` and `FFT_MEMORY_BASE_ADDR`) reads `0` and rejects
+writes regardless of clock/enable state — genuinely empty, not gated RAM.
+
 ---
 
 ## Upper Address Space

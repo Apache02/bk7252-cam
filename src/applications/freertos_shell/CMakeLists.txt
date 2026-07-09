@@ -35,6 +35,7 @@ target_link_libraries(
         hardware_gpio
         hardware_efuse
         hardware_security
+        platform_rtc
 )
 
 bk_firmware(freertos_shell)
