@@ -25,6 +25,7 @@ const Shell::Handler shell_handlers[] = {
     {"flash_read", command_flash_read_binary, "read flash as binary stream: <addr> <size>"},
     {"flash_crc32", command_flash_crc32, "CRC32 of flash: <addr> <size>"},
     {"flash", command_flash, "flash <action: id|unprotect>"},
+    {"tlv", command_tlv, "decode TLV blob: part <name> | addr <addr> [size]"},
 
     {"partitions", command_partitions, "find and print partitions table"},
     {"chip_id", command_chip_id, "print chip and device IDs"},

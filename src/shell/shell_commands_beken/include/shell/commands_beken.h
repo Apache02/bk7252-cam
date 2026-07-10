@@ -43,6 +43,8 @@ int command_flash_write(int argc, const char *argv[]);
 
 int command_flash(int argc, const char *argv[]);
 
+int command_tlv(int argc, const char *argv[]);
+
 int command_sha1(int argc, const char *argv[]);
 
 int command_sha224(int argc, const char *argv[]);

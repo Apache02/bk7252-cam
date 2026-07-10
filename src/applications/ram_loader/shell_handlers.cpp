@@ -25,6 +25,7 @@ const Shell::Handler shell_handlers[] = {
     {"flash_read", command_flash_read_binary, nullptr},
     {"flash_write", command_flash_write, nullptr},
     {"flash_crc32", command_flash_crc32, nullptr},
+    {"tlv", command_tlv, nullptr},
 
     {"loadi", command_iram_load, nullptr},
     {"loadx", command_iram_xmodem, nullptr},

@@ -19,6 +19,7 @@ target_link_libraries(
         hardware_wdt
         utils_busy_wait
         utils_crc
+        platform_fal
 )
 
 target_compile_definitions(bootloader PRIVATE ENTRY_BACKUP_REGISTERS)

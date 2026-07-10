@@ -21,6 +21,8 @@ target_link_libraries(
         shell_commands_beken INTERFACE
         shell_main
         platform_cpu
+        platform_fal
+        platform_tlv
         hardware_gpio
         hardware_intc
         hardware_sctrl
