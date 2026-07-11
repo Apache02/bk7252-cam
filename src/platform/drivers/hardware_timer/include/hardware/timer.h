@@ -20,6 +20,13 @@ void timer_remove(int timer_num);
 
 void timer_reset(void);
 
+// Disables every currently-running timer, returning a bitmask (bit i =
+// timer i) to pass to timer_resume_all() afterward.
+uint32_t timer_pause_all(void);
+
+// Re-enables timers previously paused by timer_pause_all().
+void timer_resume_all(uint32_t paused_mask);
+
 #ifdef __cplusplus
 }
 #endif

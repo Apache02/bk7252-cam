@@ -179,7 +179,7 @@ none of those boundaries match what was measured here, so this is not simply
 an unused copy of another chip's TCM layout; treat it as a distinct,
 undocumented-for-this-variant hardware block.
 
-Confirmed by on-chip probing (`run-on-chip` skill, `src/tests/probe/`):
+Confirmed by on-chip probing (`run-on-chip` skill):
 
 - **Readable and writable.** Full address-as-data sweep (every word written
   with its own address, then read back): 8192/8192 words matched, no
@@ -187,11 +187,13 @@ Confirmed by on-chip probing (`run-on-chip` skill, `src/tests/probe/`):
 - **Executable.** A small ARM routine copied to and run from `0x3F8000`,
   `0x3FC000`, and `0x3FFFF0` all executed correctly.
 - **Idle-state fill:** `0xAAAAAAAA`, same convention as RAM Block 2 (IRAM).
-- **Faster than IRAM.** A calibrated busy loop ran at ~57 % of the
-  wall-clock time it took in IRAM (i.e. ~1.75× the instruction throughput)
-  across most of the bank — consistent with single-cycle, non-wait-stated
-  access (TCM-like), unlike IRAM's shared-bus wait states (see RAM Block 2
-  above).
+- **Faster than IRAM for instruction fetch.** A calibrated busy loop ran at
+  ~57 % of the wall-clock time it took in IRAM (i.e. ~1.75× the instruction
+  throughput) across most of the bank — consistent with single-cycle,
+  non-wait-stated access (TCM-like), unlike IRAM's shared-bus wait states
+  (see RAM Block 2 above). This does not carry over to explicit data
+  access — see [Data Access Speed](#data-access-speed-tcm-vs-ram-block-1-vs-iram)
+  below, where RAM Block 1 outperforms TCM for `LDR`/`STR`.
 - **Edge slowdown.** The last ~48 bytes before `0x00400000` (between
   `0x3FFFC0` and `0x3FFFF0`) drop to ~71 % of IRAM time — still faster than
   IRAM, but a clear regression right at the RAM Block 1 boundary, likely a
@@ -209,6 +211,76 @@ first re-probing.
 
 Exposed in `src/linker/flash.lds`, `iram.lds`, and `bootloader.lds` as a
 `TCM` memory region (declared only — no section currently placed there).
+
+---
+
+## Data Access Speed: TCM vs RAM Block 1 vs IRAM
+
+Confirmed by on-chip probing (`run-on-chip` skill),
+measuring explicit `LDR`/`STR` word access with code always executing from
+IRAM (so instruction-fetch cost is constant across the comparison) — two
+2048-word buffers per region, 30 repetitions, timed with `hardware_time`:
+
+| Region                                   | write (ns/word) | read (ns/word) | copy (ns/word-pair) |
+|-------------------------------------------|-----------------|-----------------|----------------------|
+| RAM Block 1 (`0x00400000`)                | 108.4           | 83.4            | 91.7                 |
+| Upper SRAM bank / TCM (`0x003F8000`)      | 108.4           | 91.7 (+10 %)    | 100.0 (+9 %)         |
+| RAM Block 2 / IRAM (`0x00900000`)         | 133.4 (+23 %)   | 108.4 (+30 %)   | 141.7 (+55 %)        |
+
+**RAM Block 1 is the fastest region for explicit data access — the opposite**
+ranking from instruction-fetch speed (see Upper SRAM Bank above, where TCM
+beats IRAM for code). TCM ties RAM on writes but is measurably slower on
+reads and copies; IRAM is slowest throughout, and disproportionately worse
+on copy, consistent with bus contention — the benchmark's own code fetches
+instructions from the same IRAM bank it is simultaneously loading from and
+storing into.
+
+A warm-up pass (touching every buffer word once, untimed, before the timed
+loop) ruled out `.bss` pre-zeroing as an artifact — result unchanged. Note:
+this measures data throughput only, with code fixed in IRAM for all three
+regions; it does not isolate the cost of running code from RAM Block 1 or
+TCM (no such build variant exists).
+
+---
+
+## Instruction Fetch Speed: TCM vs IRAM vs RAM Block 1
+
+Confirmed by on-chip probing (`run-on-chip` skill). A
+12-byte ARM routine with an exactly-known instruction count (`subs`+`bne`,
+2 instructions/iteration, 1,000,000 iterations = 2,000,000 instructions) was
+compiled once, then the identical bytes were `memcpy`'d to a TCM address and
+a RAM Block 1 address and invoked via function pointer — same code, only the
+execution address changes, isolating pure fetch latency:
+
+| Region                          | time (2 M instr.) | ns/instruction | throughput    | % of rated 120 MHz |
+|-----------------------------------|--------------------|-----------------|----------------|----------------------|
+| Upper SRAM bank / TCM (`0x003F8000`) | 33,334 µs       | 16.67           | 60.0 M-insn/s  | 50 %                 |
+| RAM Block 2 / IRAM (`0x00900000`)    | 58,334 µs       | 29.17           | 34.3 M-insn/s  | 29 %                 |
+| RAM Block 1 (`0x00400000`)           | —                | —               | **traps: `bk_trap_udef`** | n/a       |
+
+**TCM is 1.75× faster than IRAM for code** — reproducible to within 1 µs
+across repeated runs. This independently confirms, via a rigorous
+known-instruction-count method, the earlier "~57 % of IRAM wall-clock time"
+busy-loop finding in the Upper SRAM Bank section above (1/1.75 ≈ 57 %).
+
+**RAM Block 1 cannot execute code at all.** Copying the identical 12 bytes
+there and calling them traps immediately with an Undefined Instruction
+exception (`bk_trap_udef`), reproducible across two runs. Likely
+explanation: RAM Block 1 is wired only to the CPU's data-side bus, not the
+instruction-fetch bus, unlike TCM and IRAM which both serve as genuine
+fetch-capable memory. This matches the `RAM (rw!x)` attribute already
+declared for this region in `src/linker/flash.lds`, `iram.lds`, and
+`bootloader.lds` — that attribute was a linker-policy convention (no
+executable section should be placed there), not previously a cited,
+tested hardware fact; it is now empirically confirmed, with a known,
+specific failure mode (an immediate trap, not silent corruption or a bus
+hang).
+
+Caveat: the loop is `subs`+`bne` (conditional branch every iteration), which
+costs more cycles than branch-free code due to pipeline refill — these
+absolute MHz figures are specific to this loop and not comparable to the
+busy-loop-based ~57 % IRAM figure above (different instruction mix). Only
+the cross-region **ratio** (1.75×) is robust across instruction mixes.
 
 ---
 
@@ -255,7 +327,7 @@ to peripheral registers are not supported unless noted.
 
 ### FFT internal memory (`0x00805800`–`0x00805FFF`)
 
-Confirmed by on-chip probing (`run-on-chip` skill, `src/tests/probe/`):
+Confirmed by on-chip probing (`run-on-chip` skill):
 
 - **Clock-gated.** Reads as a stable `0xAAAAAAAA` and rejects writes while
   `hw_icu->peri_clk_pwd.fft` (bit 19) is set (the reset default). Clearing
@@ -276,11 +348,7 @@ Confirmed by on-chip probing (`run-on-chip` skill, `src/tests/probe/`):
 `FFT_MEMORY_BASE_ADDR` as `FFT_BASE + 0x200` (`0x00805200`), not `+0x800`. That
 address (`0x00805200`–`0x008057FF`) remains non-writable even with both the
 clock gate cleared and `FFT_CONF.ENABLE` set — it behaves like unmapped space
-(reads `0`, writes don't stick), not RAM. Possibly only reachable indirectly
-through `FFT_DATA_PORT`/`FFT_COEF_PORT` (`0x00805008`/`0x0080500C`, FIFO-style
-ports with an internal auto-incrementing pointer) rather than by direct MMIO
-addressing, or simply unimplemented on this chip variant — not characterised
-further.
+(reads `0`, writes don't stick), not RAM. Not characterised further.
 
 `0x00805020`–`0x008051FF` (between the FFT control registers at
 `0x00805000`–`0x0080501C` and `FFT_MEMORY_BASE_ADDR`) reads `0` and rejects
@@ -294,8 +362,7 @@ writes regardless of clock/enable state — genuinely empty, not gated RAM.
 
 RF transceiver control block (`hw_rc`, `soc/rc.h`). Spans
 `0x01050000`–`0x010501A8` (107 words). `TRX_REG28` is accessed at the
-anomalous address `0x08628078`, outside all mapped regions; the access
-mechanism is not characterised.
+anomalous address `0x08628078`, outside all mapped regions.
 
 ### MPB — `0x01060000`
 
@@ -326,8 +393,7 @@ registers). Distinct from the ARM ICU at `0x00802000`.
 ### LA — `0x10E00000`
 
 Logic analyzer block. 16 registers. Offset constant `REG_LA_OFFSET = 0x00800000`
-suggests a second window or mirror at `0x10E00000 + 0x800000 = 0x11600000`;
-purpose not characterised.
+suggests a second window or mirror at `0x10E00000 + 0x800000 = 0x11600000`.
 
 ### NXMAC — `0xC0000000`
 

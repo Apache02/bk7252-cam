@@ -165,3 +165,26 @@ void timer_remove(int timer_num) {
     timers_handlers[timer_num].handler = NULL;
 }
 
+uint32_t timer_pause_all(void) {
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+
+    uint32_t enabled = hw_timer_bank0->ctl.enable | ((uint32_t)hw_timer_bank1->ctl.enable << TIMERS_IN_BANK);
+
+    hw_timer_bank0->ctl.enable &= ~(enabled & ((1u << TIMERS_IN_BANK) - 1));
+    hw_timer_bank1->ctl.enable &= ~((enabled >> TIMERS_IN_BANK) & ((1u << TIMERS_IN_BANK) - 1));
+
+    GLOBAL_INT_RESTORE();
+    return enabled;
+}
+
+void timer_resume_all(uint32_t paused_mask) {
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+
+    hw_timer_bank0->ctl.enable |= (paused_mask & ((1u << TIMERS_IN_BANK) - 1));
+    hw_timer_bank1->ctl.enable |= ((paused_mask >> TIMERS_IN_BANK) & ((1u << TIMERS_IN_BANK) - 1));
+
+    GLOBAL_INT_RESTORE();
+}
+
