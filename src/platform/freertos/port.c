@@ -81,6 +81,8 @@ void vPortEndScheduler(void) { timer_remove(sys_tick_timer); }
 // only place the idle task actually sleeps.
 void vApplicationIdleHook(void) { WFI(); }
 
+BaseType_t xPortIsInsideInterrupt(void) { return portIsInIRQ() || portIsInFIQ(); }
+
 /*-----------------------------------------------------------*/
 /*
  * Initialize the stack of a task to look exactly as if a call to

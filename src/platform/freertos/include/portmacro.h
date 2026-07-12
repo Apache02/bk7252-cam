@@ -42,8 +42,8 @@ extern void vPortYield(void);
             vTaskSwitchContext();              \
         }                                      \
     } while (0)
-#define portYIELD()             vPortYield()
-#define portYIELD_FROM_ISR(x)   portEND_SWITCHING_ISR(x)
+#define portYIELD()           vPortYield()
+#define portYIELD_FROM_ISR(x) portEND_SWITCHING_ISR(x)
 
 
 /*-----------------------------------------------------------*/
@@ -78,6 +78,9 @@ extern void vPortExitCritical(void);
 
 void     vConfigureTimerForRunTimeStats();
 uint32_t ulGetRunTimeCounterValue();
+
+
+BaseType_t xPortIsInsideInterrupt(void);
 
 #ifdef __cplusplus
 }
