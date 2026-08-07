@@ -182,9 +182,26 @@ static uint32_t irq_source_to_reg(uint32_t source) {
     return reg.v;
 }
 
-void intc_enable_irq_source(uint32_t source) { hw_icu->irq_enable.v |= irq_source_to_reg(source); }
+// irq_enable carries both the IRQ and the FIQ enable bits, so every
+// read-modify-write below races against every other one. A FIQ taken between
+// the load and the store drops whatever the interrupted context was about to
+// commit — a source that was just masked would come straight back and storm.
+// Mask both lines around the update, same guard the handler table already uses.
+void intc_enable_irq_source(uint32_t source) {
+    const uint32_t bits = irq_source_to_reg(source);
 
-void intc_disable_irq_source(uint32_t source) { hw_icu->irq_enable.v &= ~irq_source_to_reg(source); }
+    disable_interrupts();
+    hw_icu->irq_enable.v |= bits;
+    restore_interrupts();
+}
+
+void intc_disable_irq_source(uint32_t source) {
+    const uint32_t bits = irq_source_to_reg(source);
+
+    disable_interrupts();
+    hw_icu->irq_enable.v &= ~bits;
+    restore_interrupts();
+}
 
 bool intc_irq_source_enabled(uint32_t source) {
     return (hw_icu->irq_enable.v & irq_source_to_reg(source)) != 0 && !!hw_icu->global_int_en.irq;
@@ -213,9 +230,22 @@ static uint32_t fiq_source_to_reg(uint32_t source) {
     return reg.v;
 }
 
-void intc_enable_fiq_source(uint32_t source) { hw_icu->irq_enable.v |= fiq_source_to_reg(source); }
+// Same shared-register race as the IRQ pair above.
+void intc_enable_fiq_source(uint32_t source) {
+    const uint32_t bits = fiq_source_to_reg(source);
 
-void intc_disable_fiq_source(uint32_t source) { hw_icu->irq_enable.v &= ~fiq_source_to_reg(source); }
+    disable_interrupts();
+    hw_icu->irq_enable.v |= bits;
+    restore_interrupts();
+}
+
+void intc_disable_fiq_source(uint32_t source) {
+    const uint32_t bits = fiq_source_to_reg(source);
+
+    disable_interrupts();
+    hw_icu->irq_enable.v &= ~bits;
+    restore_interrupts();
+}
 
 bool intc_fiq_source_enabled(uint32_t source) {
     return (hw_icu->irq_enable.v & fiq_source_to_reg(source)) != 0 && !!hw_icu->global_int_en.fiq;
