@@ -1,3 +1,5 @@
+#include "platform/arm.h"
+
 .syntax unified
 .arm
 
@@ -45,8 +47,26 @@
     str     lr, [r0, #14*4]
 .endm
 
+// The task-context path below is only valid when the interrupted context was a
+// task, i.e. System mode (portINITIAL_SPSR). An exception taken on top of
+// another exception must not go through it: ARM masks only I on IRQ entry, so a
+// FIQ can land in the middle of do_irq, and intc_fiq() reaches
+// vTaskSwitchContext() through portYIELD_FROM_ISR() whenever a MAC ISR posts to
+// a queue. Saving to the task stack and committing pxCurrentTCB from there
+// would make the inner handler resume the *newly selected* task's registers and
+// stack inside the outer handler.
+//
+// So when SPSR says we interrupted a handler, save to the current mode's own
+// stack and leave pxCurrentTCB alone — the outer handler's portRESTORE_CONTEXT
+// performs the pending switch. This mirrors the vendor port
+// (beken378/driver/entry/boot_handlers.S).
 .macro portSAVE_CONTEXT
     stmdb   sp!, {r0}               // Store r0 first as we need to use it.
+
+    mrs     r0, spsr                // Did we interrupt a task, or a handler?
+    and     r0, r0, #CPU_MODE_MASK
+    cmp     r0, #CPU_MODE_SYS
+    bne     nested_save_\@
 
     stmdb   sp, {sp}^               // Store user-mode sp so we can load it into r0.
     nop
@@ -71,9 +91,32 @@
     ldr     r0, =pxCurrentTCB       // Store new top of stack for the task.
     ldr     r1, [r0]
     str     lr, [r1]
+
+    b       save_done_\@
+
+nested_save_\@:
+    ldmia   sp!, {r0}               // Undo the r0 push; the whole frame goes on
+                                    // this mode's stack instead.
+    stmdb   sp!, {r0-r12, lr}       // In FIQ mode r8-r12 are banked, so these are
+    nop                             // the handler's own — the interrupted
+                                    // context's copies are untouched either way.
+
+    mrs     r0, spsr
+    stmdb   sp!, {r0}
+
+    ldr     r0, =ulCriticalNesting
+    ldr     r0, [r0]
+    stmdb   sp!, {r0}
+
+    sub     sp, sp, #4              // Padding word, popped by portRESTORE_CONTEXT.
+
+save_done_\@:
 .endm
 
-.macro portRESTORE_CONTEXT
+// Resume whatever pxCurrentTCB points at. Used both as the task branch of
+// portRESTORE_CONTEXT and standalone by vPortStartFirstTask, which has no
+// meaningful SPSR to test yet.
+.macro portRESTORE_TASK_CONTEXT
     ldr     r0, =pxCurrentTCB       // Load task stack pointer from pxCurrentTCB.
     ldr     r0, [r0]
     ldr     lr, [r0]
@@ -91,6 +134,30 @@
     ldr     lr, [lr, #60]           // Restore return address.
 
     subs    pc, lr, #4              // Return, correcting lr offset.
+.endm
+
+.macro portRESTORE_CONTEXT
+    mrs     r0, spsr                // Must match the branch portSAVE_CONTEXT took.
+    and     r0, r0, #CPU_MODE_MASK
+    cmp     r0, #CPU_MODE_SYS
+    bne     nested_restore_\@
+
+    portRESTORE_TASK_CONTEXT
+
+nested_restore_\@:
+    add     sp, sp, #4              // Drop the padding word.
+
+    ldr     r0, =ulCriticalNesting
+    ldmfd   sp!, {r1}
+    str     r1, [r0]
+
+    ldmfd   sp!, {r0}
+    msr     spsr_cxsf, r0
+
+    ldmia   sp!, {r0-r12, lr}
+    nop
+
+    subs    pc, lr, #4              // Resume the interrupted handler.
 .endm
 
 /////////////////// EXCEPTION HANDLERS ///////////////////
@@ -154,7 +221,7 @@ do_reserved:
 .align 4
 .type vPortStartFirstTask, %function
 vPortStartFirstTask:
-    portRESTORE_CONTEXT
+    portRESTORE_TASK_CONTEXT
 
 .align 4
 .type vPortYield, %function
