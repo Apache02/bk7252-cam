@@ -35,18 +35,19 @@ static void intc_init(void) {
 
     init_ram_vectors();
 
-    hw_write_fields(hw_icu->irq_enable,
-        .fiq_mac_general = 1,
-        .fiq_mac_prot_trigger = 1,
-        .fiq_mac_tx_trigger = 1,
-        .fiq_mac_rx_trigger = 1,
-        .fiq_mac_tx_rx_misc = 1,
-        .fiq_mac_tx_rx_timer = 1,
-        .fiq_modem = 1,
-    );
+    // No source is unmasked here. A source is only forwarded to the core once a
+    // handler is registered for it (intc_register_*_handler callers pair the
+    // registration with intc_enable_*_source). Unmasking a source with no
+    // handler is a hard hang: nothing acknowledges the peripheral, so the ICU
+    // re-latches it the instant intc_fiq() returns and the core never leaves
+    // exception context again.
 
-    hw_icu->global_int_en.irq = 1;
-    hw_icu->global_int_en.fiq = 1;
+    // One store, not two bitfield read-modify-writes: the second would otherwise
+    // read back a register whose IRQ line it had just opened.
+    hw_write_fields(hw_icu->global_int_en,
+        .irq = 1,
+        .fiq = 1,
+    );
 }
 
 INIT_AT(intc_init, 01);
