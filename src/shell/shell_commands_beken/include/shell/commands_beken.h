@@ -55,6 +55,10 @@ int command_sha512(int argc, const char *argv[]);
 
 int command_gpio(int argc, const char *argv[]);
 
+// Interrupt controller state: enabled/raw sources, sources that fired without a
+// handler, and the count of exceptions taken with an empty status.
+int command_intc(int argc, const char *argv[]);
+
 #ifdef __cplusplus
 }
 

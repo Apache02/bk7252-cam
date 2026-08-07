@@ -107,6 +107,18 @@ bool intc_irq_source_enabled(uint32_t source);
 
 bool intc_fiq_source_enabled(uint32_t source);
 
+// Sources that fired with no handler registered. The dispatcher masks such a
+// source at the ICU (it can never be acknowledged at the peripheral, so it
+// would storm forever) and records it here. Non-zero means a peripheral was
+// unmasked without its driver being wired up.
+extern volatile uint32_t intc_orphan_irq_sources;
+extern volatile uint32_t intc_orphan_fiq_sources;
+
+// Exceptions taken with an empty ICU status — the source deasserted before the
+// dispatcher could read it. Expected on this ICU; counted, not fatal.
+extern volatile uint32_t intc_spurious_irq_count;
+extern volatile uint32_t intc_spurious_fiq_count;
+
 #ifdef __cplusplus
 }
 #endif

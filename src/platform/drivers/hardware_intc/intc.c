@@ -52,6 +52,31 @@ static void intc_init(void) {
 
 INIT_AT(intc_init, 01);
 
+// Sources that fired with no handler registered. Nothing acknowledges such a
+// source at the peripheral, so it is masked at the ICU the first time it is
+// seen — otherwise it re-latches immediately and storms until the watchdog
+// resets the chip. The bits are latched here so the cause stays visible.
+volatile uint32_t intc_orphan_irq_sources;
+volatile uint32_t intc_orphan_fiq_sources;
+
+// The ICU can raise the core interrupt line with no status bit left set — the
+// source deasserts between the core latching the exception and this handler
+// reading the status. The SDK treats that as benign (driver/intc/intc.c logs
+// "irq:dead" and carries on; its FIQ path does not check at all), so count it
+// and return instead of bringing the system down.
+volatile uint32_t intc_spurious_irq_count;
+volatile uint32_t intc_spurious_fiq_count;
+
+static uint32_t handled_mask(const struct handlers_collection_t *collection, const uint32_t source) {
+    uint32_t handled = 0;
+
+    for (int i = 0; i < collection->count; i++) {
+        handled |= collection->handlers[i].source & source;
+    }
+
+    return handled;
+}
+
 static int find_handlers(const struct handlers_collection_t *collection, const uint32_t source,
                          interrupt_handler_cb **handlers, const size_t length) {
     int count = 0;
@@ -73,7 +98,8 @@ void intc_irq(void) {
 
     status.v &= ICU_INT_IRQ_MASK;
     if (!status.v) {
-        panic("irq:dead\r\n");
+        intc_spurious_irq_count++;
+        return;
     }
 
     hw_icu->irq_status.v = status.v;
@@ -98,6 +124,12 @@ void intc_irq(void) {
 
     if (!source) return;
 
+    uint32_t orphans = source & ~handled_mask(&intc_manager.irq, source);
+    if (orphans) {
+        intc_orphan_irq_sources |= orphans;
+        intc_disable_irq_source(orphans);
+    }
+
     interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
     int                   count = find_handlers(&intc_manager.irq, source, handlers, count_of(handlers));
 
@@ -111,7 +143,8 @@ void intc_fiq(void) {
 
     status.v &= ICU_INT_FIQ_MASK;
     if (!status.v) {
-        panic("fiq:dead\r\n");
+        intc_spurious_fiq_count++;
+        return;
     }
 
     hw_icu->irq_status.v = status.v;
@@ -132,6 +165,12 @@ void intc_fiq(void) {
     if (status.fiq_dpll_unlock) source |= FIQ_SOURCE_DPLL_UNLOCK;
 
     if (!source) return;
+
+    uint32_t orphans = source & ~handled_mask(&intc_manager.fiq, source);
+    if (orphans) {
+        intc_orphan_fiq_sources |= orphans;
+        intc_disable_fiq_source(orphans);
+    }
 
     interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
     int                   count = find_handlers(&intc_manager.fiq, source, handlers, count_of(handlers));
@@ -185,8 +224,9 @@ static uint32_t irq_source_to_reg(uint32_t source) {
 // irq_enable carries both the IRQ and the FIQ enable bits, so every
 // read-modify-write below races against every other one. A FIQ taken between
 // the load and the store drops whatever the interrupted context was about to
-// commit — a source that was just masked would come straight back and storm.
-// Mask both lines around the update, same guard the handler table already uses.
+// commit — and since intc_fiq() masks orphan sources from FIQ context, a source
+// that was just disabled would come straight back and storm. Mask both lines
+// around the update, same guard the handler table already uses.
 void intc_enable_irq_source(uint32_t source) {
     const uint32_t bits = irq_source_to_reg(source);
 
