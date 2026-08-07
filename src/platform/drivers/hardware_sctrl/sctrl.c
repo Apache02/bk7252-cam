@@ -106,14 +106,28 @@ void sctrl_init() {
     );
 }
 
+// The DPLL-unlock latch lives in GPIO extra_int_cfg, not in the ICU: clearing
+// the ICU status alone leaves it asserted and the FIQ re-fires forever. This
+// handler exists to acknowledge it.
+//
+// The SDK (sys_ctrl.c::sctrl_dpll_isr) additionally falls the flash clock and
+// mclk back from DPLL to DCO so the core survives a real loss of lock. That
+// fallback is not ported — an unlock event here is logged only by the fact that
+// the interrupt fired, and the clocks stay on the DPLL.
+static void sctrl_dpll_isr(void) { gpio_extra_int_clear(dpll_unlock_int); }
+
 void sctrl_dpll_int_open(void) {
+    gpio_extra_int_clear(dpll_unlock_int);
+    intc_register_fiq_handler(FIQ_SOURCE_DPLL_UNLOCK, sctrl_dpll_isr);
     intc_enable_fiq_source(FIQ_SOURCE_DPLL_UNLOCK);
     gpio_extra_int_set(dpll_unlock_int_en = 1);
 }
 
 void sctrl_dpll_int_close(void) {
-    gpio_extra_int_set(dpll_unlock_int_en = 0);
     intc_disable_fiq_source(FIQ_SOURCE_DPLL_UNLOCK);
+    intc_unregister_fiq_handler(FIQ_SOURCE_DPLL_UNLOCK, sctrl_dpll_isr);
+    gpio_extra_int_set(dpll_unlock_int_en = 0);
+    gpio_extra_int_clear(dpll_unlock_int);
 }
 
 // Pulses the modem-core reset. Ported from SDK sys_ctrl.c, case

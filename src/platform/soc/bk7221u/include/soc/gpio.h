@@ -98,9 +98,11 @@ typedef volatile struct {
 #define hw_gpio_bank1 (hw_gpio->pin_cfg2)
 
 __unused static inline volatile hw_gpio_pin_t *get_gpio_reg(unsigned gpio) {
+    // clang-format off
     return (gpio > GPIO_BANK0_END)
         ? (hw_gpio_bank1 + (gpio - GPIO_BANK0_COUNT))
         : (hw_gpio_bank0 + gpio);
+    // clang-format on
 }
 
 // Sets one enable bit in hw_gpio->extra_int_cfg. Zeros the register's W1C
@@ -116,4 +118,15 @@ __unused static inline volatile hw_gpio_pin_t *get_gpio_reg(unsigned gpio) {
         tmp.usb_plug_out_int               = 0;                               \
         tmp.int_en;                                                           \
         hw_gpio->extra_int_cfg.v = tmp.v;                                     \
+    } while (0)
+
+#define gpio_extra_int_clear(int_bit)                                         \
+    do {                                                                      \
+        typeof(hw_gpio->extra_int_cfg) tmp = {.v = hw_gpio->extra_int_cfg.v}; \
+        tmp.dpll_unlock_int                = 0;                               \
+        tmp.audio_dpll_unlock_int          = 0;                               \
+        tmp.usb_plug_in_int                = 0;                               \
+        tmp.usb_plug_out_int               = 0;                               \
+        tmp.int_bit                        = 1;                               \
+        hw_gpio->extra_int_cfg.v           = tmp.v;                           \
     } while (0)
