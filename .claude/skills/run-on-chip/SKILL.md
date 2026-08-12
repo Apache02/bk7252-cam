@@ -62,7 +62,7 @@ Always uphold these — every experiment, no exceptions:
 int main() {
     wdt_down();               // FIRST — disables watchdog immediately
     platform_stdio_init();
-    busy_wait_ms(20);         // UART settle — 0 ms causes hard fault (see F8 in known_issues.md)
+    busy_wait_ms(20);         // UART settle — below ~6 ms output is garbled (see F8 in known_issues.md)
     setvbuf(stdout, NULL, _IONBF, 0);  // unbuffered — output visible even on crash
 
     wdt_set(10000);           // set 10 s period
@@ -76,6 +76,15 @@ int main() {
     return 0;
 }
 ```
+
+The "output visible even on crash" guarantee on line 4 holds only for the unbuffered
+`platform_stdio_uart*` backends, where every byte goes straight to the TX FIFO. If the
+experiment links `platform_buffered_stdio_uart2` instead, output reaches the wire only
+when the TX interrupt runs — so anything printed after interrupts are torn down, or
+right before `wdt_reboot()`, is lost with the queue and the capture ends mid-experiment
+with no hint why. Call `platform_stdio_flush()` before `wdt_reboot()` and after any
+`intc_disable_irq_source()`, or link the unbuffered backend when the experiment does not
+need the buffered one.
 
 ## Timing from IRAM
 

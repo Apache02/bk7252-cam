@@ -35,6 +35,11 @@ void panic_blink(int count) {
 }
 
 void panic(const char *message) {
+    // panic_write() bypasses the queue, so without this the panic text overtakes the
+    // output that led up to it, which is then lost at the reboot below.
+    if (uart1_is_tx_active()) uart1_drain();
+    if (uart2_is_tx_active()) uart2_drain();
+
     panic_write("PANIC!!!\r\n");
     panic_write(message);
     panic_write("\r\n");

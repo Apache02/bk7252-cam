@@ -150,35 +150,52 @@ and is confirmed working on this chip.
 
 File: `src/platform/misc/stdio/stdio.c`.
 
-Calling `setvbuf` or `printf` immediately after `platform_stdio_init()` (0 ms
-gap) produces a hard fault — register dump is visible on UART, then the
-bootloader takes over. With a delay of ≥ 10 ms, UART output is reliable.
+Output written immediately after `platform_stdio_init()` is transmitted with the wrong
+bit timing and arrives at the host as garbage. The delay is still required; what it
+guards against is corruption, not a crash.
 
-Observed during hardware probing (`src/tests/probe/`):
+Measured during hardware probing (`src/tests/probe/`, August 2026):
 
 | Delay after `platform_stdio_init()` | Result |
 |---|---|
-| 0 ms | hard fault (register dump, bootloader recovery) |
-| 10 ms | reliable output |
-| 20 ms | reliable output (chosen as safe default with margin) |
+| 0 ms | garbled output; the chip survives and keeps running |
+| ≤ 5 ms | garbled output |
+| ≥ 6 ms | clean output |
+| 20 ms | clean output (chosen as safe default with margin) |
 
-The exact minimum was not pinned below 10 ms. The root cause is likely that
-the UART peripheral clock or baud-rate divisor needs time to stabilise after
-the register write in `stdio_init` — the first character arrives before the
-UART TX shift register is ready.
+The threshold was pinned by emitting one labelled 6-byte line per millisecond starting
+at 0 ms and reading off the first legible label: `T=00`..`T=05` arrived corrupted,
+`T=06` onward clean, with a worst-case emit drift of 2 µs against the intended
+schedule. Single run at 1 ms granularity — treat 6 ms as the observed floor, not a
+qualified minimum.
 
-Note: the earlier observation that "10 ms produced no output" was a host-side
-artefact of the old `tio` workflow: the loader closed the serial port,
-discarding the OS receive buffer, before `tio` opened it. The bytes were
-transmitted correctly but arrived during the port-close gap. With the
-`--capture` flag on `bkloader iram` (port stays open), 10 ms is confirmed
-reliable.
+The corruption depends on elapsed time since init, not on how many bytes have been
+sent: after a 20 ms delay output is clean from the very first byte.
+
+No pollable readiness signal exists, so the blind delay cannot be replaced by polling.
+Sampled immediately after `uart2_init()` and repeatedly over the following
+microseconds, `fifo_status` already reads `0x001a0000` — `tx_empty`, `rx_empty` and
+`wr_ready` all set, `tx_fifo_count` zero — and `config` already holds the correct
+divisor (`0xe1` = 225 for 115200 from the 26 MHz XTAL). Every register the UART block
+exposes reports ready while transmission is still corrupt, which places the cause in
+the clock domain (ICU gating / clock switch), not in the UART.
+
+Two earlier descriptions of this entry were wrong and are corrected above:
+
+- The failure was recorded as a hard fault with a register dump and bootloader
+  takeover. It is not — the chip neither faults nor resets. The dump previously
+  attributed to F8 was most likely the deliberate `wdt_reboot()` at the end of a probe.
+- The observation that "10 ms produced no output" was a host-side artefact of the old
+  `tio` workflow: the loader closed the serial port, discarding the OS receive buffer,
+  before `tio` opened it. The bytes were transmitted correctly but arrived during the
+  port-close gap. With `--capture` on `bkloader iram` the port stays open.
 
 Workaround: `busy_wait_ms(20)` between `platform_stdio_init()` and the first
 I/O call. Used in `src/tests/probe/probe.cpp`.
 
-Fix: investigate whether a UART ready/busy status bit exists in the UART
-peripheral registers that can be polled instead of using a blind delay.
+Fix: none available inside the UART block — see the readiness-signal paragraph above.
+Reducing the delay means characterising the clock switch in `icu_uartN_clk()` /
+`icu_uartN_power_up()`, or accepting the measured 6 ms floor with margin.
 
 ---
 
@@ -412,7 +429,7 @@ Until the migration is done, set `cmake_policy(SET CMP0169 OLD)` in
 `dependencies.cmake` (guarded with `if(POLICY CMP0169)`) to suppress the
 warning.
 
-### Arch8. FreeRTOS port assumes no IRQ can land before `vPortStartFirstTask()` runs — nothing enforces it
+### Arch8. FreeRTOS port assumes no IRQ can land before `vPortStartFirstTask()` runs — resolved
 
 Files: `platform/freertos/port.c` (`xPortStartScheduler`), `platform/freertos/port_asm.S`
 (`portSAVE_CONTEXT` / `portRESTORE_CONTEXT`).
@@ -447,32 +464,58 @@ Mechanism:
   the same corrupted stack data being reinterpreted as a register frame.
 
 This was safe only because nothing was ever ICU-forwarded early enough to test the
-invariant: the design relies on CPU IRQ (CPSR I-bit) staying masked continuously from
+invariant: the design relied on CPU IRQ (CPSR I-bit) staying masked continuously from
 `_reset` until `vPortStartFirstTask()`'s SPSR-restore trick unmasks it, and no
 interrupt source was live during that window until commit `01e2875` made UART2's
 `rx_need_read` / `rx_stop_end` live at the ICU level for the first time
 (`uart2_init()`). Since the console UART is actively receiving bytes throughout
 normal use (typing at the shell), a byte landing at the wrong instant reliably
-reproduced the corruption. The fix applied for that regression (reverting the
-UART1/UART2 interrupt-driven TX wait, see `hardware_uart/uart.c`) only removes the
-currently-live trigger — it does not close the underlying hole. Any future change
-that ICU-forwards another interrupt source early enough (GDMA already uses the same
-`sched_yield()`-gated-by-`intc_irq_source_enabled()` pattern) can reproduce the same
-failure mode.
+reproduced the corruption. The immediate fix for that regression — reverting the
+UART1/UART2 interrupt-driven TX wait — only removed the live trigger.
 
-Fix options:
+Resolution: the underlying hole is now closed, by ARM processor mode rather than by a
+software flag. `portSAVE_CONTEXT` (commit `ac8788b`) tests `SPSR.mode` on entry and
+takes the `nested_save` branch whenever the interrupted context was not System mode:
+the frame goes on the current mode's own stack and `pxCurrentTCB` is left untouched.
+`portRESTORE_CONTEXT` mirrors the same test, and `portAPPLY_PENDING_SWITCH` (commit
+`2c8786d`) only calls `vTaskSwitchContext()` when `SPSR` says System mode. Tasks run in
+System mode; everything from `_reset` up to `vPortStartFirstTask()` runs in Supervisor
+mode, so an IRQ taken in the vulnerable window now takes the nested path and cannot
+clobber the first task's `pxPortInitialiseStack()` frame.
+
+That is functionally option (a) below, with the processor mode standing in for the
+`xSchedulerRunning` flag — and it is strictly better, because it needs no flag to be
+maintained and covers nested handlers as well as the pre-scheduler window.
+
+The guard above was established by reading `port_asm.S`; the pre-scheduler scenario has
+not been re-run on a FreeRTOS target since. That is a gap in the evidence, not a live
+risk, because nothing currently reaches the window:
+
+- Reintroducing interrupt-driven UART TX (`hardware_uart/uart.c`) does not open it.
+  `_write()` arms `tx_need_write` but then checks `portENABLED_IRQ()`, which reads the
+  CPSR I-bit — masked continuously from `_reset` until `vPortStartFirstTask()`. So every
+  pre-scheduler write takes the synchronous path, and `uart_drain()` clears the enable
+  bit and releases the byte source before returning. By the time IRQ is unmasked there
+  is nothing left to assert. The same holds for `bk_printf()` from a MAC handler, since
+  IRQ/FIQ entry masks I as well.
+- `freertos_wifi` has since been built and booted with this in place (August 2026),
+  which exercises exactly that early-`printf` path.
+
+The general warning still stands, though: any future source that is ICU-forwarded and
+left unmasked at the block during the window can still take an IRQ there, and would then
+be relying on the mode guard rather than on nothing being live. Confirming the guard on
+hardware is worth doing before that happens.
+
+Fix options as originally scoped, kept for context:
 - (a) Guard `do_irq`'s context switch on an `xSchedulerRunning`-equivalent flag, so an
   IRQ taken before the scheduler has truly started is acknowledged/serviced without
   touching `pxCurrentTCB` (matches how upstream FreeRTOS ARM7/9 ports guard
-  tick-driven switches).
+  tick-driven switches). — adopted, in the mode-based form described above.
 - (b) Audit every driver's early `intc_enable_*_source()` / `INIT_AT` call site and
   guarantee none of them can be ICU-forwarded before `vPortStartFirstTask()` runs.
 - (c) Move all peripheral interrupt enabling out of pre-`main()` init and into a
   first, highest-priority task that runs after the scheduler has started, so nothing
   can be live during the vulnerable window at all.
-
-Recommendation: (a) — it is the only option that stays correct regardless of what
-future drivers do, rather than depending on every call site being audited by hand.
 
 ### Arch9. `hardware_pwm` is not wired into the build
 

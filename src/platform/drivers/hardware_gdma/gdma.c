@@ -16,8 +16,7 @@ static uint32_t g_reserved_channels = 0;
 // static spinlock_t g_reserve_lock = {0};
 
 static void gdma_isr(void) {
-    typeof(hw_gdma->int_status) status;
-    status.v = hw_gdma->int_status.v;
+    typeof(hw_gdma->int_status) status = {.v = hw_gdma->int_status.v};
 
     // ack everything that fired (write-1-to-clear)
     hw_gdma->int_status.v = status.v;
