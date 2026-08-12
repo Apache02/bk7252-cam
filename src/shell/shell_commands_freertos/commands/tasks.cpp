@@ -56,7 +56,9 @@ int command_tasks(int argc, const char *argv[]) {
         uint32_t freeBytes = freeWords * sizeof(StackType_t);
         char     stackTotalBuf[12];
 #if configRECORD_STACK_HIGH_ADDRESS == 1
-        uint32_t totalWords = static_cast<uint32_t>(t.pxTopOfStack - t.pxStackBase) + 1;
+        // pxEndOfStack is the stack's high address; pxTopOfStack is the task's
+        // current stack pointer and says nothing about how big the stack is.
+        uint32_t totalWords = static_cast<uint32_t>(t.pxEndOfStack - t.pxStackBase) + 1;
         uint32_t totalBytes = totalWords * sizeof(StackType_t);
         snprintf(stackTotalBuf, sizeof(stackTotalBuf), "%6lu", totalBytes);
 #else
