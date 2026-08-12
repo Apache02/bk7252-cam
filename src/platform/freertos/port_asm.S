@@ -10,6 +10,7 @@
 // FreeRTOS state (defined in tasks.c)
 .global ulCriticalNesting
 .global pxCurrentTCB
+.global xPortPendingContextSwitch
 
 // Exports
 .global do_irq
@@ -160,6 +161,32 @@ nested_restore_\@:
     subs    pc, lr, #4              // Resume the interrupted handler.
 .endm
 
+// Consume a switch requested by portEND_SWITCHING_ISR(), but only when SPSR says
+// we interrupted a task — from a nested handler this would move pxCurrentTCB out
+// from under the handler we are about to return into. Runs after the C handler
+// and before portRESTORE_CONTEXT, so r0/r1 are free scratch: the context is
+// already saved and portRESTORE_CONTEXT reloads everything.
+.macro portAPPLY_PENDING_SWITCH
+    mrs     r0, spsr
+    and     r0, r0, #CPU_MODE_MASK
+    cmp     r0, #CPU_MODE_SYS
+    bne     no_pending_switch_\@
+
+    ldr     r0, =xPortPendingContextSwitch
+    ldr     r1, [r0]
+    cmp     r1, #0
+    beq     no_pending_switch_\@
+
+    mov     r1, #0
+    str     r1, [r0]
+
+    ldr     r0, =vTaskSwitchContext
+    mov     lr, pc
+    bx      r0
+
+no_pending_switch_\@:
+.endm
+
 /////////////////// EXCEPTION HANDLERS ///////////////////
 
 .align 4
@@ -170,6 +197,7 @@ do_irq:
     ldr     r0, =intc_irq
     mov     lr, pc
     bx      r0
+    portAPPLY_PENDING_SWITCH
     portRESTORE_CONTEXT
 
 .align 4
@@ -180,6 +208,7 @@ do_fiq:
     ldr     r0, =intc_fiq
     mov     lr, pc
     bx      r0
+    portAPPLY_PENDING_SWITCH
     portRESTORE_CONTEXT
 
 .align 4

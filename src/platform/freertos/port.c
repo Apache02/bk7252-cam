@@ -7,6 +7,10 @@
 
 uint32_t ulCriticalNesting;
 
+// Set by portEND_SWITCHING_ISR(); consumed by portAPPLY_PENDING_SWITCH in
+// port_asm.S once the outermost handler is about to return. See portmacro.h.
+volatile BaseType_t xPortPendingContextSwitch;
+
 void vPortEnableInterrupts() {
     if (portIsInFIQ()) return;
     if (portIsInIRQ()) {
@@ -49,8 +53,9 @@ static int sys_tick_timer;
 
 static void xPortSysTickHandler(__unused int timer_num) {
     if (xTaskIncrementTick() != pdFALSE) {
-        /* Select a new task to run. */
-        vTaskSwitchContext();
+        /* Select a new task to run — deferred to the handler epilogue, like
+           every other switch request. See portmacro.h. */
+        xPortPendingContextSwitch = pdTRUE;
     }
 }
 

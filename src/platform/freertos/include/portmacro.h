@@ -36,10 +36,19 @@ typedef uint32_t       TickType_t;
 #define portDONT_DISCARD   __attribute__((used))
 
 extern void vPortYield(void);
+
+// Record the request instead of switching on the spot. ARM masks only I on IRQ
+// and SWI entry, so a FIQ can nest inside do_irq/do_swi; switching from that
+// inner handler would move pxCurrentTCB while the outer handler is still
+// building its stack frame, and the outer portSAVE_CONTEXT would then stamp
+// that frame into the newly selected task's TCB. portAPPLY_PENDING_SWITCH in
+// port_asm.S applies the request from the outermost handler instead, which is
+// also what portYIELD_FROM_ISR() is defined to mean: switch on ISR exit.
+extern volatile BaseType_t xPortPendingContextSwitch;
 #define portEND_SWITCHING_ISR(xSwitchRequired) \
     do {                                       \
         if (xSwitchRequired) {                 \
-            vTaskSwitchContext();              \
+            xPortPendingContextSwitch = 1;     \
         }                                      \
     } while (0)
 #define portYIELD()           vPortYield()
