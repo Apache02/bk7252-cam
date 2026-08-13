@@ -1,15 +1,15 @@
 #include <FreeRTOS.h>
 #include <errno.h>
 
-extern char _empty_ram;
-extern char _stack_unused;
+extern char _empty_ram_begin;
+extern char _empty_ram_end;
 
 void heap_init() {
     vPortHeapResetState();
 
     HeapRegion_t regions[] = {
         {
-            (uint8_t *)&_empty_ram, (size_t)(&_stack_unused - &_empty_ram)
+            (uint8_t *)&_empty_ram_begin, (size_t)(&_empty_ram_end - &_empty_ram_begin)
         },
         {NULL, 0}
     };

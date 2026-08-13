@@ -15,6 +15,7 @@ set(LINKER_DIR ${SRC_ROOT_DIR}/linker)
 
 # Init toolchain
 include(cmake/toolchain.cmake)
+include(cmake/linker_script.cmake)
 include(cmake/firmware.cmake)
 include(cmake/iram.cmake)
 include(cmake/bootloader.cmake)

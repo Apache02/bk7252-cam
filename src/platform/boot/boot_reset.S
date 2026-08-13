@@ -57,19 +57,19 @@ _reset:
     // Setup all stacks // Note: Abt and Usr mode are not used
 
     BOOT_CHANGE_MODE CPU_MODE_SYS, CPU_MODE_MASK
-    BOOT_SET_STACK _stack_sys, _SYS_STACK_SIZE_, BOOT_COLOR_SYS
+    BOOT_SET_STACK _stack_sys, _SYS_STACK_SIZE_, STACK_COLOR_SYS
 
     BOOT_CHANGE_MODE CPU_MODE_ABT, CPU_MODE_MASK
-    BOOT_SET_STACK _stack_unused, _UNUSED_STACK_SIZE_, BOOT_COLOR_UNUSED
+    BOOT_SET_STACK _stack_unused, _UNUSED_STACK_SIZE_, STACK_COLOR_UNUSED
 
     BOOT_CHANGE_MODE CPU_MODE_UND, CPU_MODE_MASK
-    BOOT_SET_STACK _stack_unused, _UNUSED_STACK_SIZE_, BOOT_COLOR_UNUSED
+    BOOT_SET_STACK _stack_unused, _UNUSED_STACK_SIZE_, STACK_COLOR_UNUSED
 
     BOOT_CHANGE_MODE CPU_MODE_IRQ, CPU_MODE_MASK
-    BOOT_SET_STACK _stack_irq, _IRQ_STACK_SIZE_, BOOT_COLOR_IRQ
+    BOOT_SET_STACK _stack_irq, _IRQ_STACK_SIZE_, STACK_COLOR_IRQ
 
     BOOT_CHANGE_MODE CPU_MODE_FIQ, CPU_MODE_MASK
-    BOOT_SET_STACK _stack_fiq, _FIQ_STACK_SIZE_, BOOT_COLOR_FIQ
+    BOOT_SET_STACK _stack_fiq, _FIQ_STACK_SIZE_, STACK_COLOR_FIQ
 
     // Clear FIQ banked registers while in FIQ mode
     mov   r8, #0
@@ -79,7 +79,7 @@ _reset:
     mov   r12, #0
 
     BOOT_CHANGE_MODE CPU_MODE_SVC, CPU_MODE_MASK
-    BOOT_SET_STACK _stack_svc, _SVC_STACK_SIZE_, BOOT_COLOR_SVC
+    BOOT_SET_STACK _stack_svc, _SVC_STACK_SIZE_, STACK_COLOR_SVC
 
     // Stay in Supervisor Mode
     bl _sysboot_copy_data_to_ram

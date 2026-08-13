@@ -1,3 +1,5 @@
+#include "platform/stacks.h"
+
 MEMORY
 {
     FLASH    (rx) : ORIGIN = 0x00000000, LENGTH = 64k
@@ -24,6 +26,8 @@ SECTIONS
         KEEP( *(*.rom1))
     } > FLASH
 
+    /* instructions go to the text region*/
+
     . = ALIGN(8);
 
     .text :
@@ -32,6 +36,7 @@ SECTIONS
         *(.text)
         *(.text.*)
         *(.stub)
+        /* .gnu.warning sections are handled specially by elf32.em.  */
         *(.gnu.warning)
         *(.gnu.linkonce.t*)
         *(.glue_7t) *(.glue_7)
@@ -71,6 +76,7 @@ SECTIONS
     __exidx_start = .;
     .rwdata ALIGN(8) :
     {
+        /* globals.for example: int ram_data[3]={4,5,6}; VMA in RAM, but keep LMA in flash */
         _begin_data = .;
         . = . + SIZEOF(.data);
         . = ALIGN(4);
@@ -99,22 +105,25 @@ SECTIONS
 
     _end_data = .;
 
+    /* Loader will copy data from _flash_begin to _ram_begin..ram_end */
     _data_flash_begin = LOADADDR(.data);
     _data_ram_begin = ADDR(.data);
     _data_ram_end = .;
 
+    /* uninitialized data section - global   int i; */
     .bss ALIGN(8):
     {
         _bss_start = .;
-        __bss_start__ = .;
         *(.bss .bss.*)
         *(.scommon)
         *(.sbss)
         *(.dynbss)
         *(COMMON)
+        /* Align here to ensure that the .bss section occupies space up to
+           _end.  Align after .bss to ensure correct alignment even if the
+           .bss section disappears because there are no input sections.  */
         . = ALIGN(4);
         _bss_end = .;
-        __bss_end__ = .;
     } > RAM
 
     .noinit (NOLOAD) :
@@ -123,17 +132,22 @@ SECTIONS
     } > RAM
 
     . = ALIGN (8);
-    _empty_ram = .;
+    _empty_ram_begin = .;
 
+    /* This symbol defines end of code/data sections. Heap starts here. */
     PROVIDE(end = .);
 
-    /* _stack symbol defines initial stack bottom addres. Stack grows to lower addresses.
-       Typically you set this to be top of your RAM. Note: code never checks, if stack
-       grows into heap area!
-    */
-    PROVIDE(_stack_unused      = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0 - 0x10); /* 0x10*/
-    PROVIDE(_stack_svc         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0 - 0x3F0); /* 0x3F0*/
-    PROVIDE(_stack_irq         = 0x440000 - 0x3F0 - 0x7F0 - 0xFF0); /* 0xFF0*/
-    PROVIDE(_stack_fiq         = 0x440000 - 0x3F0 - 0x7F0); /* 0x7F0*/
-    PROVIDE(_stack_sys         = 0x440000 - 0x3F0); /* 0x3F0*/
+    /* Mode stacks, pinned to the top of RAM. Sizes shared with boot_reset.S
+       via platform/stacks.h. Nothing checks a stack against the heap. */
+    _stack_end = ORIGIN(RAM) + LENGTH(RAM);
+    .stacks (_stack_end - _STACK_TOTAL_SIZE_) (NOLOAD) :
+    {
+        _stack_begin = .;
+        _empty_ram_end = .;
+        KEEP(*(.stack.unused))
+        KEEP(*(.stack.svc))
+        KEEP(*(.stack.irq))
+        KEEP(*(.stack.fiq))
+        KEEP(*(.stack.sys))
+    } > RAM
 }

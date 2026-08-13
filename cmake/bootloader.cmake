@@ -1,8 +1,5 @@
 function(bk_bootloader TARGET)
-    target_link_options(
-            ${TARGET} PUBLIC
-            "LINKER:--script=${LINKER_DIR}/bootloader.lds"
-    )
+    bk_configure_linker_script(${TARGET} bootloader.lds)
 
     add_custom_command(
             TARGET ${TARGET}

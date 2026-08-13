@@ -15,10 +15,7 @@ function(bk_firmware_iram BASE_TARGET)
         target_link_libraries(${RAM_TARGET} PRIVATE ${BASE_LINK_LIBS})
     endif()
 
-    target_link_options(
-            ${RAM_TARGET} PUBLIC
-            "LINKER:--script=${LINKER_DIR}/iram.lds"
-    )
+    bk_configure_linker_script(${RAM_TARGET} iram.lds)
 
     add_custom_command(
             TARGET ${RAM_TARGET}

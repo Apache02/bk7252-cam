@@ -5,6 +5,7 @@ target_sources(
         boot_vectors.S
         boot_reset.S
         boot_init.c
+        stacks.c
 )
 
 target_include_directories(

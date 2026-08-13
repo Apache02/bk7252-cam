@@ -4,8 +4,8 @@
 #include "heap.h"
 
 
-extern char _empty_ram;
-extern char _stack_unused;
+extern char _empty_ram_begin;
+extern char _empty_ram_end;
 
 
 int command_free(__unused int argc, __unused const char *argv[]) {
@@ -26,7 +26,7 @@ int command_free(__unused int argc, __unused const char *argv[]) {
     HeapStats_t xHeapStats;
     vPortGetHeapStats(&xHeapStats);
 
-    printf("          Heap size: %d\r\n", (&_stack_unused - &_empty_ram));
+    printf("          Heap size: %d\r\n", (&_empty_ram_end - &_empty_ram_begin));
     printf("          available: %d\r\n", xHeapStats.xAvailableHeapSpaceInBytes);
     printf("            minimum: %d\r\n", xHeapStats.xMinimumEverFreeBytesRemaining);
     printf("      largest block: %d\r\n", xHeapStats.xSizeOfLargestFreeBlockInBytes);

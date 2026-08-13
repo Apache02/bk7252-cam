@@ -4,10 +4,7 @@ function(bk_firmware TARGET)
             platform_boot
     )
 
-    target_link_options(
-            ${TARGET} PUBLIC
-            "LINKER:--script=${LINKER_DIR}/flash.lds"
-    )
+    bk_configure_linker_script(${TARGET} flash.lds)
 
     add_custom_command(
             TARGET ${TARGET}
