@@ -1,6 +1,11 @@
 #ifndef _PLATFORM_CPU_H
 #define _PLATFORM_CPU_H
 
+// Critical section over both IRQ and FIQ - portDisableInt() sets both CPSR bits.
+//
+// Nesting needs no coordination: RESTORE puts back the bits DISABLE saw rather than
+// enabling unconditionally, so an inner section leaves an outer one masked. The state is a
+// plain local, so one DECLARATION per scope.
 #define GLOBAL_INT_DECLARATION() int __int_state
 #define GLOBAL_INT_DISABLE()            \
     do {                                \

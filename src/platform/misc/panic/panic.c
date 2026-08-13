@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include "platform/panic.h"
 #include "utils/busy_wait.h"
 #include "hardware/uart.h"
@@ -6,15 +8,8 @@
 #include "board.h"
 
 static inline void panic_write(const char *message) {
-    if (uart1_is_tx_active()) {
-        for (const char *tmp = message; *tmp != '\0'; tmp++) {
-            uart1_write_byte(*tmp);
-        }
-    } else if (uart2_is_tx_active()) {
-        for (const char *tmp = message; *tmp != '\0'; tmp++) {
-            uart2_write_byte(*tmp);
-        }
-    }
+    if (uart1_is_tx_active()) uart1_puts(message);
+    if (uart2_is_tx_active()) uart2_puts(message);
 }
 
 void panic_blink(int count) {
@@ -35,18 +30,21 @@ void panic_blink(int count) {
 }
 
 void panic(const char *message) {
-    // panic_write() bypasses the queue, so without this the panic text overtakes the
-    // output that led up to it, which is then lost at the reboot below.
-    if (uart1_is_tx_active()) uart1_drain();
-    if (uart2_is_tx_active()) uart2_drain();
+    // Detaching flushes what led up to the crash and returns the port to synchronous writes,
+    // so the dump below cannot depend on an interrupt the crash may have made impossible.
+    //
+    // By port, and both ports: a consumer may drive a UART directly with no stdio in the
+    // image at all, and a crash dump has to get out either way.
+    if (uart1_is_tx_active()) uart1_set_tx_buffer(NULL);
+    if (uart2_is_tx_active()) uart2_set_tx_buffer(NULL);
 
     panic_write("PANIC!!!\r\n");
     panic_write(message);
     panic_write("\r\n");
 
-    busy_wait_us(5 * 1000000);
-    if (uart1_is_tx_active()) uart1_flush();
-    if (uart2_is_tx_active()) uart2_flush();
+    busy_wait(1);
+    if (uart1_is_tx_active()) uart1_drain();
+    if (uart2_is_tx_active()) uart2_drain();
 
     wdt_reboot(1000);
 }

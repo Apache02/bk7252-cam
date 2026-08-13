@@ -14,9 +14,10 @@ void uart1_init();
 
 void uart2_init();
 
-// Enables interrupt-driven transmission. Without this a port writes straight to the TX
-// FIFO and blocks until it has room. Storage is the caller's (see RINGBUF_DECLARE);
-// call once, after uartN_init(). Detaching is not supported.
+// Enables interrupt-driven transmission. Without this - and with NULL - a port writes
+// straight to the TX FIFO and blocks until it has room. Storage is the caller's (see
+// RINGBUF_DECLARE). Whatever is already queued is sent before the swap, so this must not
+// run concurrently with a write to the same port.
 void uart1_set_tx_buffer(struct ringbuf *ring);
 
 void uart2_set_tx_buffer(struct ringbuf *ring);
@@ -43,10 +44,6 @@ int uart2_puts(const char *s);
 void uart1_drain();
 
 void uart2_drain();
-
-void uart1_flush();
-
-void uart2_flush();
 
 void uart1_set_baudrate(unsigned long baudrate);
 

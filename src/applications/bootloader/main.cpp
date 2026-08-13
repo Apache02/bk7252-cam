@@ -102,7 +102,7 @@ int main() {
     uart2_init();
     print_registers();
     uart2_puts("\r\n");
-    uart2_flush();
+    uart2_drain();
 
     wdt_down();
     platform_stdio_init();

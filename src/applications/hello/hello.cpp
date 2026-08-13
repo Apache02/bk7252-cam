@@ -47,8 +47,8 @@ int main() {
     uart1_write(message);
     uart2_write(message);
 
-    uart1_flush();
-    uart2_flush();
+    uart1_drain();
+    uart2_drain();
 
     busy_wait_ms(200);
 

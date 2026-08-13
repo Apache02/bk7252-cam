@@ -197,6 +197,49 @@ Fix: none available inside the UART block — see the readiness-signal paragraph
 Reducing the delay means characterising the clock switch in `icu_uartN_clk()` /
 `icu_uartN_power_up()`, or accepting the measured 6 ms floor with margin.
 
+### F10. `uart_isr()` consumes the TX queue with FIQ unmasked
+
+Files: `src/platform/drivers/hardware_uart/uart.c` (`uart_isr`),
+`src/platform/misc/ring_buffer/` (`ringbuf_get_byte`).
+
+`utils_ring_buffer` is single-producer/single-consumer: two consumers must be serialized by
+the caller. The TX path has three, and two of them serialize correctly.
+`uart_tx_send_byte_blocked()` and `uart_tx_flush_queue()` wrap the dequeue in
+`GLOBAL_INT_DISABLE()`, which masks IRQ *and* FIQ. `uart_isr()` does not — it runs with only
+IRQ masked, because that is all the core masks on IRQ entry, and `platform/freertos/port_asm.S`
+documents that a FIQ can land in the middle of `do_irq`.
+
+So any FIQ handler that reaches `uart_write_byte()` becomes a second consumer. The route
+exists: `bk_printf()` (`port_wifi/platform_glue.c`) is what the WiFi archives log through, and
+in FIQ context `portENABLED_IRQ()` reads 0 — ARMv5 FIQ entry masks both bits — so the write
+takes the synchronous branch and calls `uart_tx_flush_queue()`, which dequeues.
+
+Failure mode, worse than interleaved output:
+
+- The FIQ lands inside `ringbuf_get_byte()`, after it has read `out` and before it stores
+  `out + 1`. The FIQ dequeues N bytes and advances `out`; the interrupted handler then stores
+  its stale `out + 1`, rewinding the cursor. Bytes are replayed, and `in - out` can grow past
+  the capacity, at which point `ringbuf_is_full()` is permanently true and the console is
+  dead until reboot.
+- The narrower window between the dequeue and `fifo_data.v = byte` reorders the stream: the
+  FIQ sees an empty ring, takes the direct-to-FIFO path, and its byte overtakes the one the
+  interrupted handler is still holding.
+
+Not reachable today. The only FIQ handler in the tree is `sctrl_dpll_isr()`, which clears a
+latch and writes nothing, and the only FIQ source ever unmasked is `FIQ_SOURCE_DPLL_UNLOCK`
+(`intc_enable_fiq_source` appears once). Commit `31b1570` also stopped `intc_init()` from
+unmasking the MAC and modem sources. It becomes reachable the moment a MAC FIQ source goes
+live with logging behind it, which is where the WiFi port is headed.
+
+Fix: mask FIQ around the ISR's dequeue loop. Two shapes, with the trade-off between them:
+
+- One section around the whole batch — simple, but holds FIQ off for up to a full FIFO's
+  worth of dequeue-and-write, tens of microseconds, once per interrupt.
+- One section per byte — windows stay at a few instructions, but costs a CPSR pair per byte
+  on a path deliberately trimmed to one MMIO read.
+
+The measured interrupt rate is low (14 per 2 KB at 115200), which favours the first.
+
 ---
 
 ## API / contract
