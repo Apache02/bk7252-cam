@@ -3,6 +3,7 @@
 #include "platform/init.h"
 #include "platform/stdio.h"
 #include "platform/cpu.h"
+#include "platform/arm.h"
 #include "hardware/intc.h"
 #include "hardware/sctrl.h"
 #include "hardware/uart.h"
@@ -10,17 +11,21 @@
 #include "shell/commands_beken.h"
 #include "shell_handlers.h"
 #include "utils/busy_wait.h"
+#include "soc/sctrl.h"
 
 
 extern "C" {
-// filled by BACKUP_REGISTERS macro
+// filled by BACKUP_REGISTERS macro; R10 is omitted (see boot_reset.S)
 __used __section(".noinit") struct {
     uint32_t cpsr;
-    uint32_t r[13];
+    uint32_t r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r11, r12;
     uint32_t sp;
     uint32_t lr;
 } boot_entry_state;
 }
+
+// Read before sctrl_init() overwrites it with its own sentinel marker.
+static uint32_t g_sw_retention;
 
 #define STEP_MS 100
 
@@ -68,27 +73,62 @@ void uart2_print_uint32(uint32_t value) {
     uart2_puts(name);          \
     uart2_print_uint32(value);
 
+static const char *cpsr_mode_name(uint32_t cpsr) {
+    switch (cpsr & CPU_MODE_MASK) {
+        case CPU_MODE_USR:
+            return "USR";
+        case CPU_MODE_FIQ:
+            return "FIQ";
+        case CPU_MODE_IRQ:
+            return "IRQ";
+        case CPU_MODE_SVC:
+            return "SVC";
+        case CPU_MODE_ABT:
+            return "ABT (data abort)";
+        case CPU_MODE_UND:
+            return "UND (undefined instruction)";
+        case CPU_MODE_SYS:
+            return "SYS";
+        default:
+            return "unknown";
+    }
+}
+
+static const char *reset_cause_name() {
+    if (g_sw_retention != 0) return "warm reset (soft jump to 0x0)";
+    return "WDT or power-on reset";
+}
+
+static void print_reset_cause() {
+    uart2_puts("\r\nReset cause: ");
+    uart2_puts(reset_cause_name());
+    uart2_puts("\r\n");
+}
+
 static void print_registers() {
     PRINT_REG("\r\nCPSR:    ", boot_entry_state.cpsr);
-    PRINT_REG("\r\nR0:      ", boot_entry_state.r[0]);
-    PRINT_REG("\r\nR1:      ", boot_entry_state.r[1]);
-    PRINT_REG("\r\nR2:      ", boot_entry_state.r[2]);
-    PRINT_REG("\r\nR3:      ", boot_entry_state.r[3]);
-    PRINT_REG("\r\nR4:      ", boot_entry_state.r[4]);
-    PRINT_REG("\r\nR5:      ", boot_entry_state.r[5]);
-    PRINT_REG("\r\nR6:      ", boot_entry_state.r[6]);
-    PRINT_REG("\r\nR7:      ", boot_entry_state.r[7]);
-    PRINT_REG("\r\nR8:      ", boot_entry_state.r[8]);
-    PRINT_REG("\r\nR9:      ", boot_entry_state.r[9]);
-    PRINT_REG("\r\nR10:     ", boot_entry_state.r[10]);
-    PRINT_REG("\r\nR11:     ", boot_entry_state.r[11]);
-    PRINT_REG("\r\nR12:     ", boot_entry_state.r[12]);
+    uart2_puts("  mode: ");
+    uart2_puts(cpsr_mode_name(boot_entry_state.cpsr));
+    PRINT_REG("\r\nR0:      ", boot_entry_state.r0);
+    PRINT_REG("\r\nR1:      ", boot_entry_state.r1);
+    PRINT_REG("\r\nR2:      ", boot_entry_state.r2);
+    PRINT_REG("\r\nR3:      ", boot_entry_state.r3);
+    PRINT_REG("\r\nR4:      ", boot_entry_state.r4);
+    PRINT_REG("\r\nR5:      ", boot_entry_state.r5);
+    PRINT_REG("\r\nR6:      ", boot_entry_state.r6);
+    PRINT_REG("\r\nR7:      ", boot_entry_state.r7);
+    PRINT_REG("\r\nR8:      ", boot_entry_state.r8);
+    PRINT_REG("\r\nR9:      ", boot_entry_state.r9);
+    PRINT_REG("\r\nR11:     ", boot_entry_state.r11);
+    PRINT_REG("\r\nR12:     ", boot_entry_state.r12);
     PRINT_REG("\r\nR13(SP): ", boot_entry_state.sp);
     PRINT_REG("\r\nR14(LR): ", boot_entry_state.lr);
     uart2_puts("\r\n");
 }
 
 static void preinit() {
+    g_sw_retention = hw_sctrl->sw_retention.v;
+
     portDISABLE_IRQ();
     portDISABLE_FIQ();
     intc_reset();
@@ -100,6 +140,7 @@ PREINIT_AT(preinit, 01);
 
 int main() {
     uart2_init();
+    print_reset_cause();
     print_registers();
     uart2_puts("\r\n");
     uart2_drain();

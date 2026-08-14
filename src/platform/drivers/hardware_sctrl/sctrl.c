@@ -104,6 +104,11 @@ void sctrl_init() {
         .cal_manual = 1,
         .ldo_val_manual = 20,
     );
+
+    // Marks that this boot ran past init without a real WDT/POR reset in between,
+    // since only those clear this register - lets boot diagnostics tell a live
+    // jump into a fresh image apart from an actual reset.
+    hw_sctrl->sw_retention.value = 0xA5A5;
 }
 
 // The DPLL-unlock latch lives in GPIO extra_int_cfg, not in the ICU: clearing

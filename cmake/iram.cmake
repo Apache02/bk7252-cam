@@ -4,6 +4,7 @@ function(bk_firmware_iram BASE_TARGET)
     get_target_property(BASE_SOURCES ${BASE_TARGET} SOURCES)
     get_target_property(BASE_INCLUDE_DIRS ${BASE_TARGET} INCLUDE_DIRECTORIES)
     get_target_property(BASE_LINK_LIBS ${BASE_TARGET} LINK_LIBRARIES)
+    get_target_property(BASE_COMPILE_DEFS ${BASE_TARGET} COMPILE_DEFINITIONS)
 
     add_executable(${RAM_TARGET} ${BASE_SOURCES})
 
@@ -13,6 +14,10 @@ function(bk_firmware_iram BASE_TARGET)
 
     if(BASE_LINK_LIBS)
         target_link_libraries(${RAM_TARGET} PRIVATE ${BASE_LINK_LIBS})
+    endif()
+
+    if(BASE_COMPILE_DEFS)
+        target_compile_definitions(${RAM_TARGET} PRIVATE ${BASE_COMPILE_DEFS})
     endif()
 
     bk_configure_linker_script(${RAM_TARGET} iram.lds)

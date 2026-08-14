@@ -5,10 +5,11 @@
 
 /////////////////// MACROS ///////////////////
 
+// R10 is sacrificed as the scratch pointer register, so its original value is never captured.
 .macro  BACKUP_REGISTERS
     mov   r10, r3
-    ldr   r3, =(boot_entry_state + 64)
-    stmdb r3!, {r4-r12, sp, lr}
+    ldr   r3, =(boot_entry_state + 60)
+    stmdb r3!, {r4-r9, r11, r12, sp, lr}
     stmdb r3!, {r10}
     stmdb r3!, {r0-r2}
     mrs   r0, cpsr
@@ -101,4 +102,3 @@ _reset:
     mov   r12, #0
 
     b     _start
-
