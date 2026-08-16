@@ -67,6 +67,26 @@ volatile uint32_t intc_orphan_fiq_sources;
 volatile uint32_t intc_spurious_irq_count;
 volatile uint32_t intc_spurious_fiq_count;
 
+#ifdef INTC_COUNT_FIRES
+// Per-source fire counts, indexed by the same bit position as IRQ_SOURCE_*/
+// FIQ_SOURCE_* (0-31). Counts every source bit the dispatcher decodes off the
+// ICU status register in intc_irq()/intc_fiq(), before dispatch to any
+// handler — so a source fires here even if nothing is registered for it (an
+// orphan) or intc_service_register() was never involved. Diagnostic only;
+// define INTC_COUNT_FIRES to build it in.
+static volatile uint32_t s_fire_count[32];
+
+static inline void count_fires(uint32_t source) {
+    while (source) {
+        uint32_t bit = (uint32_t)__builtin_ctz(source);
+        s_fire_count[bit]++;
+        source &= source - 1;
+    }
+}
+
+uint32_t intc_get_fire_count(uint8_t bit) { return (bit < 32) ? s_fire_count[bit] : 0; }
+#endif // INTC_COUNT_FIRES
+
 static uint32_t handled_mask(const struct handlers_collection_t *collection, const uint32_t source) {
     uint32_t handled = 0;
 
@@ -123,6 +143,9 @@ void intc_irq(void) {
     if (status.irq_gdma) source |= IRQ_SOURCE_GDMA;
 
     if (!source) return;
+#ifdef INTC_COUNT_FIRES
+    count_fires(source);
+#endif
 
     uint32_t orphans = source & ~handled_mask(&intc_manager.irq, source);
     if (orphans) {
@@ -165,6 +188,9 @@ void intc_fiq(void) {
     if (status.fiq_dpll_unlock) source |= FIQ_SOURCE_DPLL_UNLOCK;
 
     if (!source) return;
+#ifdef INTC_COUNT_FIRES
+    count_fires(source);
+#endif
 
     uint32_t orphans = source & ~handled_mask(&intc_manager.fiq, source);
     if (orphans) {

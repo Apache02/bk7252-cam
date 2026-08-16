@@ -119,6 +119,14 @@ extern volatile uint32_t intc_orphan_fiq_sources;
 extern volatile uint32_t intc_spurious_irq_count;
 extern volatile uint32_t intc_spurious_fiq_count;
 
+#ifdef INTC_COUNT_FIRES
+// Diagnostic only (define INTC_COUNT_FIRES to build it in): how many times
+// source bit `bit` (an IRQ_SOURCE_*/FIQ_SOURCE_* bit position, 0-31) has been
+// decoded off the ICU status register by intc_irq()/intc_fiq(), regardless of
+// whether a handler was registered for it.
+uint32_t intc_get_fire_count(uint8_t bit);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

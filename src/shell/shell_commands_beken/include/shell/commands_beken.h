@@ -59,6 +59,11 @@ int command_gpio(int argc, const char *argv[]);
 // handler, and the count of exceptions taken with an empty status.
 int command_intc(int argc, const char *argv[]);
 
+// Per-source ICU fire counts (hardware_intc/intc.c, behind INTC_COUNT_FIRES) —
+// how many times each source bit has actually been decoded off the hardware
+// status register since boot, regardless of whether a handler is registered.
+int command_irq_counters(int argc, const char *argv[]);
+
 #ifdef __cplusplus
 }
 
