@@ -36,8 +36,14 @@ int command_dump(int argc, const char *argv[]) {
 }
 
 int command_dump32(int argc, const char *argv[]) {
-    auto         addr  = take_int(argv[1]).ok_or(DUMP_DEFAULT_ADDRESS);
-    unsigned int count = 16 * 16;
+    auto         addr       = take_int(argv[1]).ok_or(DUMP_DEFAULT_ADDRESS);
+    unsigned int word_count = 16 * 16 / sizeof(uint32_t); // default: 256-byte dump
+
+    if (argc >= 3) {
+        word_count = static_cast<unsigned int>(take_int(argv[2]).ok_or(static_cast<int>(word_count)));
+    }
+
+    unsigned int count = word_count * sizeof(uint32_t);
 
     printf("addr 0x%08x\r\n", addr);
 
@@ -52,6 +58,8 @@ int command_dump32(int argc, const char *argv[]) {
             printf("\r\n");
         }
     }
+
+    if (count % 16 != 0) printf("\r\n");
 
     return 0;
 }
