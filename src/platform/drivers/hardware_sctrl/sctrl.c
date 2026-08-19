@@ -135,6 +135,30 @@ void sctrl_dpll_int_close(void) {
     gpio_extra_int_clear(dpll_unlock_int);
 }
 
+void sctrl_subsys_modem_reset() {
+    hw_sctrl->modem_subchip_reset_request = MODEM_SUBCHIP_RESET_WORD;
+    coarse_delay(10);
+    hw_sctrl->modem_subchip_reset_request = 0;
+}
+
+void sctrl_subsys_mac_reset() {
+    hw_sctrl->mac_subsys_reset_request = MAC_SUBSYS_RESET_WORD;
+    coarse_delay(10);
+    hw_sctrl->mac_subsys_reset_request = 0;
+}
+
+void sctrl_subsys_usb_reset() {
+    hw_sctrl->usb_subsys_reset_request = USB_SUBSYS_RESET_WORD;
+    coarse_delay(10);
+    hw_sctrl->usb_subsys_reset_request = 0;
+}
+
+void sctrl_subsys_dsp_reset() {
+    hw_sctrl->dsp_subsys_reset_request = DSP_SUBSYS_RESET_WORD;
+    coarse_delay(10);
+    hw_sctrl->dsp_subsys_reset_request = 0;
+}
+
 // Pulses the modem-core reset. Ported from SDK sys_ctrl.c, case
 // CMD_SCTRL_MODEM_CORE_RESET: write MODEM_CORE_RESET_WORD into reset_word
 // (preserving phy_hclk_enable/mac_hclk_enable), wait, clear reset_word back

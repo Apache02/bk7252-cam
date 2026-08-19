@@ -35,6 +35,11 @@ uint32_t sctrl_get_cpu_freq_hz();
 void sctrl_dpll_int_open(void);
 void sctrl_dpll_int_close(void);
 
+void sctrl_subsys_modem_reset(void);
+void sctrl_subsys_mac_reset(void);
+void sctrl_subsys_usb_reset(void);
+void sctrl_subsys_dsp_reset(void);
+
 void sctrl_modem_core_reset(void);
 void sctrl_overclock(bool enable);
 

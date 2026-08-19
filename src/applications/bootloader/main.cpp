@@ -5,13 +5,15 @@
 #include "platform/cpu.h"
 #include "platform/arm.h"
 #include "hardware/intc.h"
-#include "hardware/sctrl.h"
 #include "hardware/uart.h"
 #include "hardware/wdt.h"
 #include "shell/commands_beken.h"
 #include "shell_handlers.h"
 #include "utils/busy_wait.h"
 #include "soc/sctrl.h"
+
+
+extern "C" void bootloader_sctrl_init();
 
 
 extern "C" {
@@ -24,7 +26,7 @@ __used __section(".noinit") struct {
 } boot_entry_state;
 }
 
-// Read before sctrl_init() overwrites it with its own sentinel marker.
+// Read before bootloader_sctrl_init() overwrites it with its own sentinel marker.
 static uint32_t g_sw_retention;
 
 #define STEP_MS 100
@@ -48,7 +50,7 @@ static bool enter_shell(int seconds) {
     return false;
 }
 
-static void print_version() { printf("Bootloader by Apache02\r\n\n"); }
+static void print_version() { printf("Bootloader by Apache02 (built " __DATE__ " " __TIME__ ")\r\n\n"); }
 
 static inline int hex_digit(int digit) { return (digit > 9 ? 'a' - 0xa : '0') + digit; }
 
@@ -133,7 +135,7 @@ static void preinit() {
     portDISABLE_FIQ();
     intc_reset();
 
-    sctrl_init();
+    bootloader_sctrl_init();
 }
 
 PREINIT_AT(preinit, 01);

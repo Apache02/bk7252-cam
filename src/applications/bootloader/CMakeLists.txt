@@ -1,6 +1,7 @@
 add_executable(
         bootloader
         main.cpp
+        bootloader_init.c
         shell_handlers.cpp
         partition_table.c
 )
