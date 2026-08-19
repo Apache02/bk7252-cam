@@ -1,5 +1,6 @@
 #include "soc/sctrl.h"
 #include "soc/gpio.h"
+#include "rwnx/rc.h"
 #include "hardware/sctrl.h"
 #include "hardware/icu.h"
 #include "hardware/intc.h"
@@ -19,6 +20,11 @@ static inline void busy_wait_at_least_cycles(unsigned long minimum_cycles) {
 // vendor's nested delay loop: one outer iteration is ~28 cycles
 static inline void coarse_delay(uint32_t outer) { busy_wait_at_least_cycles(outer * 28); }
 
+// Delays here run either at DEFAULT_CPU_FREQ or, before the mclk switch, slower
+// still — so counting cycles at the nominal rate always waits at least as long
+// as intended.
+#define CYCLES_PER_US (DEFAULT_CPU_FREQ / 1000000)
+
 // vendor: W32(0x0080012c, (R32(0x0080012c) & 0x000fffff) | 0xA5C00000 | bits)
 // OR-style update that preserves already-enabled blocks, unlike
 // hw_write_fields() which zero-fills every unmentioned field.
@@ -30,34 +36,75 @@ static void sctrl_block_enable_or(uint32_t bits) {
     hw_sctrl->block_enable.v = tmp.v;
 }
 
+// The analog_ctrl* registers are not plain MMIO: each access is shifted out over
+// an internal SPI link to the analog die, and analog_spi.state stays nonzero
+// until that transfer retires. Writing again before it clears loses the write.
+void sctrl_analog_set(volatile uint32_t *reg, uint32_t value) {
+    *reg = value;
+    while (hw_sctrl->analog_spi.state != 0);
+}
+
+uint32_t sctrl_analog_get(volatile const uint32_t *reg) {
+    while (hw_sctrl->analog_spi.state != 0);
+    return *reg;
+}
+
+// DPLL band calibration (vendor sctrl_cali_dpll(0)): drop and re-raise the SPI
+// trigger, then the SPI detect enable, with a settling delay after each. The
+// vendor's delay loops are named 10 us / 200 us but iterate a fixed count that
+// undershoots at 120 MHz; these are honest minimums, and overshooting a
+// settling delay is harmless.
+#define ANALOG_CTRL0_SPI_TRIG (1u << 19)
+#define ANALOG_CTRL0_SPI_DET_EN (1u << 4)
+
+void sctrl_cali_dpll(void) {
+    uint32_t param = sctrl_analog_get(&hw_sctrl->analog_ctrl0);
+
+    param &= ~ANALOG_CTRL0_SPI_TRIG;
+    sctrl_analog_set(&hw_sctrl->analog_ctrl0, param);
+    busy_wait_at_least_cycles(10 * CYCLES_PER_US);
+
+    param |= ANALOG_CTRL0_SPI_TRIG;
+    sctrl_analog_set(&hw_sctrl->analog_ctrl0, param);
+
+    param = sctrl_analog_get(&hw_sctrl->analog_ctrl0);
+    param &= ~ANALOG_CTRL0_SPI_DET_EN;
+    sctrl_analog_set(&hw_sctrl->analog_ctrl0, param);
+    busy_wait_at_least_cycles(200 * CYCLES_PER_US);
+
+    param = sctrl_analog_get(&hw_sctrl->analog_ctrl0);
+    param |= ANALOG_CTRL0_SPI_DET_EN;
+    sctrl_analog_set(&hw_sctrl->analog_ctrl0, param);
+}
+
 uint32_t chip_id() { return hw_sctrl->chip_id; }
 
 uint32_t device_id() { return hw_sctrl->device_id; }
 
-// Cold-boot clock bring-up, reverse-engineered from the vendor bootloader
-// (FUN_000007c4 + FUN_000015e8). Fixed delays only — the DPLL has no lock
-// bit to poll. Delay cycle counts assume the final 120 MHz clock; before
-// the mclk switch the core runs slower, so the real time is longer — the
-// values are minimums, that is harmless.
+// Application-side system-control bring-up, ported from the vendor SDK's
+// sctrl_init() (the reference build, driver/sys_ctrl/sys_ctrl.c) — the firmware
+// this board is known to run WiFi on. Cold boot is not repeated here: the
+// bootloader already brought the clocks up in bootloader_sctrl_init(), which is
+// why the two are separate functions and free to diverge.
+//
+// Two deliberate departures from that vendor routine, both outside the RF path:
+//   - it runs the core off the DCO at 180 MHz (USE_DCO_CLK_POWON is 1 for
+//     BK7221U); we stay on the DPLL at DEFAULT_CPU_FREQ, so its sctrl_dco_cali()
+//     and sctrl_set_cpu_clk_dco() have nothing to calibrate here.
+//   - MAC/modem power-up, the MAC clock gates and the modem resets live in
+//     sctrl_rf_init() instead, so apps that never touch WiFi keep those blocks
+//     powered down.
 void sctrl_init() {
-    /* steps 1-2: analog bandgap/bias preset (FUN_000007c4): | 0x43F */
+    // Keep the 26M XTAL block on — it also protects the 32k circuit.
     {
         typeof(hw_sctrl->block_enable) bits = {
-            .flash     = 1,
             .dco       = 1,
-            .rosc_32k  = 1,
             .xtal_26m  = 1,
-            .xtal_32k  = 1,
             .dpll_480m = 1,
             .xtal_2_rf = 1,
         };
         sctrl_block_enable_or(bits.v);
     }
-
-    hw_sctrl->power_mac_modem.v = 0;
-    hw_sctrl->power_dsp.v       = 0;
-    hw_sctrl->power_usb.v       = 0;
-    coarse_delay(100);
 
     hw_write_fields(hw_sctrl->low_power_clk,
         .lpo_clk_mux = LPO_SRC_ROSC,
@@ -70,27 +117,30 @@ void sctrl_init() {
         .cal_interval = 3,
     );
 
-    /* step 5: re-program analog with PLL enable bit (FUN_000015e8): | 0x08 */
-    {
-        typeof(hw_sctrl->block_enable) bits = {
-            .xtal_26m = 1,
-        };
-        sctrl_block_enable_or(bits.v);
-    }
-
-    hw_sctrl->analog_ctrl0 = 0xF819A59B;
-    hw_sctrl->analog_ctrl1 = 0x6AC03102;
-    hw_sctrl->analog_ctrl2 = 0x24026040;
-    hw_sctrl->analog_ctrl3 = 0x4FE06C50;
-    hw_sctrl->analog_ctrl4 = 0x59C04520;
-
-    busy_wait_at_least_cycles(1300);
-    coarse_delay(100);
-
     // mclk_source + divider must change atomically — transient DPLL/1 = 480 MHz
     // if written separately, so preserve all other bits with read-modify-write.
     sctrl_set_cpu_freq_hz(DEFAULT_CPU_FREQ);
+    coarse_delay(100);
 
+    // LDO bias calibration word, verbatim from the vendor (SCTRL_BIAS =
+    // 0x00171710): manual mode with LDO value 23. Written as a whole word
+    // because it also sets the field our register model marks read-only.
+    hw_sctrl->bias.v = 0x00171710;
+
+    // analog_ctrl0 differs from the value the bootloader leaves behind
+    // (0xF819A59B, taken from the vendor bootloader): the vendor application
+    // overwrites bits [31:28] on the way up, so 0x0819A59B is what the
+    // known-good firmware actually runs the radio on.
+    sctrl_analog_set(&hw_sctrl->analog_ctrl0, 0x0819A59B);
+    sctrl_cali_dpll();
+    sctrl_analog_set(&hw_sctrl->analog_ctrl1, 0x6AC03102);
+    // 0x24026080 with XTALH_CTUNE (bits [7:2]) forced to the vendor's 0x10;
+    // flash calibration overwrites it later via CMD_SCTRL_SET_XTALH_CTUNE.
+    sctrl_analog_set(&hw_sctrl->analog_ctrl2, 0x24026040);
+    sctrl_analog_set(&hw_sctrl->analog_ctrl3, 0x4FE06C50);
+    sctrl_analog_set(&hw_sctrl->analog_ctrl4, 0x59C04520);
+
+    busy_wait_at_least_cycles(1300);
     coarse_delay(100);
 
     // per-field RMW (unlike a whole-register write) keeps the other peripheral
@@ -100,10 +150,10 @@ void sctrl_init() {
     icu_pwms_clk(PERI_CLK_26M_XTAL);
     coarse_delay(100);
 
-    hw_write_fields(hw_sctrl->bias,
-        .cal_manual = 1,
-        .ldo_val_manual = 20,
-    );
+    // Raise digital VDD to the vendor's active-mode level (CMD_SCTRL_SET_VDD_VALUE
+    // with 5). Field assignment, not hw_write_fields(), so vdd_sleep survives —
+    // the vendor read-modify-writes this register too.
+    hw_sctrl->digital_vdd.vdd_active = 5;
 
     // Marks that this boot ran past init without a real WDT/POR reset in between,
     // since only those clear this register - lets boot diagnostics tell a live
@@ -198,15 +248,48 @@ void sctrl_overclock(__unused bool enable) {
     // sctrl_mcu_exit, gated by CFG_USE_MCU_PS in the SDK) is implemented.
 }
 
-#define REG_RC_BASE_ADDR  (0x01050000)
-#define RC_CNTL_STAT_ADDR REG_RC_BASE_ADDR
-
+// Brings the WiFi side of the chip out of the powered-down state the bootloader
+// leaves it in. Split out of sctrl_init() so apps that never use WiFi keep MAC
+// and modem dark. Ported from the vendor's sctrl_init() tail plus
+// sctrl_rf_wakeup() (the reference build, driver/sys_ctrl/sys_ctrl.c).
 void sctrl_rf_init() {
+    // Power domains: the *_PWU key wakes a block, and the two halves of this
+    // register must be written together or the untouched half reads back as a
+    // key of 0, which is neither PWD nor PWU.
+    hw_write_fields(hw_sctrl->power_mac_modem,
+        .mac_pwd = MAC_PWU,
+        .modem_pwd = MODEM_PWU,
+    );
+    coarse_delay(100);
+
+    // vendor sctrl_sub_reset(): the modem-side resets, minus the USB/DSP ones
+    // that have nothing to do with the radio.
+    hw_sctrl->control.mpif_clk_invert = 1;
+    sctrl_modem_core_reset();
+    sctrl_subsys_modem_reset();
+    sctrl_subsys_mac_reset();
+
+    // "sys ctrl clk gating, for rx dma dead" — vendor writes 0x3F, ungating the
+    // six MAC clock domains that feed the RX path.
+    hw_write_fields(hw_sctrl->clk_gating,
+        .mac_mpif = 1,
+        .mac_wt = 1,
+        .mac_core_rx = 1,
+        .mac_core_tx = 1,
+        .mac_crypt = 1,
+        .mac_pri = 1,
+    );
+
+    // MAC then modem, each an AHB slave clock followed by its 480 MHz subsystem
+    // clock — the order the vendor wakes them in.
+    hw_sctrl->modem_core_reset_phy_hclk.mac_hclk_enable = 1;
+    hw_sctrl->control.mac_clk480m_pwd                   = 0;
     hw_sctrl->modem_core_reset_phy_hclk.phy_hclk_enable = 1;
     hw_sctrl->control.modem_clk480m_pwd                 = 0;
 
-    /*Enable BK7011:rc_en,ch0_en*/
-    // rc_cntl_stat_set(0x09);
-    (*(volatile uint32_t *)(RC_CNTL_STAT_ADDR)) = 0x09;
-    // REG_PL_WR(RC_CNTL_STAT_ADDR, 0x09);
+    // Enable the BK7011 radio controller (vendor rc_cntl_stat_set(0x09)).
+    hw_write_fields(hw_rc->cntl_stat,
+        .ch0_en = 1,
+        .rc_en = 1,
+    );
 }
