@@ -2,11 +2,7 @@
 #include "shell/Parser.h"
 #include <stdio.h>
 #include <stdint.h>
-#include "platform/cpu.h"
-#include "hardware/intc.h"
-#include "hardware/wdt.h"
 #include "utils/crc32.h"
-#include "utils/busy_wait.h"
 
 static bool inline valid_ram(uint32_t addr) {
     return (addr >= 0x00400000 && addr < 0x00400000 + 0x00040000) ||

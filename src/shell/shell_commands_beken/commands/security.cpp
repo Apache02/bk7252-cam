@@ -7,7 +7,7 @@
 
 static inline int hex_digit(int digit) { return (digit > 9 ? 'a' - 10 : '0') + digit; }
 
-void hash_to_string(const uint8_t *hash, size_t len, char *to) {
+static void hash_to_string(const uint8_t *hash, size_t len, char *to) {
     int j = 0;
     for (size_t i = 0; i < len; i++) {
         to[j++] = hex_digit((hash[i] >> 4) & 0x0F);
