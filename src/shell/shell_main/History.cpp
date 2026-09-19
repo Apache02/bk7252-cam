@@ -47,12 +47,18 @@ void History::add(const char *token) {
     strcpy(tokens[0], token);
 }
 
+// An argument reaches here already unquoted, so one holding a space — or none
+// at all — has to be given its quotes back. Without them the recalled line
+// splits into different arguments than the one that ran.
+static bool needs_quotes(const char *s) { return *s == '\0' || strchr(s, ' ') != nullptr; }
+
 void History::add(int argc, const char *argv[]) {
     if (argc <= 0) return;
 
     size_t total_len = 0;
     for (int i = 0; i < argc; i++) {
         total_len += strlen(argv[i]);
+        if (needs_quotes(argv[i])) total_len += 2;
     }
     total_len += (argc - 1); // spaces
 
@@ -61,8 +67,11 @@ void History::add(int argc, const char *argv[]) {
     char *ptr = token;
     for (int i = 0; i < argc; i++) {
         if (i > 0) *ptr++ = ' ';
-        const char *src = argv[i];
-        while (*src) *ptr++ = *src++;
+
+        bool quote = needs_quotes(argv[i]);
+        if (quote) *ptr++ = '"';
+        for (const char *src = argv[i]; *src; src++) *ptr++ = *src;
+        if (quote) *ptr++ = '"';
     }
     *ptr = '\0';
 

@@ -205,9 +205,9 @@ bool Shell::is_control_sequence(int c) {
 
 void Shell::handle_control_sequence(const char *control) {
     if (strcmp(control, CONTROL_ARROW_UP) == 0) {
-        this->replace_command(history->prev());
+        if (history) this->replace_command(history->prev());
     } else if (strcmp(control, CONTROL_ARROW_DOWN) == 0) {
-        this->replace_command(history->next());
+        if (history) this->replace_command(history->next());
     } else if (strcmp(control, CONTROL_ARROW_LEFT) == 0) {
         if (input->cursor_left()) {
             printf(CONTROL_ARROW_LEFT);
