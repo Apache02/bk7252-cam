@@ -53,8 +53,6 @@ OSStatus rtos_delay_milliseconds(uint32_t num_ms) {
 /* ---- semaphores ---- */
 
 OSStatus rtos_init_semaphore(beken_semaphore_t *semaphore, int maxCount) {
-    LOG_I("%s(%p, maxCount: %d)", __func__, semaphore, maxCount);
-
     *semaphore = xSemaphoreCreateCounting((UBaseType_t)maxCount, 0);
     return (*semaphore != NULL) ? kNoErr : kGeneralErr;
 }
@@ -97,6 +95,8 @@ OSStatus rtos_lock_mutex(beken_mutex_t *mutex) {
 OSStatus rtos_unlock_mutex(beken_mutex_t *mutex) { return (xSemaphoreGive(*mutex) == pdTRUE) ? kNoErr : kGeneralErr; }
 
 OSStatus rtos_deinit_mutex(beken_mutex_t *mutex) {
+    LOG_I("%s(%p)", __func__, mutex);
+
     vSemaphoreDelete(*mutex);
     *mutex = NULL;
     return kNoErr;
