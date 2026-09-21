@@ -2,6 +2,7 @@ add_executable(
         freertos_wifi
         main.cpp
         shell_handlers.cpp
+        http_server.cpp
 )
 
 target_include_directories(

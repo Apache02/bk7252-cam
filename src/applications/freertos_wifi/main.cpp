@@ -10,6 +10,7 @@
 
 #include "net.h"
 #include "wifi/core.h"
+#include "http_server.h"
 
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
@@ -80,7 +81,8 @@ static void vTaskInit(__unused void *pvParams) {
     sctrl_rf_init();
     rwnxl_init();
     wifi_core_start();
-    sctrl_set_cpu_freq_hz(CPU_FREQ_160_MHZ);
+
+    // http_server_start();
 
     vTaskDelete(nullptr);
 }
@@ -95,6 +97,7 @@ int main() {
     platform_stdio_set_tx_buffer(&uart2_tx);
 
     sctrl_init();
+    sctrl_set_cpu_freq_hz(CPU_FREQ_160_MHZ); // required by wifi
 
     busy_wait_ms(10);
 
