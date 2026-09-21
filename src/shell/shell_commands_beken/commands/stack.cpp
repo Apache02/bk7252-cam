@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <time.h>
 #include "shell/Table.h"
-#include "shell/console_colors.h"
 #include "platform/stacks.h"
 
 #undef count_of

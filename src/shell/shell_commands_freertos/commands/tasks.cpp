@@ -7,21 +7,40 @@
 #undef count_of
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
 
+#if configRECORD_STACK_HIGH_ADDRESS == 1
+#define STACK_TOTAL_BYTES
+#endif
+
+
+// clang-format off
 static const char *const TASK_STATE_LABEL_MAP[] = {
-    [eTaskState::eRunning] = "running",     [eTaskState::eReady] = "ready",     [eTaskState::eBlocked] = "blocked",
-    [eTaskState::eSuspended] = "suspended", [eTaskState::eDeleted] = "deleted", [eTaskState::eInvalid] = "invalid",
+    [eTaskState::eRunning] = "running",
+    [eTaskState::eReady] = "ready",
+    [eTaskState::eBlocked] = "blocked",
+    [eTaskState::eSuspended] = "suspended",
+    [eTaskState::eDeleted] = "deleted",
+    [eTaskState::eInvalid] = "invalid",
 };
+
+static const Table::ColumnDef table_def[] = {
+    {"name", 16, "%s", Table::Align::Left},
+    {"state", 10, "%s", Table::Align::Right},
+    {"priority", 8, "%ld", Table::Align::Right},
+    {"stack", 10, "0x%08lx", Table::Align::Right},
+#ifdef STACK_TOTAL_BYTES
+    {"size", 7, "%s", Table::Align::Right},
+    {"max used", 8, "%7ld", Table::Align::Right},
+    {"%", 4, "%3d%%", Table::Align::Right},
+#else
+    {"free", 7, "%7ld", Table::Align::Right},
+#endif
+    {"cpu%", 7, "%s", Table::Align::Right},
+};
+// clang-format on
 
 static const char *get_task_state_label(unsigned int state) {
     return state < count_of(TASK_STATE_LABEL_MAP) ? TASK_STATE_LABEL_MAP[state] : "?";
 }
-
-static const Table::ColumnDef table_def[] = {
-    {"name", 16, "%s", Table::Align::Left},      {"state", 10, "%s", Table::Align::Right},
-    {"priority", 8, "%ld", Table::Align::Right}, {"addr", 10, "0x%08lx", Table::Align::Right},
-    {"size", 7, "%s", Table::Align::Right},      {"free", 7, "%7ld", Table::Align::Right},
-    {"cpu%", 7, "%s", Table::Align::Right},
-};
 
 // requires configUSE_TRACE_FACILITY
 int command_tasks(int argc, const char *argv[]) {
@@ -54,15 +73,14 @@ int command_tasks(int argc, const char *argv[]) {
 
         uint32_t freeWords = t.usStackHighWaterMark;
         uint32_t freeBytes = freeWords * sizeof(StackType_t);
-        char     stackTotalBuf[12];
-#if configRECORD_STACK_HIGH_ADDRESS == 1
+#ifdef STACK_TOTAL_BYTES
+        char stackTotalBuf[12];
         // pxEndOfStack is the stack's high address; pxTopOfStack is the task's
         // current stack pointer and says nothing about how big the stack is.
         uint32_t totalWords = static_cast<uint32_t>(t.pxEndOfStack - t.pxStackBase) + 1;
         uint32_t totalBytes = totalWords * sizeof(StackType_t);
         snprintf(stackTotalBuf, sizeof(stackTotalBuf), "%6lu", totalBytes);
-#else
-        snprintf(stackTotalBuf, sizeof(stackTotalBuf), "n/a");
+        uint32_t usedBytes = totalBytes - freeBytes;
 #endif
 
         char        cpuBuf[16];
@@ -77,9 +95,14 @@ int command_tasks(int argc, const char *argv[]) {
         row->set("name", t.pcTaskName);
         row->set("state", stateLabel);
         row->set("priority", t.uxCurrentPriority);
-        row->set("addr", t.pxStackBase);
+        row->set("stack", t.pxStackBase);
+#ifdef STACK_TOTAL_BYTES
         row->set("size", stackTotalBuf);
+        row->set("max used", usedBytes);
+        row->set("%", static_cast<int>(usedBytes * 100 / totalBytes));
+#else
         row->set("free", freeBytes);
+#endif
         row->set("cpu%", cpuPtr);
 
         table->printRow(row);
