@@ -25,13 +25,20 @@ struct Input {
 
     bool check_integrity() { return sentinel1 == 0xDEADBEEF && sentinel2 == 0xF00DCAFE; }
 
+    // Inserts at the cursor rather than appending, so the tail moves right and
+    // survives. buffer[size] is kept at '\0' for whoever prints from cursor.
     void put(char c) {
         if (size >= static_cast<int>(sizeof(buffer) - 1)) {
             error = true;
             return;
         }
-        *cursor++ = c;
-        size++;
+
+        int offset = get_offset();
+        if (offset < size) memmove(cursor + 1, cursor, size - offset);
+
+        *cursor++      = c;
+        buffer[++size] = '\0';
+
         if (!check_integrity()) {
             error = true;
         }
@@ -52,22 +59,27 @@ struct Input {
 
     // ------------------------------
 
+    // Both close the gap by pulling the tail over it, so deleting mid-line
+    // shortens the text instead of cutting it off at the cursor.
     bool remove_left() {
-        if (cursor > buffer) {
-            *--cursor = '\0';
-            size--;
-            return true;
-        }
-        return false;
+        if (cursor <= buffer) return false;
+
+        int offset = get_offset();
+        memmove(cursor - 1, cursor, size - offset);
+
+        cursor--;
+        buffer[--size] = '\0';
+        return true;
     }
 
     bool remove_right() {
-        if (cursor < buffer + size) {
-            memmove(cursor, cursor + 1, size - (cursor - buffer));
-            size--;
-            return true;
-        }
-        return false;
+        if (cursor >= buffer + size) return false;
+
+        int offset = get_offset();
+        memmove(cursor, cursor + 1, size - offset - 1);
+
+        buffer[--size] = '\0';
+        return true;
     }
 
     // ------------------------------

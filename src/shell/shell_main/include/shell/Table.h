@@ -20,6 +20,9 @@ class Table {
         explicit Row(const Table *table);
         ~Row();
 
+        Row(const Row &)            = delete;
+        Row &operator=(const Row &) = delete;
+
         Row *set(const char *col_name, ...);
 
       private:
@@ -33,6 +36,9 @@ class Table {
     Table(std::initializer_list<ColumnDef> cols);
     Table(const ColumnDef *cols, int col_count);
     ~Table();
+
+    Table(const Table &)            = delete;
+    Table &operator=(const Table &) = delete;
 
     Row *createRow() const;
     void printHeader() const;

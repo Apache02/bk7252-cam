@@ -30,10 +30,19 @@ Table::Row *Table::Row::set(const char *col_name, ...) {
     va_start(args, col_name);
     va_copy(args2, args);
 
-    int len = vsnprintf(nullptr, 0, fmt, args) + 1;
-    if (cells_[i]) free(cells_[i]);
-    cells_[i] = static_cast<char *>(malloc(len));
-    vsnprintf(cells_[i], len, fmt, args2);
+    int len = vsnprintf(nullptr, 0, fmt, args);
+
+    if (cells_[i]) {
+        free(cells_[i]);
+        cells_[i] = nullptr;
+    }
+
+    // Left null when the heap is out or the format failed; printRow() prints a
+    // null cell as empty, which beats writing through one.
+    if (len >= 0) {
+        cells_[i] = static_cast<char *>(malloc(len + 1));
+        if (cells_[i]) vsnprintf(cells_[i], len + 1, fmt, args2);
+    }
 
     va_end(args);
     va_end(args2);
