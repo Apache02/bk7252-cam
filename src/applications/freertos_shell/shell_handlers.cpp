@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "shell/commands_common.h"
+#include "shell/commands_platform.h"
 #include "shell/commands_freertos.h"
 #include "shell/commands_beken.h"
 #include "shell/commands_iram.h"
@@ -13,7 +14,6 @@ static int help(__unused int intc, __unused const char *argv[]) {
     return 0;
 }
 
-extern int command_free(int argc, const char *argv[]);
 extern int command_uptime(int argc, const char *argv[]);
 extern int command_blink(int argc, const char *argv[]);
 extern int command_test_net(int argc, const char *argv[]);

@@ -26,6 +26,8 @@ int command_free(__unused int argc, __unused const char *argv[]) {
     HeapStats_t xHeapStats;
     vPortGetHeapStats(&xHeapStats);
 
+    size_t outstanding = xHeapStats.xNumberOfSuccessfulAllocations - xHeapStats.xNumberOfSuccessfulFrees;
+
     printf("          Heap size: %d\r\n", (&_empty_ram_end - &_empty_ram_begin));
     printf("          available: %d\r\n", xHeapStats.xAvailableHeapSpaceInBytes);
     printf("            minimum: %d\r\n", xHeapStats.xMinimumEverFreeBytesRemaining);
@@ -34,6 +36,7 @@ int command_free(__unused int argc, __unused const char *argv[]) {
     printf("   number of blocks: %d\r\n", xHeapStats.xNumberOfFreeBlocks);
     printf("  allocations count: %d\r\n", xHeapStats.xNumberOfSuccessfulAllocations);
     printf("        frees count: %d\r\n", xHeapStats.xNumberOfSuccessfulFrees);
+    printf("        outstanding: %d\r\n", outstanding);
 
     printf("\r\n");
 

@@ -55,7 +55,7 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/shell/` — interactive UART shell, split so an app can pick which command groups it ships:
   - `shell_main` — `Shell`, `Parser`, `History`, `Table` — the engine, no commands.
-  - `shell_commands_common` / `_freertos` / `_beken` / `_iram` — independent command-group libraries. An app links the groups it wants.
+  - `shell_commands_common` / `_platform` / `_freertos` / `_beken` / `_iram` — independent command-group libraries. An app links the groups it wants. The suffix says what a command is tied to: `common` nothing at all, `platform` this project's own SDK layer (`src/platform/`), `freertos` the kernel but no particular chip, `beken` this chip or its family, `iram` the project's RAM-loading protocol (plus an XModem variant that nothing currently uses). A command belongs in the narrowest group that still holds everything it touches.
 
 - `src/applications/` — final firmware images. Each `add_executable(...)` here calls `bk_firmware(target)` (and optionally `bk_firmware_iram(target)`), wiring `platform_boot`, the chosen `platform_stdio_uart*`, FreeRTOS heap variant, lwip port, shell engine + command groups, and the specific drivers it needs. `freertos_shell` is the canonical reference for how to compose a real app.
 

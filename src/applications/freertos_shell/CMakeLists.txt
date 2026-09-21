@@ -27,6 +27,7 @@ target_link_libraries(
         platform_port_lwip
         shell_main
         shell_commands_common
+        shell_commands_platform
         shell_commands_freertos
         shell_commands_beken
         shell_commands_iram
