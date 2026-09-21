@@ -329,10 +329,8 @@ int command_mclk(int argc, const char *argv[]) {
         }
     }
 
-    if (set_source != -1 || set_divider != -1) {
-        if (set_source != -1) {
-            tmp.mclk_source = set_source;
-        }
+    if (set_source != -1) {
+        tmp.mclk_source = set_source;
         if (set_divider != -1) {
             tmp.divider = set_divider;
         }
