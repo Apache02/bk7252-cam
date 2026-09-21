@@ -1,6 +1,7 @@
 #include "hardware/intc.h"
 #include "platform/panic.h"
 #include "platform/init.h"
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
