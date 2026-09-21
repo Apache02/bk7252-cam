@@ -14,7 +14,7 @@
 //
 // Requires `reg` to be a union with a `.v` 32-bit alias, which is the
 // project-wide convention for register definitions (see any soc/*.h).
-// Unlisted fields default to zero (per C designated-initialiser rules).
+// Unlisted fields default to zero (per C designated-initializer rules).
 //
 // Example:
 //   hw_write_fields(hw_efuse->ctrl,
