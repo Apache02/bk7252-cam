@@ -173,14 +173,14 @@ static void sctrl_dpll_isr(void) { gpio_extra_int_clear(dpll_unlock_int); }
 
 void sctrl_dpll_int_open(void) {
     gpio_extra_int_clear(dpll_unlock_int);
-    intc_register_fiq_handler(FIQ_SOURCE_DPLL_UNLOCK, sctrl_dpll_isr);
-    intc_enable_fiq_source(FIQ_SOURCE_DPLL_UNLOCK);
+    intc_register_irq_handler(FIQ_SOURCE_DPLL_UNLOCK, sctrl_dpll_isr);
+    intc_enable_irq_source(FIQ_SOURCE_DPLL_UNLOCK);
     gpio_extra_int_set(dpll_unlock_int_en = 1);
 }
 
 void sctrl_dpll_int_close(void) {
-    intc_disable_fiq_source(FIQ_SOURCE_DPLL_UNLOCK);
-    intc_unregister_fiq_handler(FIQ_SOURCE_DPLL_UNLOCK, sctrl_dpll_isr);
+    intc_disable_irq_source(FIQ_SOURCE_DPLL_UNLOCK);
+    intc_unregister_irq_handler(FIQ_SOURCE_DPLL_UNLOCK, sctrl_dpll_isr);
     gpio_extra_int_set(dpll_unlock_int_en = 0);
     gpio_extra_int_clear(dpll_unlock_int);
 }

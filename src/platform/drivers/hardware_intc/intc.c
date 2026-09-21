@@ -1,15 +1,12 @@
 #include "hardware/intc.h"
 #include "platform/panic.h"
 #include "platform/init.h"
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "soc/icu.h"
 #include "intc_manager.h"
 #include "soc/gpio.h"
-
-#define count_of(x) (sizeof(x) / sizeof(x[0]))
 
 
 extern void do_irq(void);
@@ -37,8 +34,8 @@ static void intc_init(void) {
     init_ram_vectors();
 
     // No source is unmasked here. A source is only forwarded to the core once a
-    // handler is registered for it (intc_register_*_handler callers pair the
-    // registration with intc_enable_*_source). Unmasking a source with no
+    // handler is registered for it (intc_register_irq_handler callers pair the
+    // registration with intc_enable_irq_source). Unmasking a source with no
     // handler is a hard hang: nothing acknowledges the peripheral, so the ICU
     // re-latches it the instant intc_fiq() returns and the core never leaves
     // exception context again.
@@ -53,25 +50,19 @@ static void intc_init(void) {
 
 INIT_AT(intc_init, 01);
 
-// Sources that fired with no handler registered. Nothing acknowledges such a
-// source at the peripheral, so it is masked at the ICU the first time it is
-// seen — otherwise it re-latches immediately and storms until the watchdog
-// resets the chip. The bits are latched here so the cause stays visible.
+// Sources that fired with no handler registered, masked at the ICU so they don't
+// storm forever. Latched here so the cause stays visible.
 volatile uint32_t intc_orphan_irq_sources;
-volatile uint32_t intc_orphan_fiq_sources;
 
-// The ICU can raise the core interrupt line with no status bit left set — the
-// source deasserts between the core latching the exception and this handler
-// reading the status. The SDK treats that as benign (driver/intc/intc.c logs
-// "irq:dead" and carries on; its FIQ path does not check at all), so count it
-// and return instead of bringing the system down.
+// Exceptions taken with the ICU status already empty — the source deasserted
+// before this handler read it. Benign on this ICU; just counted.
 volatile uint32_t intc_spurious_irq_count;
 volatile uint32_t intc_spurious_fiq_count;
 
 #ifdef INTC_COUNT_FIRES
-// Per-source fire counts, indexed by the same bit position as IRQ_SOURCE_*/
-// FIQ_SOURCE_* (0-31). Counts every source bit the dispatcher decodes off the
-// ICU status register in intc_irq()/intc_fiq(), before dispatch to any
+// Per-source fire counts, indexed by the same bit position as IRQ_SOURCE_*
+// (0-31). Counts every source bit the dispatcher decodes off the ICU status
+// register in intc_irq()/intc_fiq(), before dispatch to any
 // handler — so a source fires here even if nothing is registered for it (an
 // orphan) or intc_service_register() was never involved. Diagnostic only;
 // define INTC_COUNT_FIRES to build it in.
@@ -88,31 +79,6 @@ static inline void count_fires(uint32_t source) {
 uint32_t intc_get_fire_count(uint8_t bit) { return (bit < 32) ? s_fire_count[bit] : 0; }
 #endif // INTC_COUNT_FIRES
 
-static uint32_t handled_mask(const struct handlers_collection_t *collection, const uint32_t source) {
-    uint32_t handled = 0;
-
-    for (int i = 0; i < collection->count; i++) {
-        handled |= collection->handlers[i].source & source;
-    }
-
-    return handled;
-}
-
-static int find_handlers(const struct handlers_collection_t *collection, const uint32_t source,
-                         interrupt_handler_cb **handlers, const size_t length) {
-    int count = 0;
-
-    for (int i = 0; i < collection->count; i++) {
-        assert(count < length);
-
-        if ((collection->handlers[i].source & source) != 0) {
-            handlers[count] = collection->handlers[i].handler;
-            count++;
-        }
-    }
-
-    return count;
-}
 
 void intc_irq(void) {
     hw_icu_int_t status = hw_icu->irq_status;
@@ -124,42 +90,20 @@ void intc_irq(void) {
     }
 
     hw_icu->irq_status.v = status.v;
+    uint32_t source = status.v;
 
-    uint32_t source = 0;
-    if (status.irq_uart1) source |= IRQ_SOURCE_UART1;
-    if (status.irq_uart2) source |= IRQ_SOURCE_UART2;
-    if (status.irq_i2c1) source |= IRQ_SOURCE_I2C1;
-    if (status.irq_irda) source |= IRQ_SOURCE_IRDA;
-    if (status.irq_i2s_pcm) source |= IRQ_SOURCE_I2S_PCM;
-    if (status.irq_i2c2) source |= IRQ_SOURCE_I2C2;
-    if (status.irq_spi) source |= IRQ_SOURCE_SPI;
-    if (status.irq_gpio) source |= IRQ_SOURCE_GPIO;
-    if (status.irq_timer) source |= IRQ_SOURCE_TIMER;
-    if (status.irq_pwm) source |= IRQ_SOURCE_PWM;
-    if (status.irq_audio) source |= IRQ_SOURCE_AUDIO;
-    if (status.irq_saradc) source |= IRQ_SOURCE_SARADC;
-    if (status.irq_sdio) source |= IRQ_SOURCE_SDIO;
-    if (status.irq_usb) source |= IRQ_SOURCE_USB;
-    if (status.irq_fft) source |= IRQ_SOURCE_FFT;
-    if (status.irq_gdma) source |= IRQ_SOURCE_GDMA;
+    uint32_t orphans = source & ~intc_manager.handled_mask;
 
-    if (!source) return;
-#ifdef INTC_COUNT_FIRES
-    count_fires(source);
-#endif
+    process_handlers(&intc_manager, source);
 
-    uint32_t orphans = source & ~handled_mask(&intc_manager.irq, source);
     if (orphans) {
         intc_orphan_irq_sources |= orphans;
         intc_disable_irq_source(orphans);
     }
 
-    interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
-    int                   count = find_handlers(&intc_manager.irq, source, handlers, count_of(handlers));
-
-    for (int i = 0; i < count; i++) {
-        handlers[i]();
-    }
+#ifdef INTC_COUNT_FIRES
+    count_fires(source);
+#endif
 }
 
 void intc_fiq(void) {
@@ -172,150 +116,49 @@ void intc_fiq(void) {
     }
 
     hw_icu->irq_status.v = status.v;
+    uint32_t source = status.v;
 
-    uint32_t source = 0;
-    if (status.fiq_modem) source |= FIQ_SOURCE_MODEM;
-    if (status.fiq_mac_tx_rx_timer) source |= FIQ_SOURCE_MAC_TX_RX_TIMER;
-    if (status.fiq_mac_tx_rx_misc) source |= FIQ_SOURCE_MAC_TX_RX_MISC;
-    if (status.fiq_mac_rx_trigger) source |= FIQ_SOURCE_MAC_RX_TRIGGER;
-    if (status.fiq_mac_tx_trigger) source |= FIQ_SOURCE_MAC_TX_TRIGGER;
-    if (status.fiq_mac_prot_trigger) source |= FIQ_SOURCE_MAC_PROT_TRIGGER;
-    if (status.fiq_mac_general) source |= FIQ_SOURCE_MAC_GENERAL;
-    if (status.fiq_sdio_dma) source |= FIQ_SOURCE_SDIO_DMA;
-    if (status.fiq_usb_plug_inout) source |= FIQ_SOURCE_USB_PLUG_INOUT;
-    if (status.fiq_security) source |= FIQ_SOURCE_SECURITY;
-    if (status.fiq_mac_wake_up) source |= FIQ_SOURCE_MAC_WAKE_UP;
-    if (status.fiq_spi_dma) source |= FIQ_SOURCE_SPI_DMA;
-    if (status.fiq_dpll_unlock) source |= FIQ_SOURCE_DPLL_UNLOCK;
+    uint32_t orphans = source & ~intc_manager.handled_mask;
 
-    if (!source) return;
+    process_handlers(&intc_manager, source);
+
+    if (orphans) {
+        intc_orphan_irq_sources |= orphans;
+        intc_disable_irq_source(orphans);
+    }
+
 #ifdef INTC_COUNT_FIRES
     count_fires(source);
 #endif
-
-    uint32_t orphans = source & ~handled_mask(&intc_manager.fiq, source);
-    if (orphans) {
-        intc_orphan_fiq_sources |= orphans;
-        intc_disable_fiq_source(orphans);
-    }
-
-    interrupt_handler_cb *handlers[MAX_HANDLERS] = {0};
-    int                   count = find_handlers(&intc_manager.fiq, source, handlers, count_of(handlers));
-
-    for (int i = 0; i < count; i++) {
-        handlers[i]();
-    }
 }
 
-bool intc_register_irq_handler(uint32_t source, interrupt_handler_cb *func) {
-    if (intc_manager.irq.count >= MAX_HANDLERS) return false;
-    return register_handler(&intc_manager.irq, source, func);
+bool intc_register_irq_handler(uint32_t source, int_handler_fn *func) {
+    if (intc_manager.count >= MAX_HANDLERS) return false;
+    return register_handler(&intc_manager, source, func);
 }
 
-bool intc_register_fiq_handler(uint32_t source, interrupt_handler_cb *func) {
-    if (intc_manager.fiq.count >= MAX_HANDLERS) return false;
-    return register_handler(&intc_manager.fiq, source, func);
+bool intc_unregister_irq_handler(uint32_t source, int_handler_fn *func) {
+    return unregister_handler(&intc_manager, source, func);
 }
 
-bool intc_unregister_irq_handler(uint32_t source, interrupt_handler_cb *func) {
-    return unregister_handler(&intc_manager.irq, source, func);
-}
-
-bool intc_unregister_fiq_handler(uint32_t source, interrupt_handler_cb *func) {
-    return unregister_handler(&intc_manager.fiq, source, func);
-}
-
-static uint32_t irq_source_to_reg(uint32_t source) {
-    hw_icu_int_t reg = {0};
-
-    if (source & IRQ_SOURCE_UART1) reg.irq_uart1 = 1;
-    if (source & IRQ_SOURCE_UART2) reg.irq_uart2 = 1;
-    if (source & IRQ_SOURCE_I2C1) reg.irq_i2c1 = 1;
-    if (source & IRQ_SOURCE_IRDA) reg.irq_irda = 1;
-    if (source & IRQ_SOURCE_I2S_PCM) reg.irq_i2s_pcm = 1;
-    if (source & IRQ_SOURCE_I2C2) reg.irq_i2c2 = 1;
-    if (source & IRQ_SOURCE_SPI) reg.irq_spi = 1;
-    if (source & IRQ_SOURCE_GPIO) reg.irq_gpio = 1;
-    if (source & IRQ_SOURCE_TIMER) reg.irq_timer = 1;
-    if (source & IRQ_SOURCE_PWM) reg.irq_pwm = 1;
-    if (source & IRQ_SOURCE_AUDIO) reg.irq_audio = 1;
-    if (source & IRQ_SOURCE_SARADC) reg.irq_saradc = 1;
-    if (source & IRQ_SOURCE_SDIO) reg.irq_sdio = 1;
-    if (source & IRQ_SOURCE_USB) reg.irq_usb = 1;
-    if (source & IRQ_SOURCE_FFT) reg.irq_fft = 1;
-    if (source & IRQ_SOURCE_GDMA) reg.irq_gdma = 1;
-
-    return reg.v;
-}
-
-// irq_enable carries both the IRQ and the FIQ enable bits, so every
-// read-modify-write below races against every other one. A FIQ taken between
-// the load and the store drops whatever the interrupted context was about to
-// commit — and since intc_fiq() masks orphan sources from FIQ context, a source
-// that was just disabled would come straight back and storm. Mask both lines
-// around the update, same guard the handler table already uses.
 void intc_enable_irq_source(uint32_t source) {
-    const uint32_t bits = irq_source_to_reg(source);
-
     disable_interrupts();
-    hw_icu->irq_enable.v |= bits;
+    hw_icu->irq_enable.v |= source;
     restore_interrupts();
 }
 
 void intc_disable_irq_source(uint32_t source) {
-    const uint32_t bits = irq_source_to_reg(source);
-
     disable_interrupts();
-    hw_icu->irq_enable.v &= ~bits;
+    hw_icu->irq_enable.v &= ~source;
     restore_interrupts();
 }
 
+// A source's bit position also says which core line the ICU forwards it on
+// (see ICU_INT_IRQ_MASK/ICU_INT_FIQ_MASK) — mixing bits from both halves in one
+// call is not supported.
 bool intc_irq_source_enabled(uint32_t source) {
-    return (hw_icu->irq_enable.v & irq_source_to_reg(source)) != 0 && !!hw_icu->global_int_en.irq;
-}
-
-static uint32_t fiq_source_to_reg(uint32_t source) {
-    hw_icu_int_t reg = {0};
-
-    if (source & FIQ_SOURCE_MODEM) reg.fiq_modem = 1;
-    if (source & FIQ_SOURCE_MAC_TX_RX_TIMER) reg.fiq_mac_tx_rx_timer = 1;
-    if (source & FIQ_SOURCE_MAC_TX_RX_MISC) reg.fiq_mac_tx_rx_misc = 1;
-    if (source & FIQ_SOURCE_MAC_RX_TRIGGER) reg.fiq_mac_rx_trigger = 1;
-    if (source & FIQ_SOURCE_MAC_TX_TRIGGER) reg.fiq_mac_tx_trigger = 1;
-    if (source & FIQ_SOURCE_MAC_PROT_TRIGGER) reg.fiq_mac_prot_trigger = 1;
-    if (source & FIQ_SOURCE_MAC_GENERAL) reg.fiq_mac_general = 1;
-    if (source & FIQ_SOURCE_SDIO_DMA) reg.fiq_sdio_dma = 1;
-    if (source & FIQ_SOURCE_USB_PLUG_INOUT) reg.fiq_usb_plug_inout = 1;
-    if (source & FIQ_SOURCE_SECURITY) reg.fiq_security = 1;
-    if (source & FIQ_SOURCE_MAC_WAKE_UP) reg.fiq_mac_wake_up = 1;
-    if (source & FIQ_SOURCE_SPI_DMA) reg.fiq_spi_dma = 1;
-    if (source & FIQ_SOURCE_DPLL_UNLOCK) reg.fiq_dpll_unlock = 1;
-    if (source & FIQ_SOURCE_JPEG_ENCODER) reg.jpeg_encoder = 1;
-    if (source & FIQ_SOURCE_BLE) reg.ble = 1;
-    if (source & FIQ_SOURCE_PSRAM) reg.psram = 1;
-
-    return reg.v;
-}
-
-// Same shared-register race as the IRQ pair above.
-void intc_enable_fiq_source(uint32_t source) {
-    const uint32_t bits = fiq_source_to_reg(source);
-
-    disable_interrupts();
-    hw_icu->irq_enable.v |= bits;
-    restore_interrupts();
-}
-
-void intc_disable_fiq_source(uint32_t source) {
-    const uint32_t bits = fiq_source_to_reg(source);
-
-    disable_interrupts();
-    hw_icu->irq_enable.v &= ~bits;
-    restore_interrupts();
-}
-
-bool intc_fiq_source_enabled(uint32_t source) {
-    return (hw_icu->irq_enable.v & fiq_source_to_reg(source)) != 0 && !!hw_icu->global_int_en.fiq;
+    if ((hw_icu->irq_enable.v & source) == 0) return false;
+    return (source & ICU_INT_IRQ_MASK) ? !!hw_icu->global_int_en.irq : !!hw_icu->global_int_en.fiq;
 }
 
 void intc_reset() {

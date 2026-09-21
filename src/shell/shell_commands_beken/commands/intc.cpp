@@ -67,8 +67,8 @@ static void print_sources(const char *label, const char *(*name_of)(int), uint32
 }
 
 #ifdef INTC_COUNT_FIRES
-// Names from hardware/intc.h's IRQ_SOURCE_*/FIQ_SOURCE_* bit assignments —
-// int_num is the bit index, not the enum value.
+// Names from soc/icu.h's IRQ_SOURCE_*/FIQ_SOURCE_* bit assignments — int_num
+// is the bit index, not the enum value.
 static const char *const s_int_names[32] = {
     "UART1",
     "UART2",
@@ -185,18 +185,18 @@ int command_intc(int argc, const char *argv[]) {
     uint32_t enable = hw_icu->irq_enable.v;
     uint32_t raw    = hw_icu->irq_raw_status.v;
 
-    printf("global: irq=%d fiq=%d\r\n", (int)hw_icu->global_int_en.irq, (int)hw_icu->global_int_en.fiq);
+    printf("global: irq=%d fiq=%d\r\n", static_cast<int>(hw_icu->global_int_en.irq), static_cast<int>(hw_icu->global_int_en.fiq));
 
     print_sources("irq enabled: ", irq_source_name, enable & ICU_INT_IRQ_MASK);
     print_sources("irq raw:     ", irq_source_name, raw & ICU_INT_IRQ_MASK);
-    print_sources("irq orphan:  ", irq_source_name, intc_orphan_irq_sources);
+    print_sources("irq orphan:  ", irq_source_name, intc_orphan_irq_sources & ICU_INT_IRQ_MASK);
     printf("irq spurious: %lu\r\n", intc_spurious_irq_count);
 
     printf("\r\n");
 
     print_sources("fiq enabled: ", fiq_source_name, enable & ICU_INT_FIQ_MASK);
     print_sources("fiq raw:     ", fiq_source_name, raw & ICU_INT_FIQ_MASK);
-    print_sources("fiq orphan:  ", fiq_source_name, intc_orphan_fiq_sources);
+    print_sources("fiq orphan:  ", fiq_source_name, intc_orphan_irq_sources & ICU_INT_FIQ_MASK);
     printf("fiq spurious: %lu\r\n", intc_spurious_fiq_count);
 
     printf("\r\n");

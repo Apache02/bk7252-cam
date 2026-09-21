@@ -1,4 +1,5 @@
 #include "soc/gdma.h"
+#include "soc/icu.h"
 #include "hardware/gdma.h"
 #include "hardware/intc.h"
 #include "platform/init.h"

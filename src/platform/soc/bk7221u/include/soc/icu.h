@@ -51,6 +51,57 @@ typedef volatile struct {
     };
 } hw_icu_int_t;
 
+// One bit per hw_icu_int_t field, at the same position. Bits [15:0] route to the
+// core IRQ line (IRQ_SOURCE_*), bits [31:16] to FIQ (FIQ_SOURCE_*) — see
+// ICU_INT_IRQ_MASK/ICU_INT_FIQ_MASK above. The intc driver's registration API is
+// unified under the "irq" name (hardware/intc.h), but these names still say which
+// core line a source actually fires on.
+enum {
+    IRQ_SOURCE_NONE             = 0,
+    IRQ_SOURCE_UART1            = (1 << 0),
+    IRQ_SOURCE_UART2            = (1 << 1),
+    IRQ_SOURCE_I2C1             = (1 << 2),
+    IRQ_SOURCE_IRDA             = (1 << 3),
+    IRQ_SOURCE_I2S_PCM          = (1 << 4),
+    IRQ_SOURCE_I2C2             = (1 << 5),
+    IRQ_SOURCE_SPI              = (1 << 6),
+    IRQ_SOURCE_GPIO             = (1 << 7),
+    IRQ_SOURCE_TIMER            = (1 << 8),
+    IRQ_SOURCE_PWM              = (1 << 9),
+    IRQ_SOURCE_AUDIO            = (1 << 10),
+    IRQ_SOURCE_SARADC           = (1 << 11),
+    IRQ_SOURCE_SDIO             = (1 << 12),
+    IRQ_SOURCE_USB              = (1 << 13),
+    IRQ_SOURCE_FFT              = (1 << 14),
+    IRQ_SOURCE_GDMA             = (1 << 15),
+    FIQ_SOURCE_MODEM            = (1 << 16),
+    FIQ_SOURCE_MAC_TX_RX_TIMER  = (1 << 17),
+    FIQ_SOURCE_MAC_TX_RX_MISC   = (1 << 18),
+    FIQ_SOURCE_MAC_RX_TRIGGER   = (1 << 19),
+    FIQ_SOURCE_MAC_TX_TRIGGER   = (1 << 20),
+    FIQ_SOURCE_MAC_PROT_TRIGGER = (1 << 21),
+    FIQ_SOURCE_MAC_GENERAL      = (1 << 22),
+    FIQ_SOURCE_SDIO_DMA         = (1 << 23),
+    FIQ_SOURCE_USB_PLUG_INOUT   = (1 << 24),
+    FIQ_SOURCE_SECURITY         = (1 << 25),
+    FIQ_SOURCE_MAC_WAKE_UP      = (1 << 26),
+    FIQ_SOURCE_SPI_DMA          = (1 << 27),
+    FIQ_SOURCE_DPLL_UNLOCK      = (1 << 28),
+    FIQ_SOURCE_JPEG_ENCODER     = (1 << 29),
+    FIQ_SOURCE_BLE              = (1 << 30),
+    FIQ_SOURCE_PSRAM            = (1 << 31),
+};
+
+#define IRQ_SOURCE_ALL                                                                                           \
+    (0 | IRQ_SOURCE_UART1 | IRQ_SOURCE_UART2 | IRQ_SOURCE_I2C1 | IRQ_SOURCE_IRDA | IRQ_SOURCE_I2S_PCM |          \
+     IRQ_SOURCE_I2C2 | IRQ_SOURCE_SPI | IRQ_SOURCE_GPIO | IRQ_SOURCE_TIMER | IRQ_SOURCE_PWM | IRQ_SOURCE_AUDIO | \
+     IRQ_SOURCE_SARADC | IRQ_SOURCE_SDIO)
+
+#define FIQ_SOURCE_ALL                                                                                           \
+    (0 | FIQ_SOURCE_MODEM | FIQ_SOURCE_MAC_TX_RX_TIMER | FIQ_SOURCE_MAC_TX_RX_MISC | FIQ_SOURCE_MAC_RX_TRIGGER | \
+     FIQ_SOURCE_MAC_TX_TRIGGER | FIQ_SOURCE_MAC_PROT_TRIGGER | FIQ_SOURCE_MAC_GENERAL | FIQ_SOURCE_SDIO_DMA |    \
+     FIQ_SOURCE_USB_PLUG_INOUT | FIQ_SOURCE_SECURITY | FIQ_SOURCE_MAC_WAKE_UP | FIQ_SOURCE_SPI_DMA |             \
+     FIQ_SOURCE_DPLL_UNLOCK | FIQ_SOURCE_JPEG_ENCODER | FIQ_SOURCE_BLE | FIQ_SOURCE_PSRAM)
 
 typedef volatile struct {
     // --- clock mux / power-down / gating (offsets 0–6) ---

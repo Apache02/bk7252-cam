@@ -79,7 +79,7 @@ unhandled IRQ will keep firing in a hot loop.
 
 These bits look like a leftover from the SDK that the camera firmware doesn't
 even use. Either:
-- delete the seven assignments and let each subsystem `intc_enable_fiq_source`
+- delete the seven assignments and let each subsystem `intc_enable_irq_source`
   itself when ready, or
 - move them out of `intc_init` and into a `wifi/mac` init step gated by board /
   feature config.
@@ -227,7 +227,7 @@ Failure mode, worse than interleaved output:
 
 Not reachable today. The only FIQ handler in the tree is `sctrl_dpll_isr()`, which clears a
 latch and writes nothing, and the only FIQ source ever unmasked is `FIQ_SOURCE_DPLL_UNLOCK`
-(`intc_enable_fiq_source` appears once). Commit `31b1570` also stopped `intc_init()` from
+(`intc_enable_irq_source` appears once). Commit `31b1570` also stopped `intc_init()` from
 unmasking the MAC and modem sources. It becomes reachable the moment a MAC FIQ source goes
 live with logging behind it, which is where the WiFi port is headed.
 
@@ -262,14 +262,14 @@ Fix: declare `extern` in the header, define once in `intc.c`. While at it,
 consider moving `intc_manager.h` content into the `.c` since nothing else
 needs it.
 
-### A2. `intc_register_*_handler` return value is uninformative
+### A2. `intc_register_irq_handler` return value is uninformative
 
 File: `hardware_intc/intc.c`, also `intc_manager.h::register_handler`.
 
 `register_handler` returns `true` unconditionally; the only way it ever
 returns `false` is the explicit `count >= MAX_HANDLERS` check in
-`intc_register_irq_handler` / `intc_register_fiq_handler`. Bad input
-(`func == NULL`, `source == 0`, duplicate registration) is silently accepted.
+`intc_register_irq_handler`. Bad input (`func == NULL`, `source == 0`,
+duplicate registration) is silently accepted.
 
 Fix: validate inputs in `register_handler` itself and return `false` on
 unrecognised cases. Update the callers to surface the failure (currently the

@@ -27,6 +27,7 @@
 #include "hardware/time.h"
 
 #include "soc/uart.h"
+#include "soc/icu.h"
 
 #include "utils/busy_wait.h"
 #include "utils/ring_buffer.h"
