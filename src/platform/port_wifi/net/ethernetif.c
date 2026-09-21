@@ -28,7 +28,7 @@
 
 #include "iface.h"
 
-#define DEBUG_NAME "wifi_net"
+// #define DEBUG_NAME "wifi_net"
 #include "debug.h"
 
 #define ETH_HDR_LEN 14

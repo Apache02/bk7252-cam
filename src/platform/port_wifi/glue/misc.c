@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define DEBUG_NAME "misc"
+// #define DEBUG_NAME "misc"
 #include "debug.h"
 
 // ---- LMAC → supplicant management frame pipe (func/hostapd-2.5/bk_patch/sk_intf.c) ----

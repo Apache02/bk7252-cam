@@ -22,7 +22,7 @@
 #include <queue.h>
 #include "rtos.h"
 
-#define DEBUG_NAME "wifi_core"
+// #define DEBUG_NAME "wifi_core"
 #include "debug.h"
 
 

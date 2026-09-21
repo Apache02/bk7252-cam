@@ -20,7 +20,7 @@
 #include "platform/cpu.h"
 #include "rtos.h"
 
-#define DEBUG_NAME "rwnx_intf"
+// #define DEBUG_NAME "rwnx_intf"
 #include "debug.h"
 
 #include "lwip/pbuf.h"

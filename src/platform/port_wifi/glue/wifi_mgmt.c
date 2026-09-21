@@ -3,7 +3,7 @@
 
 #include "wifi/station_status.h"
 
-#define DEBUG_NAME "wifi_mgmt"
+// #define DEBUG_NAME "wifi_mgmt"
 #include "debug.h"
 
 static msg_sta_states s_station_status = MSG_IDLE;

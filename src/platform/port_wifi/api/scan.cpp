@@ -25,7 +25,7 @@
 #include "wifi/scan.h"
 #include "wifi/station_status.h"
 
-#define DEBUG_NAME "scan"
+// #define DEBUG_NAME "scan"
 #include "debug.h"
 
 // ---- 802.11 management frame layout (ip/mac/mac_frame.h) -------------------

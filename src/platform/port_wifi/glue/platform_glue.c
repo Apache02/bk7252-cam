@@ -11,7 +11,7 @@
 
 #include "wifi/platform_glue.h"
 
-#define DEBUG_NAME "platform_glue"
+// #define DEBUG_NAME "platform_glue"
 #include "debug.h"
 
 // ---- bk_printf / os_null_printf ---------------------------------------------

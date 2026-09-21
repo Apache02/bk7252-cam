@@ -20,7 +20,7 @@
 
 #include "iface.h"
 
-#define DEBUG_NAME "wifi_iface"
+// #define DEBUG_NAME "wifi_iface"
 #include "debug.h"
 
 #undef count_of

@@ -6,7 +6,7 @@
 
 #include "wifi/bmsg.h"
 
-#define DEBUG_NAME "bmsg"
+// #define DEBUG_NAME "bmsg"
 #include "debug.h"
 
 // Message bus for the WiFi core task. The vendor binaries push through the

@@ -6,7 +6,7 @@
 #include "wifi/net.h"
 #include "wifi/rw_msg.h"
 
-#define DEBUG_NAME "mac_glue"
+// #define DEBUG_NAME "mac_glue"
 #include "debug.h"
 
 // 2.4 GHz center frequencies indexed by channel number (index = channel - 1).

@@ -22,7 +22,7 @@
 #include "wifi/core.h"
 #include "wifi/rw_msg.h"
 
-#define DEBUG_NAME "rw_msg"
+// #define DEBUG_NAME "rw_msg"
 #include "debug.h"
 
 // ---- rw_msg_send ----------------------------------------------------------

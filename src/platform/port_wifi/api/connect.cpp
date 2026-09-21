@@ -27,7 +27,7 @@
 #include "wifi/scan.h"
 #include "wifi/station_status.h"
 
-#define DEBUG_NAME "connect"
+// #define DEBUG_NAME "connect"
 #include "debug.h"
 
 // How long to wait for SM_CONNECT_IND. The BSS is always known by the time the
