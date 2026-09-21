@@ -1,10 +1,14 @@
 #pragma once
 
-// #include <stdint.h>
+#include <stdint.h>
 // #include <ctype.h>
 // #include <string.h>
 
 enum class ParseError { ERROR };
+
+struct ParsedMac {
+    uint8_t addr[6];
+};
 
 template <typename R, typename E> struct Result {
     Result(E e) {
@@ -53,3 +57,7 @@ template <typename R, typename E> struct Result {
 Result<int, ParseError> take_int(const char *s);
 
 Result<void *, ParseError> take_pointer(const char *s);
+
+// Six hex byte pairs, separated by colons, by dashes, or by nothing — but by
+// one of those three throughout, not a mix.
+Result<ParsedMac, ParseError> take_mac(const char *s);

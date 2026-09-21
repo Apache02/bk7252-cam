@@ -52,6 +52,9 @@ OSStatus rtos_delay_milliseconds(uint32_t num_ms) {
 
 /* ---- semaphores ---- */
 
+// Not logged, unlike the rest of this file: rw_msg_send() creates and destroys a
+// semaphore for every confirmed LMAC request, so a line here lands on the UART
+// on each bring-up step and each connect — the hot path F10 warns about.
 OSStatus rtos_init_semaphore(beken_semaphore_t *semaphore, int maxCount) {
     *semaphore = xSemaphoreCreateCounting((UBaseType_t)maxCount, 0);
     return (*semaphore != NULL) ? kNoErr : kGeneralErr;

@@ -20,10 +20,12 @@
 #define LWIP_ARP  1
 #define LWIP_IPV4 1
 #define LWIP_ICMP 1
+#define LWIP_RAW  1
+#define DEFAULT_RAW_RECVMBOX_SIZE 1
 #define LWIP_UDP  1
 #define LWIP_TCP  1
 #define LWIP_DNS  0
-#define LWIP_DHCP 0
+#define LWIP_DHCP 1
 
 /* ---- Loopback ---- */
 #define LWIP_HAVE_LOOPIF        1
@@ -39,9 +41,12 @@
 #define LWIP_NETIF_LINK_CALLBACK   1
 
 /* ---- Socket / Netconn API ---- */
+/* netifapi_* is how a thread that is not the tcpip thread touches a netif. */
+#define LWIP_NETIF_API      1
 #define LWIP_NETCONN        1
 #define LWIP_SOCKET         1
 #define LWIP_COMPAT_SOCKETS 1
+#define LWIP_SO_RCVTIMEO    1
 
 /* ---- FreeRTOS sys_arch ---- */
 #define LWIP_FREERTOS_THREAD_STACKSIZE_IS_STACKWORDS 1
