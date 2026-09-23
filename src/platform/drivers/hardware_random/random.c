@@ -5,7 +5,7 @@
 void trng_enable() {
     hw_trng->ctrl.enable = 1;
 
-    busy_wait_us(32); // time to accumulate entropy?
+    busy_wait_us(32);
 }
 
 void trng_disable() {

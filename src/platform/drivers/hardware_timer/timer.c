@@ -42,7 +42,6 @@ static void timer_isr() {
         }
 
         if (timers_handlers[i].type == TYPE_ONCE) {
-            // disable hw timer
             volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(i);
             int                       timer_num_in_bank = get_timer_num_in_bank_by_index(i);
             bank->ctl.enable &= ~(1 << timer_num_in_bank);
@@ -52,7 +51,6 @@ static void timer_isr() {
         }
     }
 
-    // clear timers
     if (status0) timer_clear_irq_status(hw_timer_bank0, status0);
     if (status1) timer_clear_irq_status(hw_timer_bank1, status1);
 }

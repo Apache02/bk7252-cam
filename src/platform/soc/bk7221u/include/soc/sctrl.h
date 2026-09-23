@@ -17,6 +17,9 @@ typedef volatile struct {
             uint32_t mclk_source: 2;       // [1:0]   0=DCO, 1=26M_XTAL, 2=DPLL, 3=LPO
             uint32_t reserved_2_3: 2;      // [3:2]
             uint32_t divider: 4;           // [7:4]   MCU clock = source / (divider+1) when DPLL
+                                           //         (divider floors at 2 with DPLL, i.e. /3,
+                                           //         160 MHz max, even if set lower; measured
+                                           //         on hardware via clock and current draw)
             uint32_t flash_26m: 1;         // [8]     1 = flash clock uses 26 MHz XTAL
             uint32_t hclk_div2_en: 1;      // [9]     1 = AHB bus clock halved from MCU clock
             uint32_t modem_clk480m_pwd: 1; // [10]    1 = power down modem 480 MHz clock

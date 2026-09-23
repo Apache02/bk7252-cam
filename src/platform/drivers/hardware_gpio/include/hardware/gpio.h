@@ -10,7 +10,7 @@ typedef enum {
     GPIO_IN_PULLUP,
     GPIO_IN_PULLDOWN,
     GPIO_SECOND_FUNC,
-    GPIO_SECOND_FUNC_PULLUP, // Special for uart1
+    GPIO_SECOND_FUNC_PULLUP,
     GPIO_HIGH_IMPEDANCE,
 } gpio_dir_t;
 

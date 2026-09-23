@@ -1,3 +1,4 @@
+#include "soc/clock.h"
 #include "soc/sctrl.h"
 #include "hardware/sctrl.h"
 
@@ -8,10 +9,6 @@ typedef enum {
     MCLK_SOURCE_DPLL,
     MCLK_SOURCE_LPO,
 } mclk_source_t;
-
-
-#define DPLL_CLOCK_HZ     (480 * 1000 * 1000)
-#define XTAL_26M_CLOCK_HZ (26 * 1000 * 1000)
 
 
 static const struct {
@@ -56,7 +53,7 @@ uint32_t sctrl_get_cpu_freq_hz() {
     if (source == MCLK_SOURCE_DPLL) {
         clk_freq = DPLL_CLOCK_HZ;
     } else {
-        clk_freq = XTAL_26M_CLOCK_HZ;
+        clk_freq = XTAL_CLOCK_HZ;
     }
 
     return clk_freq / (hw_sctrl->control.divider + 1);

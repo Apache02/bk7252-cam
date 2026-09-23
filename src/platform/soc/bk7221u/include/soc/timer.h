@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include "platform/soc.h"
+#include "soc/clock.h"
 
 
 #define PWM_NEW_BASE (0x00802A00)
@@ -12,8 +13,8 @@
 #define TIMERS_IN_BANK 3
 #define TIMERS_TOTAL   (TIMERS_IN_BANK * 2)
 
-#define TIMER_BANK_0_FREQ (26000000)
-#define TIMER_BANK_1_FREQ (32000)
+#define TIMER_BANK_0_FREQ (XTAL_CLOCK_HZ)
+#define TIMER_BANK_1_FREQ (LPO_CLOCK_HZ)
 
 
 typedef volatile struct {

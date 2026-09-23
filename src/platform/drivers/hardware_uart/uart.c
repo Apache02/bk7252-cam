@@ -1,4 +1,5 @@
 #include "hardware/uart.h"
+#include "soc/clock.h"
 #include "soc/uart.h"
 
 #include "hardware/gpio.h"
@@ -18,7 +19,7 @@
 #define RX_STOP_DETECT_TIME256 (3)
 
 #define DEFAULT_CLK_SOURCE PERI_CLK_26M_XTAL
-#define DEFAULT_CLK_HZ     (26000000)
+#define DEFAULT_CLK_HZ     (XTAL_CLOCK_HZ)
 #define DEFAULT_BAUDRATE   (115200)
 
 // Confirmed on hardware; see soc/uart.h.

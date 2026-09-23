@@ -117,8 +117,6 @@ void sctrl_init() {
         .cal_interval = 3,
     );
 
-    // mclk_source + divider must change atomically — transient DPLL/1 = 480 MHz
-    // if written separately, so preserve all other bits with read-modify-write.
     sctrl_set_cpu_freq_hz(DEFAULT_CPU_FREQ);
     coarse_delay(100);
 

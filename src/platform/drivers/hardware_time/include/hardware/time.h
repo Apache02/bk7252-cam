@@ -11,7 +11,6 @@ typedef struct {
 extern "C" {
 #endif
 
-// high frequency counter
 uint32_t get_hf_counter();
 
 // microseconds counter, part of get_absolute_time
