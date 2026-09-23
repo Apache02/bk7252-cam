@@ -1,32 +1,20 @@
 #include "hardware/time.h"
 
-#define NXMAC_MONOTONIC_COUNTER_1_ADDR    0xC000011C
-#define NXMAC_MONOTONIC_COUNTER_2_LO_ADDR 0xC0000120
-#define NXMAC_MONOTONIC_COUNTER_2_HI_ADDR 0xC0000124
+#include "rwnx/mac_core.h"
 
-typedef volatile struct {
-    uint32_t timeraw_hf;
-    uint32_t timerawh;
-    uint32_t timerawl;
-} nxmac_timer_t;
+uint32_t get_hf_counter() { return hw_mac_core->monotonic_counter_1; }
 
-#define hw_nxmac_counter ((volatile nxmac_timer_t *)NXMAC_MONOTONIC_COUNTER_1_ADDR)
-
-uint32_t get_hf_counter() { return hw_nxmac_counter->timeraw_hf; }
-
-uint32_t get_us_counter() { return hw_nxmac_counter->timerawh; }
+uint32_t get_us_counter() { return hw_mac_core->monotonic_counter_2_lo; }
 
 absolute_time_t get_absolute_time() {
-    // 64-bit counter split across two 32-bit MMIO words. Read high, low, high
-    // again; if the high half changed, the low half wrapped between the two
-    // reads — re-read the low half against the new high half.
-    // Note: register named timerawl actually holds the HIGH 32 bits and
-    // timerawh holds the LOW 32 bits (see *_HI/_LO addresses).
+    // 48-bit counter split across two MMIO words. Read high, low, high again;
+    // if the high half changed, the low half wrapped between the two reads —
+    // re-read the low half against the new high half.
     uint32_t hi1, hi2, lo;
     do {
-        hi1 = hw_nxmac_counter->timerawl;
-        lo  = hw_nxmac_counter->timerawh;
-        hi2 = hw_nxmac_counter->timerawl;
+        hi1 = hw_mac_core->monotonic_counter_2_hi.v;
+        lo  = hw_mac_core->monotonic_counter_2_lo;
+        hi2 = hw_mac_core->monotonic_counter_2_hi.v;
     } while (hi1 != hi2);
 
     absolute_time_t time;

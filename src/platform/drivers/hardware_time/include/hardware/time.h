@@ -1,7 +1,11 @@
 #ifndef _HARDWARE_TIME_H
 #define _HARDWARE_TIME_H
 
-#include "stdint.h"
+#include <stdint.h>
+
+// Backed by the monotonic counter in the MAC/WiFi (rwnx/mac_core.h)
+// hardware block, which can be powered off.
+// Code that must keep working regardless cannot rely on this module for timing
 
 typedef struct {
     uint64_t time_raw;
