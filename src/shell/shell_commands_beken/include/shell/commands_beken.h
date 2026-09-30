@@ -55,6 +55,10 @@ int command_sha512(int argc, const char *argv[]);
 
 int command_gpio(int argc, const char *argv[]);
 
+// `i2c [--baud <hz>] [--no_dvp] scan i2c1`: probe every non-reserved 7-bit
+// address with an empty write and print an ACK map.
+int command_i2c(int argc, const char *argv[]);
+
 // Interrupt controller state: enabled/raw sources, sources that fired without a
 // handler, the count of exceptions taken with an empty status, and — behind
 // INTC_COUNT_FIRES — per-source fire counts since boot.

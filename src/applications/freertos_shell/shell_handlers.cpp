@@ -39,6 +39,7 @@ const Shell::Handler shell_handlers[] = {
     {"uptime", command_uptime, nullptr},
     {"cpu_speed", command_cpu_speed, nullptr},
     {"mclk", command_mclk, nullptr},
+    {"i2c", command_i2c, nullptr},
     {"loadi", command_iram_load, nullptr},
     {"loadx", command_iram_xmodem, nullptr},
     {"go", command_jump, nullptr},

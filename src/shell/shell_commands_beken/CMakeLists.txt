@@ -24,6 +24,8 @@ target_link_libraries(
         platform_fal
         platform_tlv
         hardware_gpio
+        hardware_i2c
+        hardware_icu
         hardware_intc
         hardware_sctrl
         hardware_efuse
