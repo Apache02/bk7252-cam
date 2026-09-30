@@ -4,29 +4,44 @@
 #include "hardware/intc.h"
 #include "platform/init.h"
 #include "platform/sched.h"
+#include "platform/cpu.h"
 
 #include <stdio.h>
 
+
 // Bitmask of currently reserved channels. Bit N set => channel N is owned by
 // some caller. Modified by gdma_reserve_channel / gdma_release_channel.
-static uint32_t g_reserved_channels = 0;
+static uint32_t             g_reserved_channels                  = 0;
+static gdma_int_handler_fn *finish_handlers[GDMA_NUM_CHANNELS]   = {NULL};
+static gdma_int_handler_fn *h_finish_handlers[GDMA_NUM_CHANNELS] = {NULL};
 
-// TODO(spinlock): protect concurrent reserve/release once a project-wide
-// spinlock_t exists. For now: single-threaded use only (bare-metal app, or
-// reservation only from one FreeRTOS task at init time).
-// static spinlock_t g_reserve_lock = {0};
+#define IS_CHANNEL_VALID(ch) (ch >= 0 && ch < GDMA_NUM_CHANNELS)
+
 
 static void gdma_isr(void) {
     typeof(hw_gdma->int_status) status = {.v = hw_gdma->int_status.v};
-
     // ack everything that fired (write-1-to-clear)
     hw_gdma->int_status.v = status.v;
+
+    uint32_t bits = status.fin_status, h_bits = status.half_fin_status;
+    // bits = status.fin_status;
+    for (int ch = 0; ch < GDMA_NUM_CHANNELS; ch++) {
+        if ((1 << ch) & bits) {
+            if (finish_handlers[ch]) finish_handlers[ch](ch);
+        }
+        if ((1 << ch) & h_bits) {
+            if (h_finish_handlers[ch]) h_finish_handlers[ch](ch);
+        }
+    }
 }
 
 static void gdma_reset() {
     // disable every channel
     for (int ch = 0; ch < GDMA_NUM_CHANNELS; ch++) {
+        hw_gdma->int_counts[ch].v = 0;
         hw_gdma->channels[ch].config.v = 0;
+        finish_handlers[ch]            = NULL;
+        h_finish_handlers[ch]          = NULL;
     }
 }
 
@@ -54,103 +69,148 @@ FINI_AT(gdma_fini, 03);
 // ============================================================================
 
 int gdma_reserve_channel(void) {
-    // spinlock_acquire(&g_reserve_lock);
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
     for (int ch = 0; ch < GDMA_NUM_CHANNELS; ch++) {
         if (!(g_reserved_channels & (1u << ch))) {
             g_reserved_channels |= (1u << ch);
-            // spinlock_release(&g_reserve_lock);
+            GLOBAL_INT_RESTORE();
             return ch;
         }
     }
-    // spinlock_release(&g_reserve_lock);
-    return GDMA_ERROR_FREE_CHANNEL_NOT_FOUND;
+    GLOBAL_INT_RESTORE();
+    return -EBUSY;
 }
 
-void gdma_release_channel(int channel) {
-    if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
+int gdma_reserve_specific_channel(const int ch) {
+    if (!IS_CHANNEL_VALID(ch)) {
+        return -ENODEV;
+    }
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+    if (!(g_reserved_channels & (1u << ch))) {
+        g_reserved_channels |= (1u << ch);
+        GLOBAL_INT_RESTORE();
+        return ch;
+    }
+    GLOBAL_INT_RESTORE();
+    return -EBUSY;
+}
+
+void gdma_release_channel(const int ch) {
+    if (!IS_CHANNEL_VALID(ch)) {
         return;
     }
 
     // If channel is still running, stop it before releasing. Caller should
     // have waited for completion, but better safe than to leave hw enabled
     // pointing at memory the next owner will reuse.
-    if (gdma_busy(channel)) {
-        gdma_stop(channel);
+    if (gdma_busy(ch)) {
+        gdma_stop(ch);
     }
 
-    // spinlock_acquire(&g_reserve_lock);
-    g_reserved_channels &= ~(1u << channel);
-    // spinlock_release(&g_reserve_lock);
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+    g_reserved_channels &= ~(1u << ch);
+    GLOBAL_INT_RESTORE();
 }
 
 // ============================================================================
 // Low-level per-channel control
 // ============================================================================
 
-int gdma_configure(int channel, const gdma_config_t *cfg) {
-    if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
-        return GDMA_ERROR_INVALID_CHANNEL;
+int gdma_configure(const int ch, const gdma_config_t *cfg) {
+    if (!IS_CHANNEL_VALID(ch)) {
+        return -ENODEV;
     }
-    if (!(g_reserved_channels & (1u << channel))) {
-        return GDMA_ERROR_CHANNEL_NOT_RESERVED;
+    if (!(g_reserved_channels & (1u << ch))) {
+        return -EPERM;
     }
-    if (cfg == NULL || cfg->size == 0 || cfg->size > 0x10000) {
-        // size must fit in 16-bit transfer_length after subtracting 1.
-        // size=0 is rejected because hw cannot express "zero writes".
-        return GDMA_ERROR_INVALID_CONFIG;
+    if (cfg == NULL) {
+        return -EINVAL;
     }
+
+    const bool src_loop = (cfg->src.loop_addr && cfg->src.loop_end_addr);
+    const bool dst_loop = (cfg->dst.loop_addr && cfg->dst.loop_end_addr);
 
     // Reset channel control register before reprogramming. Clears any
     // residual enable bit so we don't accidentally start mid-write.
-    hw_gdma->channels[channel].config.v = 0;
+    hw_gdma->channels[ch].config.v = 0;
 
-    hw_gdma->channels[channel].src_start_addr      = cfg->src.addr;
-    hw_gdma->channels[channel].src_loop_start_addr = 0;
-    hw_gdma->channels[channel].src_loop_end_addr   = 0;
+    hw_gdma->channels[ch].src_start_addr      = cfg->src.addr;
+    hw_gdma->channels[ch].src_loop_start_addr = src_loop ? cfg->src.loop_addr : 0;
+    hw_gdma->channels[ch].src_loop_end_addr   = src_loop ? cfg->src.loop_end_addr : 0;
 
-    hw_gdma->channels[channel].dst_start_addr      = cfg->dst.addr;
-    hw_gdma->channels[channel].dst_loop_start_addr = 0;
-    hw_gdma->channels[channel].dst_loop_end_addr   = 0;
+    hw_gdma->channels[ch].dst_start_addr      = cfg->dst.addr;
+    hw_gdma->channels[ch].dst_loop_start_addr = dst_loop ? cfg->dst.loop_addr : 0;
+    hw_gdma->channels[ch].dst_loop_end_addr   = dst_loop ? cfg->dst.loop_end_addr : 0;
 
-    hw_write_fields(hw_gdma->channels[channel].mux_reqs, .src_req = cfg->src.mode, .dst_req = cfg->dst.mode, );
+    hw_write_fields(hw_gdma->channels[ch].mux_reqs,
+        .src_req = cfg->src.mode,
+        .dst_req = cfg->dst.mode,
+    );
 
-    // enable bit is left zero here; channel is started separately via gdma_start.
-    // transfer_length stores (size - 1) per the model in soc/gdma.h.
-    hw_write_fields(hw_gdma->channels[channel].config, .fin_int_enable = 1, .src_data_width = cfg->src.dw,
-                    .dst_data_width = cfg->dst.dw, .src_addr_inc = cfg->src.incr, .dst_addr_inc = cfg->dst.incr,
-                    .transfer_length = cfg->size - 1, );
+    // enable bit and transfer_length are left zero here; gdma_start() sets both
+    // together once the transfer size is known.
+    hw_write_fields(hw_gdma->channels[ch].config,
+        .enable = 0,
+        .fin_int_enable = cfg->finish ? 1 : 0,
+        .half_fin_int_enable = cfg->h_finish ? 1 : 0,
+        .repeat_mode = (dst_loop || src_loop) ? 1 : 0,
+        .src_data_width = cfg->src.dw,
+        .dst_data_width = cfg->dst.dw,
+        .src_addr_inc = cfg->src.incr,
+        .dst_addr_inc = cfg->dst.incr,
+        .dst_addr_loop = dst_loop ? 1 : 0,
+        .src_addr_loop = src_loop ? 1 : 0,
+        .channel_priority = 0,
+    );
+
+    finish_handlers[ch]   = cfg->finish;
+    h_finish_handlers[ch] = cfg->h_finish;
 
     return 0;
 }
 
-void gdma_start(int channel) {
-    if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
-        return;
+int gdma_start(const int ch, const size_t size) {
+    if (!IS_CHANNEL_VALID(ch)) {
+        return -ENODEV;
     }
-    hw_gdma->channels[channel].config.enable = 1;
+    if (size == 0 || size > 0x10000) {
+        // size must fit in 16-bit transfer_length after subtracting 1.
+        // size=0 is rejected because hw cannot express "zero writes".
+        return -EINVAL;
+    }
+
+    typeof(hw_gdma->channels[ch].config) config = {.v = hw_gdma->channels[ch].config.v};
+    config.transfer_length                      = size - 1;
+    config.enable                               = 1;
+    hw_gdma->channels[ch].config.v              = config.v;
+
+    return 0;
 }
 
-void gdma_stop(int channel) {
-    if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
+void gdma_stop(const int ch) {
+    if (!IS_CHANNEL_VALID(ch)) {
         return;
     }
-    hw_gdma->channels[channel].config.enable = 0;
+    hw_gdma->channels[ch].config.enable = 0;
 }
 
-bool gdma_busy(int channel) {
-    if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
+bool gdma_busy(const int ch) {
+    if (!IS_CHANNEL_VALID(ch)) {
         return false;
     }
-    return hw_gdma->channels[channel].config.enable != 0;
+    return hw_gdma->channels[ch].config.enable != 0;
 }
 
-void gdma_wait(int channel) {
-    if (channel < 0 || channel >= GDMA_NUM_CHANNELS) {
+void gdma_wait(const int ch) {
+    if (!IS_CHANNEL_VALID(ch)) {
         return;
     }
     // Avoid sched_yield()/WFI() if nothing will ever wake it.
-    bool can_wake = intc_irq_source_enabled(IRQ_SOURCE_GDMA);
-    while (hw_gdma->channels[channel].config.enable) {
+    bool can_wake = intc_irq_source_enabled(IRQ_SOURCE_GDMA) && hw_gdma->channels[ch].config.fin_int_enable;
+    while (hw_gdma->channels[ch].config.enable) {
         if (can_wake) sched_yield();
     }
     // Ack this channel's finish flag ourselves - gdma_isr() only runs if CPU IRQ
@@ -158,7 +218,7 @@ void gdma_wait(int channel) {
     // silently turning every later WFI()-based wait (this channel's and anyone
     // else's) into an immediate no-op instead of a real sleep.
     hw_write_fields(hw_gdma->int_status,
-        .fin_status = (1u << channel)
+        .fin_status = (1u << ch)
     );
 }
 
@@ -166,11 +226,10 @@ void gdma_wait(int channel) {
 // Convenience
 // ============================================================================
 
-int gdma_run(int channel, const gdma_config_t *cfg) {
-    int rc = gdma_configure(channel, cfg);
+int gdma_run(const int ch, const gdma_config_t *cfg, const size_t size) {
+    int rc = gdma_configure(ch, cfg);
     if (rc != 0) {
         return rc;
     }
-    gdma_start(channel);
-    return 0;
+    return gdma_start(ch, size);
 }

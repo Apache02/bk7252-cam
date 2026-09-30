@@ -10,6 +10,7 @@ target_link_libraries(
         hardware_gdma
         hardware_time
         hardware_wdt
+        utils_busy_wait
 )
 
 bk_firmware_iram(test_gdma)

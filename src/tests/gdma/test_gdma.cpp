@@ -5,6 +5,7 @@
 #include "hardware/wdt.h"
 #include "hardware/gdma.h"
 #include "hardware/time.h"
+#include "utils/busy_wait.h"
 
 
 // ============================================================================
@@ -88,38 +89,43 @@ __unused static void dump_regs(const char *when) {
 // size is a byte count regardless of dw — see docs/hardware/dma.md).
 // ============================================================================
 static void *gdma_memcpy(void *dst, const void *src, size_t n) {
-    // return memcpy(dst, src, n);
     if (dst == nullptr || src == nullptr) {
         return nullptr;
     }
     if (n == 0) {
         return dst;
     }
+    // return memcpy(dst, src, n);
 
     int ch = gdma_reserve_channel();
     if (ch < 0) {
         return nullptr;
     }
 
-    gdma_config_t cfg = {
+    const gdma_config_t cfg = {
         .src =
             {
-                .mode = GDMA_MODE_DTCM,
-                .addr = (uint32_t)src,
-                .incr = true,
-                .dw   = GDMA_DATA_WIDTH_32,
+                .mode          = GDMA_MODE_DTCM,
+                .addr          = reinterpret_cast<uint32_t>(src),
+                .loop_addr     = 0,
+                .loop_end_addr = 0,
+                .incr          = true,
+                .dw            = GDMA_DATA_WIDTH_32,
             },
         .dst =
             {
-                .mode = GDMA_MODE_DTCM,
-                .addr = (uint32_t)dst,
-                .incr = true,
-                .dw   = GDMA_DATA_WIDTH_32,
+                .mode          = GDMA_MODE_DTCM,
+                .addr          = reinterpret_cast<uint32_t>(dst),
+                .loop_addr     = 0,
+                .loop_end_addr = 0,
+                .incr          = true,
+                .dw            = GDMA_DATA_WIDTH_32,
             },
-        .size = n,
+        .finish   = nullptr,
+        .h_finish = nullptr,
     };
 
-    int rc = gdma_run(ch, &cfg);
+    int rc = gdma_run(ch, &cfg, n);
     if (rc != 0) {
         gdma_release_channel(ch);
         return nullptr;
@@ -393,10 +399,8 @@ extern "C" void test_gdma() {
 
 int main() {
     wdt_down();
-
     platform_stdio_init();
-
-    // disable stdout buffering so output is visible even if we crash
+    busy_wait_ms(20);
     setvbuf(stdout, NULL, _IONBF, 0);
 
     src_buf = new uint8_t[GUARD + BUF_SIZE + GUARD];
