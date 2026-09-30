@@ -29,15 +29,14 @@ static void report(const char *name, bool ok) {
 }
 
 static void dvp_jpeg_bring_up() {
-    hw_jpeg->ctrl0.v = 0; // div=0 -> 24 MHz MCLK
+    hw_write_fields(hw_jpeg->ctrl0,
+        .div = 0,
+    );
 
     icu_jpeg_power_up();
     gpio_config_function(GPIO_FUNC_DCMI);
 
-    typeof(hw_jpeg->ctrl1) ctrl1 = {};
-    ctrl1.v                      = hw_jpeg->ctrl1.v;
-    ctrl1.enc_en                 = 1;
-    hw_jpeg->ctrl1.v             = ctrl1.v;
+    hw_jpeg->ctrl1.enc_en = 1;
 }
 
 static bool reserved_addr(uint8_t addr) { return (addr & 0x78) == 0 || (addr & 0x78) == 0x78; }
