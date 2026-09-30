@@ -3,7 +3,6 @@
 #include "hardware/icu.h"
 #include "hardware/intc.h"
 #include "platform/cpu.h"
-#include "platform/assert.h"
 #include "platform/init.h"
 
 typedef struct {
@@ -19,7 +18,7 @@ enum {
 
 static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 
-#define assert_timer_number(i) assert_true((i >= 0) && (i < TIMERS_TOTAL), "Invalid timer number")
+#define assert_timer_number(i) assert((i >= 0) && (i < TIMERS_TOTAL))
 
 #define timer_clear_irq_status(bank, status) \
     while (bank->ctl.irq_status & status) {  \
@@ -143,10 +142,10 @@ int timer_create_by_freq(uint32_t freq, timer_alarm_handler_t *func, bool once) 
 
 void timer_start(int timer_num) {
     assert_timer_number(timer_num);
-    assert_true(timers_handlers[timer_num].type != TYPE_NONE, "Timer is empty");
+    assert(timers_handlers[timer_num].type != TYPE_NONE);
 
-    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
-    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
+    int              timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
     timer_clear_irq_status(bank, 1 << timer_num_in_bank);
     bank->ctl.enable |= (1 << timer_num_in_bank);
@@ -155,12 +154,12 @@ void timer_start(int timer_num) {
 void timer_remove(int timer_num) {
     assert_timer_number(timer_num);
 
-    volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
-    int                       timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
+    hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
+    int              timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
     bank->ctl.enable &= ~(1 << timer_num_in_bank);
 
-    timers_handlers[timer_num].type    = TYPE_NONE;
     timers_handlers[timer_num].handler = NULL;
+    timers_handlers[timer_num].type    = TYPE_NONE;
 }
 
 uint32_t timer_pause_all(void) {
