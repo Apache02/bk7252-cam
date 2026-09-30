@@ -9,13 +9,11 @@
 #include "hardware/intc.h"
 #include "platform/cpu.h"
 #include "platform/sched.h"
-
-#include <errno.h>
+#include "platform/timeout.h"
 
 
 #define I2C1_REF_CLK_HZ (XTAL_CLOCK_HZ) // selected below via icu_i2c1_clk()
 
-#define I2C1_TIMEOUT_ITERS(len) (((len) + 1) * 4)
 
 // Ported from the reference build's I2C_CLK_DIVID(rate) macro in i2c_pub.h.
 static uint32_t i2c1_freq_div(uint32_t baud_hz) {
@@ -134,7 +132,7 @@ static void release_busy() { g_state.busy = 0; }
 // One message: the address byte plus up to `len` data bytes, one direction.
 static int i2c1_transfer(uint8_t addr7, volatile uint8_t *data, uint16_t len, bool is_tx) {
     if (!take_busy()) {
-        return EBUSY;
+        return -EBUSY;
     }
 
     g_state.tx_mode = is_tx;
@@ -153,14 +151,22 @@ static int i2c1_transfer(uint8_t addr7, volatile uint8_t *data, uint16_t len, bo
     cfg.tx_mode       = 1;
     hw_i2c1->config.v = cfg.v;
 
-    uint32_t iters_left = I2C1_TIMEOUT_ITERS(len);
+    struct timeout_t t;
+    if (!create_timeout(&t, len + 2)) {
+        release_busy();
+        return -ENOMEM;
+    }
     while (!g_state.done) {
-        if (--iters_left == 0) {
+        if (is_timeout_finished(&t)) {
+            cfg.sta = 0;
+            cfg.sto = 1;
+            hw_i2c1->config.v = cfg.v;
             release_busy();
-            return ETIMEDOUT;
+            return -ETIMEDOUT;
         }
         sched_yield();
     }
+    finish_timeout(&t);
 
     bool ack  = g_state.ack;
     bool nack = g_state.nack;
@@ -168,9 +174,9 @@ static int i2c1_transfer(uint8_t addr7, volatile uint8_t *data, uint16_t len, bo
     release_busy();
 
     if (ack) return 0;
-    if (nack) return EFAULT;
+    if (nack) return -EFAULT;
 
-    return EIO; // done without ack or nack — shouldn't happen, but not a NACK either
+    return -EIO; // done without ack or nack — shouldn't happen, but not a NACK either
 }
 
 int i2c1_write(uint8_t addr7, const uint8_t *data, uint16_t len) {

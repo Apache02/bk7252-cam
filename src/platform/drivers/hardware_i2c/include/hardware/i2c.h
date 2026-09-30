@@ -2,6 +2,7 @@
 #define _HARDWARE_I2C_H
 
 #include <stdint.h>
+#include <errno.h> // used for error codes
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,9 +15,9 @@ extern "C" {
 void i2c1_init(uint32_t baud_hz);
 
 // Both block until the transfer's address is ACKed/NACKed and every byte has
-// gone back and forth, or until it times out. Return 0 on success, EBUSY if
-// another transfer is already in flight, EFAULT on a NACK (address or data),
-// ETIMEDOUT on timeout.
+// gone back and forth, or until it times out. Return 0 on success, -EBUSY if
+// another transfer is already in flight, -EFAULT on a NACK (address or data),
+// -ETIMEDOUT on timeout.
 int i2c1_write(uint8_t addr7, const uint8_t *data, uint16_t len);
 
 int i2c1_read(uint8_t addr7, uint8_t *data, uint16_t len);

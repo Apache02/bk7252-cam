@@ -4,6 +4,7 @@ target_link_libraries(
         hardware_icu
         hardware_gpio
         hardware_intc
+        platform_timeout
 )
 target_sources(
         hardware_i2c INTERFACE
