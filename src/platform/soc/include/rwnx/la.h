@@ -70,4 +70,6 @@ typedef volatile struct {
     } firstsample;                                   // 0x3C
 } hw_la_t;
 
+static_assert(sizeof(hw_la_t) == 16 * sizeof(uint32_t), "hw_la_t size mismatch");
+
 #define hw_la ((volatile hw_la_t *)LA_BASE_ADDR)

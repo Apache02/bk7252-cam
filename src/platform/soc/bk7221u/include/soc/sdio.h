@@ -56,4 +56,6 @@ typedef volatile struct {
     } interactive_host;
 } hw_sdio_t;
 
+static_assert(sizeof(hw_sdio_t) == 22 * sizeof(uint32_t), "hw_sdio_t size mismatch");
+
 #define hw_sdio ((volatile hw_sdio_t *)SDIO_BASE_ADDR)

@@ -550,4 +550,6 @@ typedef volatile struct {
     } dsp4;        // 0xAC
 } hw_agc_t;
 
+static_assert(sizeof(hw_agc_t) == 44 * sizeof(uint32_t), "hw_agc_t size mismatch");
+
 #define hw_agc ((volatile hw_agc_t *)AGC_BASE_ADDR)

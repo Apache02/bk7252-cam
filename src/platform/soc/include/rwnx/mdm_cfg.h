@@ -467,4 +467,6 @@ typedef volatile struct {
     } swreset;       // 0x94
 } hw_mdm_cfg_t;
 
+static_assert(sizeof(hw_mdm_cfg_t) == 38 * sizeof(uint32_t), "hw_mdm_cfg_t size mismatch");
+
 #define hw_mdm_cfg ((volatile hw_mdm_cfg_t *)MDM_CFG_BASE_ADDR)

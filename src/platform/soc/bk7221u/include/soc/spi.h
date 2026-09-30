@@ -68,4 +68,6 @@ typedef volatile struct {
     } slave_ctrl;
 } hw_spi_t;
 
+static_assert(sizeof(hw_spi_t) == 4 * sizeof(uint32_t), "hw_spi_t size mismatch");
+
 #define hw_spi ((volatile hw_spi_t *)SPI_BASE_ADDR)

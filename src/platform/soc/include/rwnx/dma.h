@@ -149,4 +149,6 @@ typedef volatile struct {
     } dummy; // 0xC0
 } hw_dma_t;
 
+static_assert(sizeof(hw_dma_t) == 49 * sizeof(uint32_t), "hw_dma_t size mismatch");
+
 #define hw_dma ((volatile hw_dma_t *)DMA_BASE_ADDR)

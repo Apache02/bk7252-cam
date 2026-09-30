@@ -731,4 +731,6 @@ typedef volatile struct {
     uint32_t debug_sec_u3_tx_c_ptr; // 0x578  secondary user 3 TX current pointer (debug)
 } hw_mac_pl_t;
 
+static_assert(sizeof(hw_mac_pl_t) == 351 * sizeof(uint32_t), "hw_mac_pl_t size mismatch");
+
 #define hw_mac_pl ((volatile hw_mac_pl_t *)MAC_PL_BASE_ADDR)

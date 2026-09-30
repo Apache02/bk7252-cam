@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdint.h>
 #include "platform/soc.h"
 
 
@@ -102,5 +101,7 @@ typedef volatile struct {
     uint32_t dst_wr_addr[GDMA_NUM_CHANNELS];    // word 0x58..0x5D. Internal dst write counter; same caveat
                                                 // as src_rd_addr. Debug only.
 } hw_gdma_t;
+
+static_assert(sizeof(hw_gdma_t) == 94 * sizeof(uint32_t), "hw_gdma_t size mismatch");
 
 #define hw_gdma ((volatile hw_gdma_t *)GDMA_BASE_ADDR)

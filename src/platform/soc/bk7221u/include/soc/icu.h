@@ -265,4 +265,6 @@ typedef volatile struct {
     } arm_wakeup_en;
 } hw_icu_t;
 
+static_assert(sizeof(hw_icu_t) == 21 * sizeof(uint32_t), "hw_icu_t size mismatch");
+
 #define hw_icu ((volatile hw_icu_t *)ICU_BASE_ADDR)

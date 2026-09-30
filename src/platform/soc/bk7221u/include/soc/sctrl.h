@@ -125,7 +125,7 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t mode: 2;           // [1:0]   logic-analyser sample mode
+            uint32_t mode: 2;           // [1:0]   logic-analyzer sample mode
             uint32_t clk_invert: 1;     // [2]
             uint32_t finish: 1;         // [3]     read-only; 1 = capture complete
             uint32_t reserved_4_15: 12; // [15:4]

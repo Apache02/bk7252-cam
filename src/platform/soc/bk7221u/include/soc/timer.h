@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdbool.h>
 #include "platform/soc.h"
 #include "soc/clock.h"
 
@@ -32,6 +31,8 @@ typedef volatile struct {
     // NOTE: read_ctl and read_value registers are NOT PRESENT on BK7221U silicon.
     // The SDK explicitly excludes them with #if (CFG_SOC_NAME != SOC_BK7221U).
 } hw_timer_bank_t;
+
+static_assert(sizeof(hw_timer_bank_t) == 4 * sizeof(uint32_t), "hw_timer_bank_t size mismatch");
 
 #define hw_timer_bank0 ((volatile hw_timer_bank_t *)TIMER_BANK_0)
 #define hw_timer_bank1 ((volatile hw_timer_bank_t *)TIMER_BANK_1)

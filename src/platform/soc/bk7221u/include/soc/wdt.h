@@ -20,4 +20,6 @@ typedef volatile struct {
     } ctrl;
 } hw_wdt_t;
 
+static_assert(sizeof(hw_wdt_t) == 1 * sizeof(uint32_t), "hw_wdt_t size mismatch");
+
 #define hw_wdt ((volatile hw_wdt_t *)WDT_BASE_ADDR)

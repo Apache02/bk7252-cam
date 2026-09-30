@@ -85,5 +85,8 @@ typedef volatile struct {
     } data;
 } hw_i2c2_t;
 
+static_assert(sizeof(hw_i2c1_t) == 2 * sizeof(uint32_t), "hw_i2c1_t size mismatch");
+static_assert(sizeof(hw_i2c2_t) == 3 * sizeof(uint32_t), "hw_i2c2_t size mismatch");
+
 #define hw_i2c1 ((volatile hw_i2c1_t *)I2C1_BASE_ADDR)
 #define hw_i2c2 ((volatile hw_i2c2_t *)I2C2_BASE_ADDR)

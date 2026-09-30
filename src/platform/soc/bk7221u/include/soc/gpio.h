@@ -92,6 +92,8 @@ typedef volatile struct {
     uint32_t intsta2; // word 0x3A: GPIO 32-39 interrupt status, 1 bit/pin, W1C (upper 24 bits unused)
 } hw_gpio_t;
 
+static_assert(sizeof(hw_gpio_t) == 59 * sizeof(uint32_t), "hw_gpio_t size mismatch");
+
 #define hw_gpio ((volatile hw_gpio_t *)GPIO_BASE_ADDR)
 
 #define hw_gpio_bank0 (hw_gpio->pin_cfg)
