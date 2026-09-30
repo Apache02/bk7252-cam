@@ -10,11 +10,11 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t reserved_0_1: 2;   // [1:0]
-            uint32_t start_frm_int: 1;  // [2]     start-of-frame interrupt enable
-            uint32_t end_frm_int: 1;    // [3]     end-of-frame interrupt enable
-            uint32_t div: 2;            // [5:4]   MCLK divider: 0=24 MHz, 1=16 MHz, 2=12 MHz, 3=24 MHz
-            uint32_t reserved_6_31: 26; // [31:6]
+            uint32_t reserved_0_1: 2;    // [1:0]
+            uint32_t start_frame_int: 1; // [2]     start-of-frame interrupt enable
+            uint32_t end_frame_int: 1;   // [3]     end-of-frame interrupt enable
+            uint32_t div: 2;             // [5:4]   MCLK divider: 0=24 MHz, 1=16 MHz, 2=12 MHz, 3=24 MHz
+            uint32_t reserved_6_31: 26;  // [31:6]
         };
     } ctrl0;
 
@@ -42,19 +42,20 @@ typedef volatile struct {
 
     uint32_t reserved_0x10; // JPEG_REG4 not defined in SDK
 
-    uint32_t rx_fifo_data; // encoded JPEG output FIFO; DMA source port, read-only
+    const uint32_t rx_fifo_data; // encoded JPEG output FIFO; DMA source port, read-only
 
     union {
         uint32_t v;
         struct {
-            uint32_t start_frm_int_status: 1; // [0]    start-of-frame interrupt; W1C
-            uint32_t end_frm_int_status: 1;   // [1]    end-of-frame interrupt; W1C
-            uint32_t reserved_2_31: 30;       // [31:2]
+            uint32_t start_frame: 1;    // [0]    start-of-frame interrupt; W1C
+            uint32_t end_frame: 1;      // [1]    end-of-frame interrupt; W1C
+            uint32_t reserved_2_31: 30; // [31:2]
         };
     } status;
 
     uint32_t byte_cnt_pfrm; // byte count of last encoded frame; read-only
 
+    // reg8 == 1 when rx is empty
     uint32_t reg8; // (NOT INVESTIGATED; SDK defines only JPEFG_READ bit 0, typo for JPEG_READ; never used in SDK .c)
 
     uint32_t reserved_0x24_0x7c[23]; // JPEG_REG9–REG31 not defined in SDK
@@ -64,5 +65,7 @@ typedef volatile struct {
                                      // quantization_table[0] as start_type scratch on BK7221U)
 
 } hw_jpeg_t;
+
+static_assert(sizeof(hw_jpeg_t) == 64 * sizeof(uint32_t), "hw_jpeg_t size mismatch");
 
 #define hw_jpeg ((volatile hw_jpeg_t *)JPEG_BASE_ADDR)
