@@ -5,6 +5,7 @@
 #include "hardware/wdt.h"
 #include "hardware/gdma.h"
 #include "hardware/time.h"
+#include "hardware/sctrl.h"
 #include "utils/busy_wait.h"
 
 
@@ -402,6 +403,8 @@ int main() {
     platform_stdio_init();
     busy_wait_ms(20);
     setvbuf(stdout, NULL, _IONBF, 0);
+
+    sctrl_rf_init();
 
     src_buf = new uint8_t[GUARD + BUF_SIZE + GUARD];
     dst_buf = new uint8_t[GUARD + BUF_SIZE + GUARD];

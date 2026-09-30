@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 // Backed by the monotonic counter in the MAC/WiFi (rwnx/mac_core.h)
-// hardware block, which can be powered off.
+// hardware block, which can be powered off. sctrl_rf_init() powers that
+// block up, so the counter runs after it.
 // Code that must keep working regardless cannot rely on this module for timing
 
 typedef struct {
