@@ -8,7 +8,7 @@
 typedef struct {
     timer_alarm_handler_t *handler;
     uint32_t               type;
-} hw_timer_t;
+} private_timer_t;
 
 enum {
     TYPE_NONE     = 0,
@@ -16,7 +16,7 @@ enum {
     TYPE_PERIODIC = 2,
 };
 
-static hw_timer_t timers_handlers[TIMERS_TOTAL] = {0};
+static private_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 
 #define assert_timer_number(i) assert((i >= 0) && (i < TIMERS_TOTAL))
 
