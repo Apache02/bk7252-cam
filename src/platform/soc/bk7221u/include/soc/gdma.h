@@ -44,10 +44,10 @@ typedef volatile struct {
         struct {
             uint32_t src_req: 4; // [3:0] peripheral source request line, 0 for M2M (DTCM). Only DTCM tested.
             uint32_t dst_req: 4; // [7:4] peripheral destination request line, 0 for M2M (DTCM). Only DTCM tested.
-            uint32_t dtcm_wr_wait_word: 1; // [8] (NOT INVESTIGATED)
+            uint32_t dtcm_wr_wait_word: 1; // [8] unknown function, no effect on DTCM->DTCM copies
             uint32_t reserved_9_11: 3;     // [11:9]
-            uint32_t src_rd_intval: 4;     // [15:12] cycles between src reads (from SDK; NOT TESTED)
-            uint32_t dst_wr_intval: 4;     // [19:16] cycles between dst writes (from SDK; NOT TESTED)
+            uint32_t src_rd_interval: 4;   // [15:12] minimum period between src reads, in bus cycles
+            uint32_t dst_wr_interval: 4;   // [19:16] same for dst writes
             uint32_t reserved_20_31: 12;   // [31:20]
         };
     } mux_reqs;
