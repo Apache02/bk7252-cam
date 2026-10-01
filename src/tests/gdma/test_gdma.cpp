@@ -132,7 +132,7 @@ static void *gdma_memcpy(void *dst, const void *src, size_t n) {
         return nullptr;
     }
 
-    gdma_wait(ch);
+    gdma_wait(ch, 0);
     gdma_release_channel(ch);
     return dst;
 }

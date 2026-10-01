@@ -5,6 +5,7 @@
 #include "platform/init.h"
 #include "platform/sched.h"
 #include "platform/cpu.h"
+#include "platform/timeout.h"
 
 #include <stdio.h>
 
@@ -38,7 +39,7 @@ static void gdma_isr(void) {
 static void gdma_reset() {
     // disable every channel
     for (int ch = 0; ch < GDMA_NUM_CHANNELS; ch++) {
-        hw_gdma->int_counts[ch].v = 0;
+        hw_gdma->int_counts[ch].v      = 0;
         hw_gdma->channels[ch].config.v = 0;
         finish_handlers[ch]            = NULL;
         h_finish_handlers[ch]          = NULL;
@@ -204,15 +205,27 @@ bool gdma_busy(const int ch) {
     return hw_gdma->channels[ch].config.enable != 0;
 }
 
-void gdma_wait(const int ch) {
-    if (!IS_CHANNEL_VALID(ch)) {
-        return;
+int gdma_wait(const int ch, const uint32_t timeout_ms) {
+    if (!IS_CHANNEL_VALID(ch)) return -ENODEV;
+
+    if (hw_gdma->channels[ch].config.enable) {
+        struct timeout_t t;
+        if (!create_timeout(&t, timeout_ms)) {
+            return -ENOMEM;
+        }
+        // Avoid sched_yield()/WFI() if nothing will ever wake it.
+        const bool can_wake = intc_irq_source_enabled(IRQ_SOURCE_GDMA) && hw_gdma->channels[ch].config.fin_int_enable;
+        while (hw_gdma->channels[ch].config.enable) {
+            if (is_timeout_finished(&t)) {
+                hw_gdma->channels[ch].config.enable = 0;
+                return -ETIMEDOUT;
+            }
+
+            if (can_wake) sched_yield();
+        }
+        free_timeout(&t);
     }
-    // Avoid sched_yield()/WFI() if nothing will ever wake it.
-    bool can_wake = intc_irq_source_enabled(IRQ_SOURCE_GDMA) && hw_gdma->channels[ch].config.fin_int_enable;
-    while (hw_gdma->channels[ch].config.enable) {
-        if (can_wake) sched_yield();
-    }
+
     // Ack this channel's finish flag ourselves - gdma_isr() only runs if CPU IRQ
     // happens to be enabled. Without this, an unacked flag stays asserted forever,
     // silently turning every later WFI()-based wait (this channel's and anyone
@@ -220,6 +233,8 @@ void gdma_wait(const int ch) {
     hw_write_fields(hw_gdma->int_status,
         .fin_status = (1u << ch)
     );
+
+    return 0;
 }
 
 // ============================================================================

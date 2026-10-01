@@ -115,15 +115,17 @@ int gdma_start(int ch, size_t size);
 // Use only for cancellation - normal completion does not require this.
 void gdma_stop(int ch);
 
-// True while the channel is actively transferring. Becomes false on the
-// finish event. Polled by gdma_wait().
+// True while the channel is actively transferring.
 bool gdma_busy(int ch);
 
-// Block until the channel finishes. Returns immediately if idle. No timeout; the
-// caller is responsible for not waiting on a stuck channel. Sleeps via sched_yield()
-// while IRQ_SOURCE_GDMA is enabled at the ICU level; otherwise busy-polls to avoid
-// hanging if nothing will ever wake it.
-void gdma_wait(int ch);
+// Block until the channel finishes or timeout_ms elapses. Returns 0 on finish
+// (immediately if idle), -ETIMEDOUT if the channel was still busy at the deadline
+// (it is then stopped), -ENODEV on an invalid channel, -ENOMEM if no timeout could
+// be created. Sleeps via sched_yield() while IRQ_SOURCE_GDMA is enabled at the ICU
+// level and the channel's finish interrupt is enabled; otherwise busy-polls. The
+// timeout expires only while CPU interrupts are enabled; INFINITE_TIMEOUT waits
+// without a limit and does not depend on them.
+int gdma_wait(int ch, uint32_t timeout_ms);
 
 // ============================================================================
 // Convenience: configure + start in one call. Equivalent to:
