@@ -152,21 +152,21 @@ static int i2c1_transfer(uint8_t addr7, volatile uint8_t *data, uint16_t len, bo
     hw_i2c1->config.v = cfg.v;
 
     struct timeout_t t;
-    if (!create_timeout(&t, len + 2)) {
+    if (!create_timeout(&t, 2 * (len + 2))) {
         release_busy();
         return -ENOMEM;
     }
     while (!g_state.done) {
         if (is_timeout_finished(&t)) {
-            cfg.sta = 0;
-            cfg.sto = 1;
+            cfg.sta           = 0;
+            cfg.sto           = 1;
             hw_i2c1->config.v = cfg.v;
             release_busy();
             return -ETIMEDOUT;
         }
         sched_yield();
     }
-    finish_timeout(&t);
+    free_timeout(&t);
 
     bool ack  = g_state.ack;
     bool nack = g_state.nack;
