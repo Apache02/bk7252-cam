@@ -55,8 +55,9 @@ int command_sha512(int argc, const char *argv[]);
 
 int command_gpio(int argc, const char *argv[]);
 
-// `i2c [--baud <hz>] [--no_dvp] scan i2c1`: probe every non-reserved 7-bit
-// address with an empty write and print an ACK map.
+// `i2c scan|read|write|xfer i2c1 ... [--baud <hz>] [--no_dvp]`: scan prints an
+// ACK map of the non-reserved 7-bit addresses; read, write and xfer move bytes
+// to or from one device. `i2c --help` lists the arguments.
 int command_i2c(int argc, const char *argv[]);
 
 // Interrupt controller state: enabled/raw sources, sources that fired without a
