@@ -210,7 +210,7 @@ IRQ masked, because that is all the core masks on IRQ entry, and `platform/freer
 documents that a FIQ can land in the middle of `do_irq`.
 
 So any FIQ handler that reaches `uart_write_byte()` becomes a second consumer. The route
-exists: `bk_printf()` (`port_wifi/platform_glue.c`) is what the WiFi archives log through, and
+exists: `bk_printf()` (`port_wifi/glue/platform_glue.c`) is what the WiFi archives log through, and
 in FIQ context `portENABLED_IRQ()` reads 0 — ARMv5 FIQ entry masks both bits — so the write
 takes the synchronous branch and calls `uart_tx_flush_queue()`, which dequeues.
 
@@ -332,6 +332,167 @@ first. `capture_stream` from a flashed `freertos_shell` is a valid test.
 Fix: none known. Next step would be an UND/prefetch-abort handler that dumps the fault
 address and the words around it before the reset, to see whether the code in RAM is
 corrupted or the fetch returned garbage.
+
+### F13. WiFi transmits on uncalibrated defaults
+
+Files: `src/platform/port_wifi/radio/bk7221u_cal.c`.
+
+No RF calibration runs. `bk7221u_cal.c` loads the RC and TRX register banks from
+constants and `rwnx_cal_set_txpwr_by_rate()` picks a transmit gain row per rate, both
+out of the vendor's compiled-in tables. Nothing measures this board.
+
+That is enough to scan, associate and carry traffic, and it is what the vendor
+firmware this board is known to work on does too: its whole calibration block —
+`calibration_main()`, every `manual_cal_load_*()` and `rwnx_cal_initial_calibration()`
+— is commented out (the reference build, `func/func.c:60-79`).
+
+What it costs is unknown and unmeasured: transmit power, spectral mask and receive
+sensitivity are whatever this particular board happens to give on generic settings.
+
+**Do not reinstate the vendor's calibration as-is.** Before the objects were dropped,
+calling `rwnx_cal_initial_calibration()` from bring-up was measured on hardware by
+dumping the TRX bank (`dump32 0x01050080 28`) with and without it. Exactly three
+registers changed, and they were exactly the transmit chain:
+
+| Register | Address | After calibration | Loaded value |
+| --- | --- | --- | --- |
+| `trx.tx_pa_bias`  | `0x010500A8` | `0x00001E40` | `0x036F2075` |
+| `trx.tx_gain_mod` | `0x010500AC` | `0xA0000000` | `0x87248F37` |
+| `trx.tx_gain_pa`  | `0x010500B0` | `0x00000654` | `0x00228765` |
+
+The other 25 were untouched, and the loaded column matches what a known-working vendor
+firmware leaves in the bank after a scan on the same board. Whatever real calibration
+looks like here, it starts with a measurement, not with that entry point.
+
+---
+
+### F14. There is no reader for the NET_PARAM and RF calibration flash regions
+
+Files: none — `flash_adapter.c` and `drv_model.c` were deleted with the vendor
+calibration objects.
+
+Two flash regions hold data this firmware could use and now cannot read: NET_PARAM
+carries SSID, pairing key and IP configuration under an `INFO_TLV_HEADER` magic, and
+RF_FIRMWARE carries the board's own MAC address under a `TXID_MAC` tag (see F16).
+
+The reader that used to walk them came from the vendor and existed only because the
+calibration objects could reach flash no other way. It is recorded here so a rewrite
+does not repeat it.
+
+**It took every length straight from flash.** The `default:` arm of `get_info_item()`
+read a record's own length field, bounded only by the partition at roughly 4 KB, into
+a caller buffer whose size the API never carried — six bytes for the MAC item. Only
+the SSID and IP arms were safe, because they used fixed sizes and ignored the length.
+A correct version needs a per-item expected length and must reject a record claiming
+more.
+
+**Its malformed-record guard wrapped around.** `addr + sizeof(head) + head.len >
+end_addr` overflows when `head.len` is `0xFFFFFFFF`, which is what erased flash reads,
+so the check passed and the cursor advanced seven bytes per iteration through garbage
+instead of reporting corruption. Compare against the remaining space instead:
+`head.len > end_addr - addr - sizeof(head)`.
+
+**It located itself through the vendor partition table.** `bk_flash_get_info()` tied a
+flash-format concern to a table that existed for the blobs' benefit. Address the
+region directly.
+
+A rewrite belongs in the application, on `hardware_flash` directly, not behind a
+`ddev_*` device layer.
+
+---
+
+### F15. Pending-request node has no owner — use-after-free when a confirmation races its timeout
+
+Files: `src/platform/port_wifi/core/rw_msg.c` (`rw_msg_send()`),
+`src/platform/port_wifi/core/rwnx_intf.c` (`rwnx_recv_msg()`).
+
+A request that expects a confirmation parks a heap-allocated `msg_snd_node_t` on
+`rw_msg_tx_head` and blocks on the node's semaphore for 5 s. The kmsg task matches an
+arriving message against that list, extracts the node, copies the confirmation into
+`node->cfm` and signals the semaphore.
+
+Nothing states who owns the node. Responsibility for freeing it is inferred from
+membership in the list — and the consumer removes it from the list *before* it has
+finished using it. Between `co_list_extract()` and `rtos_set_semaphore()` the node
+belongs to nobody: if the sender's timeout expires there, its own `co_list_extract()`
+is a no-op on an already-removed node, so it proceeds to `rtos_deinit_semaphore()`
+and `vPortFree()`. The kmsg task then writes through `node->cfm` and gives a deleted
+semaphore handle.
+
+The write is the worse half. `cfm` normally points at a local in the caller's frame —
+`struct sm_connect_cfm cfm = {0}` in `rw_msg_send_sm_connect_req()` — and after a
+timeout that caller has returned, so the copy lands in a reused stack frame.
+
+There is a second, wider window: the traversal reads `tx->reqid` and advances with
+`co_list_next_local()` outside the lock, so a timing-out sender can free *any* node
+under the iterator, not only the one that matches.
+
+**Proposed fix — give the node an explicit owner.**
+
+Add an `claimed` byte to `msg_snd_node_t` (alongside `cfm_size`, which is likewise
+ours rather than the vendor's) and zero it after `pvPortMalloc()`. Then:
+
+- The consumer runs the whole traversal inside one critical section and ends it by
+  extracting the node and setting `claimed` together. Both windows close: no node can
+  be freed under the iterator, and the claim is atomic with the removal. The copy and
+  the signal happen after the section, which is safe because the node is claimed.
+- The sender's timeout path consults `claimed` instead of list membership. If it is
+  clear, the node was never taken: extract, free, report the timeout. If it is set,
+  the confirmation arrived exactly as the timeout expired — the consumer sits between
+  claim and signal with no blocking call in between, so a short second wait on the
+  semaphore returns immediately and the call reports success, which is what actually
+  happened.
+- Should that second wait ever expire, log and deliberately leak the node. Sixteen
+  leaked bytes on a path that should be unreachable is the correct failure mode; the
+  alternative is the corruption this entry describes.
+
+Two refinements worth folding in at the same time:
+
+`rw_msg_tx_head` is touched only by the sending task and the kmsg task. Neither
+vendor archive imports it (checked with `nm -u` over `libip_7221u.a` and both
+calibration objects), and no ISR in this port reaches it, so a FreeRTOS mutex would
+serve and would keep the traversal off the interrupt-latency budget. The
+interrupt lock is kept today only for uniformity with `rw_msg_rx_head`, which
+genuinely needs it: `mr_kmsg_fwd()` is reached through the connector function
+pointer, so its context is the LMAC's choice, not ours.
+
+Confirmations are tiny — `mm_add_if_cfm` is 2 bytes, `sm_connect_cfm` is 1 — so an
+inline buffer in the node, copied out to the caller's `cfm` after the wait, would
+remove the caller-stack pointer from the design altogether. That alone does not fix
+the semaphore use-after-free, so it goes with the ownership flag rather than instead
+of it.
+
+---
+
+### F16. Every board ships with the same MAC address
+
+Files: `src/platform/port_wifi/net/iface.c` (`wifi_ifaces`, `wifi_net_set_mac()`).
+
+Each interface carries a compiled-in address — `C8:47:8C:42:88:48` for the station,
+`:49` for the access point — and nothing replaces them, so two boards running this
+firmware on one network collide.
+
+The port no longer reads the address from anywhere. It exposes `wifi_net_set_mac()`,
+which an application calls before that interface is brought up, and leaves the source
+of the address to that application. Nothing calls it today.
+
+**Where the board's own address is.** It sits in the RF_FIRMWARE partition under a
+`TXID_MAC` tag. The vendor's `manual_cal_get_macaddr_from_flash()` used to be wired up
+here and did produce a full flash transaction, so `flash_adapter.c` and the partition
+table behave. Two reasons it went away:
+
+The address it returned looks wrong. Flash gave `12:34:3f:4a:fd:c3`, whose OUI belongs
+to nobody — Beken's is `C8:47:8C`. It passed the multicast guard and would have been
+adopted. Dump the partition (`0x10000`, `0x1000` bytes) and confirm those six bytes
+really are what is stored before trusting any parse of it. Adopting a bogus address is
+worse than a shared one, and harder to diagnose later.
+
+It cost 4.1 KB of image. Almost none of that was the vendor code itself (439 bytes).
+The rest was the flash path it dragged in, which `--gc-sections` had been discarding:
+roughly 1.8 KB of `hardware_flash`, 1.8 KB of `drv_model.c`'s `ddev_*` layer and 0.9 KB
+of the rest of `flash_adapter.c`. Parsing the tag directly against `flash_read()` skips
+the `ddev_*` layer entirely — around 2 KB instead of 4.1 KB. That is the shape to come
+back with, in the application rather than in the port.
 
 ---
 

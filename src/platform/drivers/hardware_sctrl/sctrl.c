@@ -90,8 +90,8 @@ uint32_t chip_id() { return hw_sctrl->chip_id; }
 uint32_t device_id() { return hw_sctrl->device_id; }
 
 // Application-side system-control bring-up, ported from the vendor SDK's
-// sctrl_init() (the reference build, driver/sys_ctrl/sys_ctrl.c) — the firmware
-// this board is known to run WiFi on. Cold boot is not repeated here: the
+// sctrl_init() (the reference build, driver/sys_ctrl/sys_ctrl.c). Cold boot is
+// not repeated here: the
 // bootloader already brought the clocks up in bootloader_sctrl_init(), which is
 // why the two are separate functions and free to diverge.
 //
@@ -259,7 +259,7 @@ void sctrl_overclock(__unused bool enable) {
     // last caller releases it (refcounted, so nested enable/disable pairs
     // nest correctly).
     //
-    // This project has no power-save mode yet (see port_wifi/power_save.c:
+    // This project has no power-save mode yet (see port_wifi/glue/power_save.c:
     // "stage 1 — RF always on", all predicates/setters are stubs), so the
     // CPU is assumed to already run at its nominal frequency at all times.
     // Nothing to do here until MCU power-save (mcu_ps_is_on/sctrl_mcu_init/

@@ -2,6 +2,16 @@
 #include <ctype.h>
 #include <stdint.h>
 
+
+//------------------------------------------------------------------------------
+
+static int hex_nibble(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
 //------------------------------------------------------------------------------
 
 static bool parse_binary_literal(const char *s, int &out) {
@@ -56,15 +66,11 @@ static bool parse_hex_literal(const char *s, int &out) {
     int digits = 0;
 
     while (*s && !isspace(static_cast<unsigned char>(*s))) {
-        if (*s >= '0' && *s <= '9') {
-            accum = accum * 16 + (*s - '0');
-        } else if (*s >= 'a' && *s <= 'f') {
-            accum = accum * 16 + (*s - 'a' + 10);
-        } else if (*s >= 'A' && *s <= 'F') {
-            accum = accum * 16 + (*s - 'A' + 10);
-        } else {
+        int value = hex_nibble(*s);
+        if (value < 0) {
             return false;
         }
+        accum = accum * 16 + value;
         digits++;
         s++;
     }
@@ -132,4 +138,41 @@ Result<void *, ParseError> take_pointer(const char *s) {
     } else {
         return ParseError::ERROR;
     }
+}
+
+Result<ParsedMac, ParseError> take_mac(const char *input) {
+    if (!input) return ParseError::ERROR;
+
+    const char *p = input;
+    ParsedMac   out;
+
+    // Settled after the first byte and required from then on, so one address
+    // cannot mix the two spellings. Zero means the first byte was followed by
+    // another digit, and no separator is accepted anywhere.
+    char separator = 0;
+
+    for (size_t i = 0; i < sizeof(out.addr); i++) {
+        int h = hex_nibble(*p);
+        if (h < 0) return ParseError::ERROR;
+        p++;
+
+        int l = hex_nibble(*p);
+        if (l < 0) return ParseError::ERROR;
+        p++;
+
+        out.addr[i] = static_cast<uint8_t>((h << 4) | l);
+
+        if (i + 1 == sizeof(out.addr)) break;
+
+        if (i == 0) {
+            if (*p == ':' || *p == '-') separator = *p++;
+        } else if (separator) {
+            if (*p != separator) return ParseError::ERROR;
+            p++;
+        }
+    }
+
+    if (*p != '\0') return ParseError::ERROR;
+
+    return out;
 }
