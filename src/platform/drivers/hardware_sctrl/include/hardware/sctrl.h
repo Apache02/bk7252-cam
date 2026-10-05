@@ -29,6 +29,18 @@ uint32_t device_id();
 
 void sctrl_init();
 
+// Levels of the VDDRAM output pin, as measured on the pin.
+typedef enum {
+    SCTRL_VDDRAM_1V8 = 0,
+    SCTRL_VDDRAM_2V5 = 1,
+    SCTRL_VDDRAM_3V3 = 2,
+    SCTRL_VDDRAM_3V5 = 3,
+} sctrl_vddram_volt_t;
+
+// Powers the VDDRAM output pin at the given level (the vendor driver init uses 3.5 V).
+void sctrl_vddram_enable(sctrl_vddram_volt_t volt);
+void sctrl_vddram_disable();
+
 // Powers up MAC and modem and enables the radio controller. WiFi applications
 // only — sctrl_init() deliberately leaves those blocks alone.
 void sctrl_rf_init();

@@ -8,6 +8,7 @@
 #include "hardware/i2c.h"
 #include "hardware/icu.h"
 #include "hardware/gpio.h"
+#include "hardware/sctrl.h"
 #include "soc/jpeg.h"
 #include "utils/busy_wait.h"
 
@@ -19,9 +20,11 @@ static constexpr int min_baud_hz = 8448;
 // Longest write or read the command accepts, in bytes.
 static constexpr size_t max_transfer = 256;
 
-// The camera on I2C1 does not answer until the DVP/JPEG block is up: clock
-// gate on, GPIO27-39 in DCMI mode and the encoder enabled.
+// The camera on I2C1 does not answer until it is powered and the DVP/JPEG
+// block is up: clock gate on, GPIO27-39 in DCMI mode and the encoder enabled.
 static void dvp_jpeg_bring_up() {
+    sctrl_vddram_enable(SCTRL_VDDRAM_3V5);
+
     hw_write_fields(hw_jpeg->ctrl0,
         .div = 0, // 24 MHz MCLK
     );

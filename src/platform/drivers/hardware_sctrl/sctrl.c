@@ -28,11 +28,19 @@ static inline void coarse_delay(uint32_t outer) { busy_wait_at_least_cycles(oute
 // vendor: W32(0x0080012c, (R32(0x0080012c) & 0x000fffff) | 0xA5C00000 | bits)
 // OR-style update that preserves already-enabled blocks, unlike
 // hw_write_fields() which zero-fills every unmentioned field.
-static void sctrl_block_enable_or(uint32_t bits) {
-    typeof(hw_sctrl->block_enable) tmp;
-    tmp.v         = hw_sctrl->block_enable.v;
-    tmp.write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY;
+static void sctrl_block_enable_set(uint32_t bits) {
+    typeof(hw_sctrl->block_enable) tmp = {.v = hw_sctrl->block_enable.v};
     tmp.v |= bits;
+    tmp.write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY;
+    hw_sctrl->block_enable.v = tmp.v;
+}
+
+// Same, clearing bits. The key has to be re-supplied: it reads back as zero,
+// and a write without it is ignored.
+static void sctrl_block_enable_clear(uint32_t bits) {
+    typeof(hw_sctrl->block_enable) tmp = {.v = hw_sctrl->block_enable.v};
+    tmp.v &= ~bits;
+    tmp.write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY;
     hw_sctrl->block_enable.v = tmp.v;
 }
 
@@ -103,7 +111,7 @@ void sctrl_init() {
             .dpll_480m = 1,
             .xtal_2_rf = 1,
         };
-        sctrl_block_enable_or(bits.v);
+        sctrl_block_enable_set(bits.v);
     }
 
     hw_write_fields(hw_sctrl->low_power_clk,
@@ -157,6 +165,18 @@ void sctrl_init() {
     // since only those clear this register - lets boot diagnostics tell a live
     // jump into a fresh image apart from an actual reset.
     hw_sctrl->sw_retention.value = 0xA5A5;
+}
+
+void sctrl_vddram_enable(sctrl_vddram_volt_t volt) {
+    hw_sctrl->control.psram_vddpad_volt = volt;
+
+    typeof(hw_sctrl->block_enable) bits = {.mic_qspi_ram_or_flash = 1};
+    sctrl_block_enable_set(bits.v);
+}
+
+void sctrl_vddram_disable() {
+    typeof(hw_sctrl->block_enable) bits = {.mic_qspi_ram_or_flash = 1};
+    sctrl_block_enable_clear(bits.v);
 }
 
 // The DPLL-unlock latch lives in GPIO extra_int_cfg, not in the ICU: clearing
