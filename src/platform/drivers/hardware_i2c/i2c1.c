@@ -95,7 +95,7 @@ static void i2c1_isr() {
     hw_i2c1->config.v = status.v;
 }
 
-static __unused void i2c1_power_down() {
+void i2c1_deinit(void) {
     hw_i2c1->config.ensmb = 0;
     intc_disable_irq_source(IRQ_SOURCE_I2C1);
     intc_unregister_irq_handler(IRQ_SOURCE_I2C1, i2c1_isr);

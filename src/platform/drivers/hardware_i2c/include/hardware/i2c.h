@@ -14,6 +14,9 @@ extern "C" {
 // dependency belongs to whoever owns the camera bring-up, not to this driver.
 void i2c1_init(uint32_t baud_hz);
 
+// Stops the controller, releases its interrupt and powers its clock gate down.
+void i2c1_deinit(void);
+
 // Both block until the transfer's address is ACKed/NACKed and every byte has
 // gone back and forth, or until it times out. Return 0 on success, -EBUSY if
 // another transfer is already in flight, -EFAULT on a NACK (address or data),
