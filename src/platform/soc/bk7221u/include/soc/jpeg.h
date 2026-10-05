@@ -55,8 +55,14 @@ typedef volatile struct {
 
     uint32_t byte_cnt_pfrm; // byte count of last encoded frame; read-only
 
-    // reg8 == 1 when rx is empty
-    uint32_t reg8; // (NOT INVESTIGATED; SDK defines only JPEFG_READ bit 0, typo for JPEG_READ; never used in SDK .c)
+    union {
+        uint32_t v;
+        struct {
+            uint32_t empty_fifo: 1;     // [0]
+            uint32_t unknown: 1;        // [1]
+            uint32_t reserved_2_31: 30; // [31:2]
+        };
+    } rx_state;
 
     uint32_t reserved_0x24_0x7c[23]; // JPEG_REG9–REG31 not defined in SDK
 
