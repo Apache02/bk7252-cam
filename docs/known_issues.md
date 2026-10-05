@@ -259,6 +259,80 @@ when installing a vendor bootloader image.
 Fix: not planned. A fix would be an explicit instruction-cache invalidate followed by
 a reset (watchdog or soft) at the end of the installer.
 
+### F12. Sustained JPEG→RAM DMA crashes the firmware when it runs from IRAM
+
+Files: `src/devices/camera/camera.c` (`camera_stream_*`), `src/linker/iram.lds`,
+`tools/bkloader` (`iram`).
+
+Status: cause not found. The failure is tied to the IRAM load path; the same code is stable
+when flashed.
+
+Symptom. A firmware image started with `tools/bkloader iram` (code and data in RAM block 2 at
+`0x00900000`) that keeps the JPEG encoder DMA running frame after frame fails at random, from
+seconds to about 45 s after the stream starts. The same code flashed to the app partition
+ran 300 s without a fault (3612 frames, 0 damaged, task and mode stacks far from their
+limits, heap without leaks, no orphan or spurious interrupts).
+
+Failure modes seen, all from IRAM, all with the DMA armed:
+
+- `vTaskSwitchContext` assertion;
+- the FreeRTOS stack-overflow hook, with stacks that were nowhere near full;
+- an undefined-instruction exception inside `printf` code (UND mode);
+- silent freezes where the watchdog does not fire;
+- bare metal, no timer interrupt, busy-wait loop: 45 s of clean frames (748 frames, 0 dropped,
+  0 damaged), then `bk_trap_udef` and a watchdog reset. Registers at the crash:
+  `R0 0x000003e8, R1 0xfffffeff, R2 0x00802000, R3 0x008ffef9, R4 0x0090630c,
+  R5 0x00400038, R6 0x33, R7 1, R8 0x00904ca9, R9 0x009061b5`. The first FreeRTOS UND had the
+  same `R0`/`R1`/`R2`.
+
+Reproduce.
+
+1. Board with the HI704 sensor, own bootloader, a `ram_loader` compatible shell on the chip.
+2. Build a test that starts the camera and the stream, for example:
+   `camera_start` with `frame_min_bytes = 24 * 1024`, `frame_max_bytes = 47104`, a 64-byte
+   `frame_buf`; then `camera_stream_start` with 3 slots of 48 KiB (`aligned(4)`); then loop:
+   drain `camera_stream_get` / `camera_stream_release`, `busy_wait_ms(1)`, `wdt_ping()`,
+   print counters every 5 s. Platform setup: `wdt_down`, `platform_stdio_init`,
+   `wdt_set(10000)`, `wdt_up`, `sctrl_init`, `sctrl_set_cpu_freq_hz(CPU_FREQ_160_MHZ)`,
+   enable IRQ and FIQ.
+3. Run it from IRAM: `tools/bkloader iram --speed 921600 --port <PORT> --capture 70
+   --until "Bootloader*" build/app_iram.bin`. Bare metal fails after roughly 45 s.
+4. Replace `busy_wait_ms(1)` with `usleep(1000)` (1 kHz timer interrupt on). It froze before
+   the first 5 s line.
+5. Under FreeRTOS (`freertos_shell--iram`), run `capture_start`, then `capture_stream 3`
+   (or `capture_stream 10`). It breaks within seconds, in a different way on each try.
+6. Flash `freertos_shell` instead (`tools/bkloader flash build/app_crc.bin`) and run
+   `capture_stream 10`, `capture_stream 300`. Stable.
+
+What the failure needs.
+
+- The DMA must be armed on `rx_fifo_data`. With the encoder running and the DMA off (CPU only
+  reading the FIFO in the end-of-frame FIQ) FreeRTOS from IRAM is stable.
+- More bus and interrupt load makes it faster: 1 kHz timer interrupt, printing from the FIQ,
+  and re-arming the DMA mid-frame from the main loop all shortened the time to failure.
+
+Ruled out.
+
+- DMA overrunning a slot: a 64 KiB guard region after the buffers stayed intact.
+- Bit-rate control, WDT task stack size, FreeRTOS port context switch (it fails on bare metal
+  too), a slot too small for the frame (this only produces `dropped`, never damage).
+- Interrupt storms: no abnormal counts in the interrupt controller raw status at sample times.
+
+Not tried or not possible.
+
+- Memory does not survive a reset, so the state after a crash cannot be read back from the
+  bootloader (it fills free RAM with `0xAAAAAAAA`).
+- Working theory, never tested directly: instruction fetch from IRAM is unreliable while the
+  DMA saturates the bus. IRAM code also runs at about 57 % of the flashed speed, so timing
+  differs from the flashed build as well.
+
+Workaround: do not judge long DMA streaming from an IRAM run. Reproduce from a flashed build
+first. `capture_stream` from a flashed `freertos_shell` is a valid test.
+
+Fix: none known. Next step would be an UND/prefetch-abort handler that dumps the fault
+address and the words around it before the reset, to see whether the code in RAM is
+corrupted or the fetch returned garbage.
+
 ---
 
 ## API / contract
