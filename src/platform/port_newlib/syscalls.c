@@ -3,7 +3,10 @@
 #include <sys/stat.h>
 
 #include "platform/sched.h"
+#include "platform/unistd.h"
 #include "platform/cpu.h"
+#include "platform/timeout.h"
+#include "platform/assert.h"
 
 __attribute__((weak)) void _exit(int code) { while (1); }
 
@@ -39,5 +42,18 @@ __attribute__((weak)) int _read(int file, char *ptr, int len) {
 // future WFI() call (anywhere) returns immediately instead of actually sleeping.
 __attribute__((weak)) int sched_yield(void) {
     WFI();
+    return 0;
+}
+
+// Weak default for bare-metal (nosys) builds; platform_freertos overrides it with vTaskDelay().
+// Needs CPU interrupts enabled: the timeout is counted in the timer interrupt.
+__attribute__((weak)) int usleep(useconds_t us) {
+    if (us == 0) return 0;
+
+    struct timeout_t timeout;
+    const bool       created = create_timeout(&timeout, (us + 999) / 1000);
+    assert_true(created, "usleep: no free hardware timer");
+
+    while (!is_timeout_finished(&timeout)) sched_yield();
     return 0;
 }
