@@ -72,7 +72,8 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     portENTER_CRITICAL();
     // wdt_down();
     printf("STACK OVERFLOW: %s\n", pcTaskName);
-    // wdt_up();
-    portEXIT_CRITICAL() for (;;);
+    portEXIT_CRITICAL();
+    wdt_up();
+    for (;;);
 }
 #endif
