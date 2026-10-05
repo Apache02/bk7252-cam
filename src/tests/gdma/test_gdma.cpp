@@ -122,6 +122,7 @@ static void *gdma_memcpy(void *dst, const void *src, size_t n) {
                 .incr          = true,
                 .dw            = GDMA_DATA_WIDTH_32,
             },
+        .repeat = false,
         .finish   = nullptr,
         .h_finish = nullptr,
     };

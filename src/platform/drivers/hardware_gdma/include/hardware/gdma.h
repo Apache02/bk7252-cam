@@ -35,25 +35,28 @@ typedef enum {
 #define GDMA_DATA_WIDTH_16 (1)
 #define GDMA_DATA_WIDTH_32 (2)
 
-typedef void (gdma_int_handler_fn)(int);
+typedef void(gdma_int_handler_fn)(int);
 
 // One side of a transfer: where data comes from or goes to.
 typedef struct {
-    gdma_mode_t mode; // GDMA_MODE_DTCM for plain memory; peripheral lines untested.
+    gdma_mode_t mode; // GDMA_MODE_DTCM for plain memory; GDMA_MODE_JPEG is verified as a source. Other lines untested.
     uint32_t    addr; // 32-bit start address (or peripheral data register).
     uint32_t    loop_addr;
     uint32_t    loop_end_addr;
     bool        incr; // true = address advances by +4 per transaction; false = stays.
     uint8_t     dw;   // GDMA_DATA_WIDTH_8 / _16 / _32. Useful bytes per transaction.
+    uint8_t     interval; // 0..15: minimum bus cycles between accesses; 0 = no minimum. Values below the natural
+                          // spacing of the accesses have no effect; larger ones slow the channel.
 } gdma_endpoint_t;
 
 // Full transfer description for gdma_configure(). Transfer size is supplied
 // separately, to gdma_start()/gdma_run() (see comment there).
 typedef struct {
-    gdma_endpoint_t src;
-    gdma_endpoint_t dst;
-    gdma_int_handler_fn * finish;
-    gdma_int_handler_fn * h_finish;
+    gdma_endpoint_t      src;
+    gdma_endpoint_t      dst;
+    bool                 repeat;
+    gdma_int_handler_fn *finish;
+    gdma_int_handler_fn *h_finish;
 } gdma_config_t;
 
 #ifdef __cplusplus
@@ -117,6 +120,17 @@ void gdma_stop(int ch);
 
 // True while the channel is actively transferring.
 bool gdma_busy(int ch);
+
+// Re-arm an already configured channel with a new destination and size. Writes only the destination
+// address and the transfer length, so it is cheaper than gdma_configure() + gdma_start() when a
+// transfer has to begin within microseconds of an event. The channel is disabled first. Returns 0
+// or negative errno (-ENODEV invalid channel, -EINVAL bad size).
+int gdma_restart(int ch, uint32_t dst_addr, size_t size);
+
+// Bytes written to the destination since the last start, counted from dst_start_addr. Meaningful
+// only with dst.incr = true. Valid while the channel runs and after it is stopped; this is how to
+// tell how much a stopped peripheral-paced transfer received. Returns 0 on an invalid channel.
+size_t gdma_transferred(int ch);
 
 // Block until the channel finishes or timeout_ms elapses. Returns 0 on finish
 // (immediately if idle), -ETIMEDOUT if the channel was still busy at the deadline

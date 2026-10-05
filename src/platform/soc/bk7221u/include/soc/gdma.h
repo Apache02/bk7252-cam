@@ -34,15 +34,15 @@ typedef volatile struct {
 
     uint32_t dst_start_addr;
     uint32_t src_start_addr;
-    uint32_t dst_loop_end_addr;   // (NOT TESTED)
-    uint32_t dst_loop_start_addr; // (NOT TESTED)
-    uint32_t src_loop_end_addr;   // (NOT TESTED)
-    uint32_t src_loop_start_addr; // (NOT TESTED)
+    uint32_t dst_loop_end_addr;
+    uint32_t dst_loop_start_addr;
+    uint32_t src_loop_end_addr;
+    uint32_t src_loop_start_addr;
 
     union {
         uint32_t v;
         struct {
-            uint32_t src_req: 4; // [3:0] peripheral source request line, 0 for M2M (DTCM). Only DTCM tested.
+            uint32_t src_req: 4; // [3:0] peripheral source request line, 0 for M2M (DTCM). DTCM and JPEG (8) tested.
             uint32_t dst_req: 4; // [7:4] peripheral destination request line, 0 for M2M (DTCM). Only DTCM tested.
             uint32_t dtcm_wr_wait_word: 1; // [8] unknown function, no effect on DTCM->DTCM copies
             uint32_t reserved_9_11: 3;     // [11:9]
@@ -98,8 +98,9 @@ typedef volatile struct {
                                                 // map to the current source address in a straightforward way.
                                                 // Debug only.
     uint32_t reserved_0x56_0x57[2];             // word 0x56..0x57
-    uint32_t dst_wr_addr[GDMA_NUM_CHANNELS];    // word 0x58..0x5D. Internal dst write counter; same caveat
-                                                // as src_rd_addr. Debug only.
+    uint32_t dst_wr_addr[GDMA_NUM_CHANNELS];    // word 0x58..0x5D. Address of the next dst write; with
+                                                // dst_addr_inc = 1 it equals dst_start_addr + bytes written
+                                                // (confirmed with JPEG -> DTCM captures).
 } hw_gdma_t;
 
 static_assert(sizeof(hw_gdma_t) == 94 * sizeof(uint32_t), "hw_gdma_t size mismatch");

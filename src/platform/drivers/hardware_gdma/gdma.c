@@ -1,6 +1,6 @@
+#include "hardware/gdma.h"
 #include "soc/gdma.h"
 #include "soc/icu.h"
-#include "hardware/gdma.h"
 #include "hardware/intc.h"
 #include "platform/init.h"
 #include "platform/sched.h"
@@ -127,7 +127,7 @@ int gdma_configure(const int ch, const gdma_config_t *cfg) {
     if (!(g_reserved_channels & (1u << ch))) {
         return -EPERM;
     }
-    if (cfg == NULL) {
+    if (cfg == NULL || cfg->src.interval > 15 || cfg->dst.interval > 15) {
         return -EINVAL;
     }
 
@@ -149,6 +149,8 @@ int gdma_configure(const int ch, const gdma_config_t *cfg) {
     hw_write_fields(hw_gdma->channels[ch].mux_reqs,
         .src_req = cfg->src.mode,
         .dst_req = cfg->dst.mode,
+        .src_rd_interval = cfg->src.interval,
+        .dst_wr_interval = cfg->dst.interval,
     );
 
     // enable bit and transfer_length are left zero here; gdma_start() sets both
@@ -157,7 +159,7 @@ int gdma_configure(const int ch, const gdma_config_t *cfg) {
         .enable = 0,
         .fin_int_enable = cfg->finish ? 1 : 0,
         .half_fin_int_enable = cfg->h_finish ? 1 : 0,
-        .repeat_mode = (dst_loop || src_loop) ? 1 : 0,
+        .repeat_mode = cfg->repeat ? 1 : 0,
         .src_data_width = cfg->src.dw,
         .dst_data_width = cfg->dst.dw,
         .src_addr_inc = cfg->src.incr,
@@ -189,6 +191,22 @@ int gdma_start(const int ch, const size_t size) {
     hw_gdma->channels[ch].config.v              = config.v;
 
     return 0;
+}
+
+int gdma_restart(const int ch, const uint32_t dst_addr, const size_t size) {
+    if (!IS_CHANNEL_VALID(ch)) {
+        return -ENODEV;
+    }
+    hw_gdma->channels[ch].config.enable  = 0;
+    hw_gdma->channels[ch].dst_start_addr = dst_addr;
+    return gdma_start(ch, size);
+}
+
+size_t gdma_transferred(const int ch) {
+    if (!IS_CHANNEL_VALID(ch)) {
+        return 0;
+    }
+    return hw_gdma->dst_wr_addr[ch] - hw_gdma->channels[ch].dst_start_addr;
 }
 
 void gdma_stop(const int ch) {
