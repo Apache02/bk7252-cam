@@ -5,9 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CHUNK       (256u)
-#define SECTOR_SIZE FLASH_SECTOR_SIZE
-
+#define CHUNK             (256u)
+#define SECTOR_SIZE       FLASH_SECTOR_SIZE
 #define DUMP_DEFAULT_SIZE (1 * CHUNK)
 #define DUMP_MAX_SIZE     (16 * CHUNK)
 
@@ -57,8 +56,8 @@ int command_flash_crc32(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
+    const uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
+    const uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
 
     if (size == 0) {
         printf("Invalid size\r\n");
@@ -75,8 +74,8 @@ int command_flash_dump(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t size = argc == 3 ? static_cast<uint32_t>(take_int(argv[2]).ok_or(DUMP_DEFAULT_SIZE)) : DUMP_DEFAULT_SIZE;
+    const uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
+    const uint32_t size = argc == 3 ? static_cast<uint32_t>(take_int(argv[2]).ok_or(DUMP_DEFAULT_SIZE)) : DUMP_DEFAULT_SIZE;
 
     if (!valid_size(size)) {
         printf("Invalid size\r\n");
@@ -105,9 +104,9 @@ int command_flash_write(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t from_addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t to_addr   = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
-    uint32_t size      = static_cast<uint32_t>(take_int(argv[3]).ok_or(0));
+    const uint32_t from_addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
+    const uint32_t to_addr   = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
+    const uint32_t size      = static_cast<uint32_t>(take_int(argv[3]).ok_or(0));
 
     if (!valid_checksum(from_addr, to_addr, size, static_cast<uint32_t>(take_int(argv[4]).ok_or(0)))) {
         printf("Invalid checksum\r\n");
@@ -142,26 +141,26 @@ int command_flash_write(int argc, const char *argv[]) {
 typedef union {
     uint8_t v;
     struct {
-        uint8_t wip : 1;  // [0] Write In Progress (read-only, hardware-cleared)
-        uint8_t wel : 1;  // [1] Write Enable Latch (set by WREN, cleared after write/erase)
-        uint8_t bp : 3;   // [4:2] Block Protect
-        uint8_t tb : 1;   // [5] Top/Bottom protect (0=top, 1=bottom)
-        uint8_t sec : 1;  // [6] Sector/Block select (0=64KB blocks, 1=4KB sectors)
-        uint8_t srp0 : 1; // [7] Status Register Protect 0 (hardware WP# pin enable)
+        uint8_t wip: 1;  // [0] Write In Progress (read-only, hardware-cleared)
+        uint8_t wel: 1;  // [1] Write Enable Latch (set by WREN, cleared after write/erase)
+        uint8_t bp: 3;   // [4:2] Block Protect
+        uint8_t tb: 1;   // [5] Top/Bottom protect (0=top, 1=bottom)
+        uint8_t sec: 1;  // [6] Sector/Block select (0=64KB blocks, 1=4KB sectors)
+        uint8_t srp0: 1; // [7] Status Register Protect 0 (hardware WP# pin enable)
     };
 } flash_sr1_t;
 
 typedef union {
     uint8_t v;
     struct {
-        uint8_t srp1 : 1; // [0] Status Register Protect 1
-        uint8_t qe : 1;   // [1] Quad Enable
-        uint8_t r : 1;    // [2] Reserved
-        uint8_t lb1 : 1;  // [3] Security Register Lock 1
-        uint8_t lb2 : 1;  // [4] Security Register Lock 2
-        uint8_t lb3 : 1;  // [5] Security Register Lock 3
-        uint8_t cmp : 1;  // [6] Complement Protect
-        uint8_t sus : 1;  // [7] Erase/Write Suspend
+        uint8_t srp1: 1; // [0] Status Register Protect 1
+        uint8_t qe: 1;   // [1] Quad Enable
+        uint8_t r: 1;    // [2] Reserved
+        uint8_t lb1: 1;  // [3] Security Register Lock 1
+        uint8_t lb2: 1;  // [4] Security Register Lock 2
+        uint8_t lb3: 1;  // [5] Security Register Lock 3
+        uint8_t cmp: 1;  // [6] Complement Protect
+        uint8_t sus: 1;  // [7] Erase/Write Suspend
     };
 } flash_sr2_t;
 

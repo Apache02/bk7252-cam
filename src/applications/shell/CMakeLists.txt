@@ -27,11 +27,15 @@ target_link_libraries(
         utils_busy_wait
         platform_nosys
         platform_stdio_uart2
+        hardware_gdma
         hardware_gpio
         hardware_intc
         hardware_timer
         hardware_sctrl
         hardware_wdt
+        hardware_icu
+        hardware_i2c
+        hardware_jpeg
         platform_rtc
 )
 

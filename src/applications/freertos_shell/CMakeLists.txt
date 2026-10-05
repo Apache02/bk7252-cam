@@ -5,6 +5,15 @@ add_executable(
         shell_handlers.cpp
 )
 
+# Per-source ICU fire counters (hardware_intc/intc.c) for the `intc` shell
+# command — diagnostic only, off by default in every other app since
+# hardware_intc's sources are compiled per-consumer via its INTERFACE library.
+# Comment out to build this app without the counters.
+target_compile_definitions(
+        freertos_shell PRIVATE
+        INTC_COUNT_FIRES
+)
+
 target_include_directories(
         freertos_shell PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/config
@@ -33,9 +42,11 @@ target_link_libraries(
         shell_commands_iram
         FreeRTOS-Kernel-Heap5
         hardware_wdt
+        hardware_sctrl
         hardware_gpio
-        hardware_efuse
-        hardware_security
+        hardware_i2c
+        hardware_jpeg
+        hardware_gdma
         platform_rtc
 )
 
