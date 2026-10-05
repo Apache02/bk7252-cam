@@ -66,6 +66,8 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/tests/` — standalone driver smoke tests built as IRAM firmware images (one `add_executable` per subdir, wrapped with `bk_firmware_iram`). Same auto-discovery as `src/applications/`. Loaded via `tools/bkloader iram` without flashing.
 
+- `src/devices/` — composite devices built on several drivers plus board wiring, one library per device. Currently `camera` (`device_camera`): DVP sensor + JPEG encoder + GDMA capture. A sensor is one `camera_sensor_t` (I2C address, `probe()`, init table, encoder settings) in `devices/camera/sensors/`, listed in `sensors.c`.
+
 - `src/boards/` — board pin/feature headers. `BOARD` CMake var (or `$ENV{BOARD}`, default `A9_B_V1_3`) selects the active board and adds `BOARD_<NAME>` as a compile definition via the `board_config` INTERFACE library; `include/board.h` is the umbrella header consumers include.
 
 - `src/linker/` — three linker scripts: `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`), `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`), and `bootloader.lds` (bootloader image from flash @ `0x00000000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.md` for the full chip memory map.

@@ -23,6 +23,7 @@ extern int command_trigger_camera(int argc, const char *argv[]);
 extern int command_stat_camera(int argc, const char *argv[]);
 extern int command_capture_frame(int argc, const char *argv[]);
 extern int command_capture_start(int argc, const char *argv[]);
+extern int command_capture_stream(int argc, const char *argv[]);
 
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
@@ -64,6 +65,7 @@ const Shell::Handler shell_handlers[] = {
     {"stat_camera", command_stat_camera, nullptr},
     {"capture_frame", command_capture_frame, nullptr},
     {"capture_start", command_capture_start, nullptr},
+    {"capture_stream", command_capture_stream, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };

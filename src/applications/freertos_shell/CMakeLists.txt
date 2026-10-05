@@ -40,6 +40,7 @@ target_link_libraries(
         shell_commands_freertos
         shell_commands_beken
         shell_commands_iram
+        device_camera
         FreeRTOS-Kernel-Heap5
         hardware_wdt
         hardware_sctrl

@@ -9,8 +9,17 @@
 #define KEY_PWR_PIN  (2)
 #define KEY_MODE_PIN (7)
 
-#define CAMERA_I2C       "i2c1"
-#define CAMERA_RESET_PIN 28 // not sure about role of this pin
+
+// How the sensor is powered:
+//   "NONE"      supplied permanently
+//   "VDDRAM"    the chip's VDDRAM output, at CAMERA_POWER_VDDRAM_VOLT
+//   "GPIO_UP"   CAMERA_POWER_GPIO_PIN driven high powers the sensor
+//   "GPIO_DOWN" CAMERA_POWER_GPIO_PIN driven low powers the sensor
+// Left undefined, the method is "NONE".
+#define CAMERA_POWER_METHOD      "VDDRAM"
+#define CAMERA_POWER_VDDRAM_VOLT SCTRL_VDDRAM_3V5
+#define CAMERA_I2C               "i2c1"
+#define CAMERA_RESET_PIN         (28) // not sure about role of this pin
 
 /*
  * camera connection
