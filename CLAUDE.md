@@ -31,13 +31,18 @@ There is no unit-test framework — `smoke_build.sh` only verifies clean compila
 
 ## Flash / backup / monitor
 
+The board runs this project's own bootloader (`src/applications/bootloader`), not the vendor one. The vendor-protocol tools (`tools/flasher/uartprogram`, `uartreader`) do not work against it — they are kept only for the vendor bootloader (commands in `README.md`). Use `tools/bkloader`:
+
 ```sh
-./flash.sh              # tools/flasher/uartprogram --segment app build/app_crc.bin
-./backup.sh             # dumps app segment from /dev/ttyUSB0 into backups/
+tools/bkloader flash build/app_crc.bin   # flash the app partition
+tools/bkloader backup                    # dump the app partition into backups/
+tools/bkloader iram build/app_iram.bin --capture 10   # run from RAM, no flash write
 tio -b 115200 /dev/ttyUSB0
 ```
 
-Flasher tools (`tools/flasher/uartprogram`, `uartreader`) are Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/bkloader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`.
+Installing the own bootloader on a vendor-bootloader board (see `README.md`, *Bootloader*): flash `ram_loader` into the app partition with `uartprogram`, then run `bootloader_installer--iram` via `tools/bkloader iram` (it embeds the `bootloader` build and writes it to flash `0x000000`), then restore the vendor app — it works with the own bootloader.
+
+`tools/flasher/` holds Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/bkloader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`.
 
 ## Architecture
 

@@ -240,6 +240,25 @@ Fix: mask FIQ around the ISR's dequeue loop. Two shapes, with the trade-off betw
 
 The measured interrupt rate is low (14 per 2 KB at 115200), which favours the first.
 
+### F11. Instruction cache keeps the old bootloader after `bootloader_installer`
+
+Files: `src/applications/bootloader_installer/main.cpp`.
+
+The chip has an instruction cache over flash (see `docs/memory_map.md`). After
+`bootloader_installer` rewrites flash `0x000000`, the cache can still hold the old
+bootloader. Without a reset, the chip then either crashes or runs as if the bootloader
+had not changed. After a hardware reset (the reset button) the new bootloader runs
+correctly.
+
+The installer does not reboot or flush the cache; it verifies the write, prints `OK`
+and returns. Observed behaviour, not yet traced to the exact cache mechanism.
+
+Workaround: press the reset button after the installer prints `OK`. The same applies
+when installing a vendor bootloader image.
+
+Fix: not planned. A fix would be an explicit instruction-cache invalidate followed by
+a reset (watchdog or soft) at the end of the installer.
+
 ---
 
 ## API / contract

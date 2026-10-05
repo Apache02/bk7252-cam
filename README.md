@@ -81,6 +81,10 @@ The right tool depends on which bootloader is installed:
 # --- vendor bootloader (factory default) ---
 tools/flasher/uartprogram --segment app build/app_crc.bin   # flash
 tools/flasher/uartreader  --segment app backups/app_crc.bin    # backup
+# backup with a port and a timestamped name:
+mkdir -p backups
+tools/flasher/uartreader -p /dev/ttyUSB0 --segment app \
+    -o backups/app_$(date +%Y-%m-%d_%H%M%S)_crc.bin
 
 # --- custom bootloader (after installing it) ---
 tools/bkloader flash build/app_crc.bin   # flash app partition
@@ -166,16 +170,52 @@ The only installation path is via `bootloader_installer` — an IRAM app that ru
 entirely from RAM and writes the bootloader partition from there.
 
 ```sh
-# 1. Flash ram_loader to the app partition (vendor bootloader protocol)
-tools/flasher/uartprogram --segment app build/ram_loader_crc.bin
+# 1. Flash ram_loader to the app partition (vendor bootloader protocol).
+#    It replaces the app for now: it is a shell with loadi / go / speed.
+#    Every build copies its image to build/app_crc.bin (IRAM: build/app_iram.bin).
+(cd build && make ram_loader)
+tools/flasher/uartprogram --segment app build/app_crc.bin
 
 # 2. Load and run bootloader_installer from RAM
 (cd build && make bootloader_installer--iram)
-tools/bkloader iram build/bootloader_installer--iram.bin --capture 15
+tools/bkloader iram build/app_iram.bin --capture 15
 ```
 
 `bootloader_installer` writes the embedded `bootloader_crc.bin` to the bootloader
-partition and reboots into the new bootloader.
+partition, verifies it and prints `OK`. It does not reboot. **Press the reset
+button afterwards.** The instruction cache can still hold the old bootloader, so
+without a reset the chip may crash or behave as if nothing changed. After a reset
+it runs the new bootloader. Building `bootloader_installer--iram`
+builds `bootloader` first, so no separate build step is needed.
+
+```sh
+# 3. Restore the vendor app (now through the new bootloader).
+#    It works with the custom bootloader.
+tools/bkloader flash <vendor_app_crc.bin>
+```
+
+### Restoring the vendor bootloader
+
+Same installer, different payload. Point it at a vendor image instead of the
+`bootloader` build. The custom bootloader already has `loadi`, so `ram_loader`
+is not needed.
+
+```sh
+# 1. Rebuild the installer with a vendor image embedded (CRC-wrapped file only)
+(cd build && cmake -DBOOTLOADER_CRC_BIN=$PWD/../bootloaders/bootloader_bk7251_uart2_v1.0.15_crc.bin .. \
+    && make bootloader_installer--iram)
+
+# 2. Run it from RAM
+tools/bkloader iram build/app_iram.bin --capture 15
+```
+
+The installer writes the vendor image to `0x000000`. Press the reset button
+afterwards (same stale instruction cache as above). After that
+`uartprogram` and `uartreader` work again, and `bkloader` does not.
+
+With an explicit `BOOTLOADER_CRC_BIN` the installer does not rebuild `bootloader`.
+To return to the custom bootloader later, run `cmake -DBOOTLOADER_CRC_BIN= ..`
+(empty value) and repeat the install steps. The vendor images are in `bootloaders/`.
 
 ---
 
