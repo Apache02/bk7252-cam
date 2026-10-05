@@ -340,11 +340,16 @@ def step_go(ser, addr):
     log_ok(f"Jump to 0x{addr:08x} issued.")
 
 
-def step_capture(ser, timeout, until_pattern):
+def until_matches(pattern, line):
+    """True when `pattern` occurs in `line`; '*' in the pattern matches any text."""
+    return re.search(".*".join(re.escape(part) for part in pattern.split("*")), line) is not None
+
+
+def step_capture(ser, timeout, until_patterns):
     header = "[ Capturing output (Ctrl+C to stop)" if timeout == 0 \
              else f"[ Capturing output (timeout={timeout:.0f}s)"
-    if until_pattern:
-        header += f", until={until_pattern!r}"
+    if until_patterns:
+        header += ", until=" + " | ".join(repr(p) for p in until_patterns)
     print(header + " ]")
 
     deadline = None if timeout == 0 else time.monotonic() + timeout
@@ -359,8 +364,9 @@ def step_capture(ser, timeout, until_pattern):
             line, _ = readline(ser, min(1.0, remaining))
             if line:
                 print(f"  {line}")
-                if until_pattern and until_pattern in line:
-                    log_ok("Sentinel found.")
+                matched = next((p for p in until_patterns or [] if until_matches(p, line)), None)
+                if matched is not None:
+                    log_ok(f"Sentinel found: {matched!r}")
                     break
     except KeyboardInterrupt:
         print()
@@ -712,8 +718,9 @@ def parse_args():
                    help="Load only, do not jump")
     p.add_argument("--capture", default=None, type=float, metavar="SECONDS",
                    help="After jump: capture UART output for up to SECONDS seconds")
-    p.add_argument("--until", default=None,
-                   help="Stop capture when output contains this string")
+    p.add_argument("--until", action="append", default=None, metavar="PATTERN",
+                   help="Stop capture when a line contains PATTERN ('*' matches any text). "
+                        "May be given several times; the first match stops the capture")
     add_common(p)
 
     return parser.parse_args()

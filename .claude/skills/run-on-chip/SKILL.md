@@ -43,9 +43,11 @@ Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this
    Then:
    ```sh
    tools/bkloader iram --speed 921600 --port <PORT> \
-       --capture 10 --until "==END==" build/app_iram.bin
+       --capture 10 --until "==END==" --until "Bootloader*" build/app_iram.bin
    ```
+   `--until` can be given several times; the first match stops the capture. A line matches when it contains the pattern, and `*` matches any text. The second pattern catches the bootloader banner: the chip rebooted mid-run (watchdog reset, panic, assert), so the capture stops early instead of waiting out the timeout.
 5. **Interpret output:**
+   - The log line `Sentinel found: 'Bootloader*'` → the chip reset before `==END==`. Treat as a failure; look at the output above the banner for the cause.
    - All lines `[ OK ]` and summary shows `N / N passed` → hypothesis confirmed, go to step 6.
    - Any `[FAIL]` or no sentinel → revise hypothesis, return to step 1.
    - After 5 iterations without resolution → stop, report findings to user.
@@ -61,10 +63,10 @@ Any directory under `src/tests/` is built as `test_<name>--iram` (for example `t
 ```sh
 (cd build && make test_<name>--iram)
 tools/bkloader iram --speed 921600 --port <PORT> \
-    --capture <SECONDS> --until "==END==" build/app_iram.bin
+    --capture <SECONDS> --until "==END==" --until "Bootloader*" build/app_iram.bin
 ```
 
-Not every test prints the `==END==` sentinel. If it does not, capture runs until the timeout, so pick `<SECONDS>` from the test's expected runtime. Read the pass/fail lines from the output. If a test fails, report it and stop; fixing the test or the driver needs the user's go-ahead. The iteration limit of 5 applies only to probe experiments.
+Not every test prints the `==END==` sentinel. If it does not, capture runs until the timeout, so pick `<SECONDS>` from the test's expected runtime. Keep `--until "Bootloader*"` either way: a reboot before the test ends is a failure, and this stops the wait early. If the test finishes by rebooting on purpose, drop that pattern. Read the pass/fail lines from the output. If a test fails, report it and stop; fixing the test or the driver needs the user's go-ahead. The iteration limit of 5 applies only to probe experiments.
 
 ## probe.cpp invariants
 

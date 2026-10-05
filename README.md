@@ -135,8 +135,10 @@ tools/bkloader iram build/app_iram.bin --no-reboot --capture 10
 tools/bkloader iram build/app_iram.bin --no-jump
 ```
 
-`--until STRING` stops capture as soon as the output contains that string —
-useful for automated pass/fail checks.
+`--until PATTERN` stops capture as soon as a line contains the pattern —
+useful for automated pass/fail checks. `*` matches any text. The flag can be
+repeated; the first match wins. For example, `--until "==END==" --until "Bootloader*"`
+also stops when the chip resets back into the bootloader (watchdog, panic, assert).
 
 ---
 
