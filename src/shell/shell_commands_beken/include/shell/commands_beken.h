@@ -39,6 +39,8 @@ int command_flash_dump(int argc, const char *argv[]);
 
 int command_flash_read_binary(int argc, const char *argv[]);
 
+int command_memory_read_binary(int argc, const char *argv[]);
+
 int command_flash_write(int argc, const char *argv[]);
 
 int command_flash(int argc, const char *argv[]);

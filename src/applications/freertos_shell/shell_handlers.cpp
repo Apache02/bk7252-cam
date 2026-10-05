@@ -33,6 +33,8 @@ const Shell::Handler shell_handlers[] = {
     {"free", command_free, nullptr},
     {"blink", command_blink, nullptr},
     {"flash_dump", command_flash_dump, nullptr},
+    {"memory_read", command_memory_read_binary, nullptr},
+    {"speed", command_uart2_baudrate, nullptr},
     {"tlv", command_tlv, nullptr},
     {"random_test", command_random_test, nullptr},
     {"timer_delay", command_time_delay, nullptr},
