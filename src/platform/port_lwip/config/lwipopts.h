@@ -17,15 +17,15 @@
 #define PBUF_POOL_BUFSIZE 512
 
 /* ---- Protocols ---- */
-#define LWIP_ARP  1
-#define LWIP_IPV4 1
-#define LWIP_ICMP 1
-#define LWIP_RAW  1
+#define LWIP_ARP                  1
+#define LWIP_IPV4                 1
+#define LWIP_ICMP                 1
+#define LWIP_RAW                  1
 #define DEFAULT_RAW_RECVMBOX_SIZE 1
-#define LWIP_UDP  1
-#define LWIP_TCP  1
-#define LWIP_DNS  0
-#define LWIP_DHCP 1
+#define LWIP_UDP                  1
+#define LWIP_TCP                  1
+#define LWIP_DNS                  0
+#define LWIP_DHCP                 1
 
 /* ---- Loopback ---- */
 #define LWIP_HAVE_LOOPIF        1
@@ -58,5 +58,7 @@
 #define DEFAULT_TCP_RECVMBOX_SIZE                    8
 #define DEFAULT_ACCEPTMBOX_SIZE                      8
 #define DEFAULT_THREAD_STACKSIZE                     256
+
+#define LWIP_NETIF_HOSTNAME 1
 
 #endif /* LWIPOPTS_H */

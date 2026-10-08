@@ -35,7 +35,9 @@ static struct net_if wifi_ifaces[IFACE_COUNT] = {
             .name  = WIFI_IFACE_STA,
             .type  = VIF_STA,
             .vif   = INVALID_VIF_IDX,
-            .netif = {.hwaddr = {0xC8, 0x47, 0x8C, 0x42, 0x88, 0x48}, .hwaddr_len = NETIF_MAX_HWADDR_LEN},
+            .netif = {.hwaddr     = {0xC8, 0x47, 0x8C, 0x42, 0x88, 0x48},
+                      .hwaddr_len = NETIF_MAX_HWADDR_LEN,
+                      .hostname   = "beken"},
         },
     [IFACE_AP] =
         {
