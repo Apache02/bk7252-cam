@@ -38,52 +38,6 @@ Fix options:
 
 Recommendation: (c) until a real caller needs streaming.
 
-### F2. `timer_irq_handler` RMW races against W1C `irq_status`
-
-File: `hardware_timer/timer.c`, function `timer_irq_handler`.
-
-`bank->ctl.enable &= ~(1 << timer_num_in_bank)` (disabling a one-shot timer
-from inside the IRQ handler) is a read-modify-write on the *whole* `ctl`
-register. The `irq_status` field within that register is write-1-to-clear:
-the RMW reads back current `irq_status` bits (1 for any timer whose IRQ has
-fired in the meantime), then writes them back as part of the same word — which
-silently *clears* the W1C bits. Newly arrived IRQs in the same bank can be
-swallowed.
-
-The trailing `do { bank->ctl.irq_status = status0; } while (...)` partially
-masks the problem for the bits the handler already saw, but a timer that
-fires *after* the snapshot but *before* the disable can lose its flag.
-
-Fix: build the new ctl value with the desired `enable`, the unchanged
-`clk_divider`, and `irq_status = 0`, then write through `.v` once. Writing 0
-to a W1C bit is a no-op for the hardware, so it does not corrupt other
-in-flight flags.
-
-Sketch:
-```c
-typeof(bank->ctl) tmp = { 0 };
-tmp.enable = bank->ctl.enable & ~(1u << n);
-tmp.clk_divider = bank->ctl.clk_divider;
-bank->ctl.v = tmp.v;
-```
-
-### F3. `intc_init` enables MAC FIQ sources before any handler exists
-
-File: `hardware_intc/intc.c`, function `intc_init`.
-
-`INIT_AT(intc_init, 01)` unconditionally enables seven `fiq_*` sources
-(`fiq_mac_general`, `fiq_mac_*_trigger`, `fiq_modem`, …). At that moment no
-handlers are registered, so any spurious FIQ goes through `intc_fiq()` →
-`find_handlers` returns 0 → silent return. If the source is "sticky" the
-unhandled IRQ will keep firing in a hot loop.
-
-These bits look like a leftover from the SDK that the camera firmware doesn't
-even use. Either:
-- delete the seven assignments and let each subsystem `intc_enable_irq_source`
-  itself when ready, or
-- move them out of `intc_init` and into a `wifi/mac` init step gated by board /
-  feature config.
-
 ### F4. `wdt_set(unsigned long)` silently truncates to 16 bits
 
 File: `hardware_wdt/wdt.c` and `include/hardware/wdt.h`.
@@ -225,11 +179,11 @@ Failure mode, worse than interleaved output:
   FIQ sees an empty ring, takes the direct-to-FIFO path, and its byte overtakes the one the
   interrupted handler is still holding.
 
-Not reachable today. The only FIQ handler in the tree is `sctrl_dpll_isr()`, which clears a
-latch and writes nothing, and the only FIQ source ever unmasked is `FIQ_SOURCE_DPLL_UNLOCK`
-(`intc_enable_irq_source` appears once). Commit `31b1570` also stopped `intc_init()` from
-unmasking the MAC and modem sources. It becomes reachable the moment a MAC FIQ source goes
-live with logging behind it, which is where the WiFi port is headed.
+Not reachable today. The FIQ handlers in the tree are `sctrl_dpll_isr()` (clears a latch,
+writes nothing) and `jpeg_isr()` (only calls the start/end-frame callbacks the camera
+device sets, which do not print). `intc_init()` unmasks no source. It becomes reachable the
+moment a FIQ handler logs, for example a MAC FIQ source going live, which is where the WiFi
+port is headed.
 
 Fix: mask FIQ around the ISR's dequeue loop. Two shapes, with the trade-off between them:
 
@@ -367,23 +321,6 @@ duplicate registration) is silently accepted.
 Fix: validate inputs in `register_handler` itself and return `false` on
 unrecognised cases. Update the callers to surface the failure (currently the
 return is mostly ignored).
-
-### A3. Timer counter read-back registers absent on BK7221U — resolved
-
-The `read_ctl` and `read_value` registers described in some Beken documentation
-do not exist on BK7221U silicon. The SDK `beken378/driver/pwm/bk_timer.h`
-explicitly excludes them:
-
-```c
-#if (CFG_SOC_NAME != SOC_BK7221U)
-#define TIMER0_2_READ_CTL    (PWM_NEW_BASE + 4 * 4)
-#define TIMER0_2_READ_VALUE  (PWM_NEW_BASE + 5 * 4)
-#endif
-```
-
-Both timer banks are affected. Reading the current counter value mid-period is
-not possible on this chip. `timer_read()` has been removed from the driver and
-public API. `soc/timer.h` no longer declares `read_ctl` / `read_value` fields.
 
 ### A4. `flash_read` has no error reporting
 
@@ -561,97 +498,8 @@ Migration path:
    include path before `add_subdirectory`).
 3. tlsf has a trivial `CMakeLists.txt`; a thin wrapper target may suffice.
 
-Until the migration is done, set `cmake_policy(SET CMP0169 OLD)` in
-`dependencies.cmake` (guarded with `if(POLICY CMP0169)`) to suppress the
-warning.
-
-### Arch8. FreeRTOS port assumes no IRQ can land before `vPortStartFirstTask()` runs — resolved
-
-Files: `platform/freertos/port.c` (`xPortStartScheduler`), `platform/freertos/port_asm.S`
-(`portSAVE_CONTEXT` / `portRESTORE_CONTEXT`).
-
-Confirmed on hardware (`freertos_shell--iram`, July 2026): jumping into the app from
-the bootloader intermittently landed back at address `0x0` (the bootloader restarting
-itself) with no watchdog reset involved. Root cause traced to a corrupted
-`pxCurrentTCB` stack frame, not a hardware or bootloader/vector-handoff issue.
-
-Mechanism:
-
-- `portSAVE_CONTEXT` / `portRESTORE_CONTEXT` (used by `do_irq`) always save/restore
-  relative to `pxCurrentTCB`, on the assumption that the CPU is genuinely executing
-  *inside* that task's context whenever an IRQ is taken.
-- `pxCurrentTCB` is already valid before `vTaskStartScheduler()` ever calls into
-  `xPortStartScheduler()` — FreeRTOS assigns it to the first created task at
-  `xTaskCreateStatic()` time.
-- If an IRQ is taken anywhere between task creation and `vPortStartFirstTask()`'s
-  final `subs pc, lr, #4` (which atomically restores the task's SPSR into CPSR —
-  unmasking IRQ — and jumps into the task, in one instruction), the CPU is not
-  actually inside any task yet; it is still on `xPortStartScheduler()`'s own C call
-  stack. `portSAVE_CONTEXT` nonetheless writes that wrongly-shaped stack content into
-  `pxCurrentTCB`'s saved-stack-pointer field, clobbering the first task's properly
-  initialised `pxPortInitialiseStack()` frame.
-- The next restore (tick-driven or otherwise) reads that garbage back as
-  `{R0-R14, SPSR, ulCriticalNesting, LR}` and branches to whatever garbage value
-  lands in the "return address" slot — observed as literal `0`: an ordinary, valid
-  branch into the bootloader's still-resident vector table (`b _reset`), not a fault
-  or a watchdog reset. This also explains why the CPSR/register dump printed by the
-  bootloader's "go" command on the failing run looked like plausible-but-wrong data
-  (e.g. `CPSR: 0x00000010`) rather than an all-zero or clearly-invalid pattern — it's
-  the same corrupted stack data being reinterpreted as a register frame.
-
-This was safe only because nothing was ever ICU-forwarded early enough to test the
-invariant: the design relied on CPU IRQ (CPSR I-bit) staying masked continuously from
-`_reset` until `vPortStartFirstTask()`'s SPSR-restore trick unmasks it, and no
-interrupt source was live during that window until commit `01e2875` made UART2's
-`rx_need_read` / `rx_stop_end` live at the ICU level for the first time
-(`uart2_init()`). Since the console UART is actively receiving bytes throughout
-normal use (typing at the shell), a byte landing at the wrong instant reliably
-reproduced the corruption. The immediate fix for that regression — reverting the
-UART1/UART2 interrupt-driven TX wait — only removed the live trigger.
-
-Resolution: the underlying hole is now closed, by ARM processor mode rather than by a
-software flag. `portSAVE_CONTEXT` (commit `ac8788b`) tests `SPSR.mode` on entry and
-takes the `nested_save` branch whenever the interrupted context was not System mode:
-the frame goes on the current mode's own stack and `pxCurrentTCB` is left untouched.
-`portRESTORE_CONTEXT` mirrors the same test, and `portAPPLY_PENDING_SWITCH` (commit
-`2c8786d`) only calls `vTaskSwitchContext()` when `SPSR` says System mode. Tasks run in
-System mode; everything from `_reset` up to `vPortStartFirstTask()` runs in Supervisor
-mode, so an IRQ taken in the vulnerable window now takes the nested path and cannot
-clobber the first task's `pxPortInitialiseStack()` frame.
-
-That is functionally option (a) below, with the processor mode standing in for the
-`xSchedulerRunning` flag — and it is strictly better, because it needs no flag to be
-maintained and covers nested handlers as well as the pre-scheduler window.
-
-The guard above was established by reading `port_asm.S`; the pre-scheduler scenario has
-not been re-run on a FreeRTOS target since. That is a gap in the evidence, not a live
-risk, because nothing currently reaches the window:
-
-- Reintroducing interrupt-driven UART TX (`hardware_uart/uart.c`) does not open it.
-  `_write()` arms `tx_need_write` but then checks `portENABLED_IRQ()`, which reads the
-  CPSR I-bit — masked continuously from `_reset` until `vPortStartFirstTask()`. So every
-  pre-scheduler write takes the synchronous path, and `uart_drain()` clears the enable
-  bit and releases the byte source before returning. By the time IRQ is unmasked there
-  is nothing left to assert. The same holds for `bk_printf()` from a MAC handler, since
-  IRQ/FIQ entry masks I as well.
-- `freertos_wifi` has since been built and booted with this in place (August 2026),
-  which exercises exactly that early-`printf` path.
-
-The general warning still stands, though: any future source that is ICU-forwarded and
-left unmasked at the block during the window can still take an IRQ there, and would then
-be relying on the mode guard rather than on nothing being live. Confirming the guard on
-hardware is worth doing before that happens.
-
-Fix options as originally scoped, kept for context:
-- (a) Guard `do_irq`'s context switch on an `xSchedulerRunning`-equivalent flag, so an
-  IRQ taken before the scheduler has truly started is acknowledged/serviced without
-  touching `pxCurrentTCB` (matches how upstream FreeRTOS ARM7/9 ports guard
-  tick-driven switches). — adopted, in the mode-based form described above.
-- (b) Audit every driver's early `intc_enable_*_source()` / `INIT_AT` call site and
-  guarantee none of them can be ICU-forwarded before `vPortStartFirstTask()` runs.
-- (c) Move all peripheral interrupt enabling out of pre-`main()` init and into a
-  first, highest-priority task that runs after the scheduler has started, so nothing
-  can be live during the vulnerable window at all.
+Until the migration is done, `dependencies.cmake` sets `cmake_policy(SET CMP0169 OLD)`
+(guarded with `if(POLICY CMP0169)`), which suppresses the warning.
 
 ### Arch9. `hardware_pwm` is not wired into the build
 
@@ -669,10 +517,14 @@ Fix: add `add_subdirectory(hardware_pwm)` to
 
 ## Index of fixed issues
 
-For traceability — these were fixed in commit `a7cebc0`:
+For traceability — these are fixed:
 
 | # | Description                                         |
 | --- | ------------------------------------------------- |
+| F2 | Timer `ctl` read-modify-write wrote pending W1C `irq_status` flags back as 1 and cleared them; all `enable` changes now go through one helper that writes `irq_status = 0` |
+| F3 | `intc_init` no longer unmasks any interrupt source; each driver unmasks its own after registering a handler |
+| A3 | Timer `read_ctl` / `read_value` registers do not exist on BK7221U; `timer_read()` and the register fields removed |
+| Arch8 | FreeRTOS context save/restore picks the nested path by `SPSR.mode`, so an IRQ before `vPortStartFirstTask()` cannot clobber the first task's frame |
 | 1 | `register_handler` left interrupts disabled        |
 | 2 | `intc.c` used `|=` to clear W1C status            |
 | 3 | `ICU_INT_*_MASK` macros had trailing `;`          |
