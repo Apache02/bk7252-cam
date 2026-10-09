@@ -25,6 +25,20 @@ static private_timer_t timers_handlers[TIMERS_TOTAL] = {0};
         bank->ctl.irq_status = status;       \
     }
 
+// irq_status shares the ctl word and is W1C, so a plain read-modify-write of any other
+// field writes pending flags back as 1 and clears them. Write them as 0 instead.
+static void timer_bank_update_enable(volatile hw_timer_bank_t *bank, uint32_t set, uint32_t clear) {
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+
+    typeof(bank->ctl) ctl = {.v = bank->ctl.v};
+    ctl.irq_status        = 0;
+    ctl.enable            = (ctl.enable | set) & ~clear;
+    bank->ctl.v           = ctl.v;
+
+    GLOBAL_INT_RESTORE();
+}
+
 
 static void timer_isr() {
     uint32_t status0    = hw_timer_bank0->ctl.irq_status;
@@ -43,7 +57,7 @@ static void timer_isr() {
         if (timers_handlers[i].type == TYPE_ONCE) {
             volatile hw_timer_bank_t *bank              = get_timer_bank_by_index(i);
             int                       timer_num_in_bank = get_timer_num_in_bank_by_index(i);
-            bank->ctl.enable &= ~(1 << timer_num_in_bank);
+            timer_bank_update_enable(bank, 0, 1u << timer_num_in_bank);
 
             timers_handlers[i].handler = NULL;
             timers_handlers[i].type    = TYPE_NONE;
@@ -110,7 +124,7 @@ int timer_create(uint32_t count, timer_alarm_handler_t *func, bool once) {
     timers_handlers[timer_num].handler = func;
 
     bank->counter[timer_num_in_bank] = count;
-    bank->ctl.irq_status &= ~(1 << timer_num_in_bank);
+    timer_clear_irq_status(bank, 1 << timer_num_in_bank);
 
     GLOBAL_INT_RESTORE();
     return timer_num;
@@ -133,8 +147,7 @@ int timer_create_by_freq(uint32_t freq, timer_alarm_handler_t *func, bool once) 
     timers_handlers[timer_num].handler = func;
 
     bank->counter[timer_num_in_bank] = get_timer_frequency(timer_num) / freq;
-    bank->ctl.irq_status &= ~(1 << timer_num_in_bank);
-    timer_clear_irq_status(hw_timer_bank0, 1 << timer_num_in_bank);
+    timer_clear_irq_status(bank, 1 << timer_num_in_bank);
 
     GLOBAL_INT_RESTORE();
     return timer_num;
@@ -148,7 +161,7 @@ void timer_start(int timer_num) {
     int              timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
 
     timer_clear_irq_status(bank, 1 << timer_num_in_bank);
-    bank->ctl.enable |= (1 << timer_num_in_bank);
+    timer_bank_update_enable(bank, 1u << timer_num_in_bank, 0);
 }
 
 void timer_remove(int timer_num) {
@@ -156,7 +169,7 @@ void timer_remove(int timer_num) {
 
     hw_timer_bank_t *bank              = get_timer_bank_by_index(timer_num);
     int              timer_num_in_bank = get_timer_num_in_bank_by_index(timer_num);
-    bank->ctl.enable &= ~(1 << timer_num_in_bank);
+    timer_bank_update_enable(bank, 0, 1u << timer_num_in_bank);
 
     timers_handlers[timer_num].handler = NULL;
     timers_handlers[timer_num].type    = TYPE_NONE;
@@ -166,21 +179,22 @@ uint32_t timer_pause_all(void) {
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
 
-    uint32_t enabled = hw_timer_bank0->ctl.enable | ((uint32_t)hw_timer_bank1->ctl.enable << TIMERS_IN_BANK);
+    uint32_t enabled0 = hw_timer_bank0->ctl.enable;
+    uint32_t enabled1 = hw_timer_bank1->ctl.enable;
 
-    hw_timer_bank0->ctl.enable &= ~(enabled & ((1u << TIMERS_IN_BANK) - 1));
-    hw_timer_bank1->ctl.enable &= ~((enabled >> TIMERS_IN_BANK) & ((1u << TIMERS_IN_BANK) - 1));
+    timer_bank_update_enable(hw_timer_bank0, 0, enabled0);
+    timer_bank_update_enable(hw_timer_bank1, 0, enabled1);
 
     GLOBAL_INT_RESTORE();
-    return enabled;
+    return enabled0 | (enabled1 << TIMERS_IN_BANK);
 }
 
 void timer_resume_all(uint32_t paused_mask) {
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
 
-    hw_timer_bank0->ctl.enable |= (paused_mask & ((1u << TIMERS_IN_BANK) - 1));
-    hw_timer_bank1->ctl.enable |= ((paused_mask >> TIMERS_IN_BANK) & ((1u << TIMERS_IN_BANK) - 1));
+    timer_bank_update_enable(hw_timer_bank0, paused_mask & ((1u << TIMERS_IN_BANK) - 1), 0);
+    timer_bank_update_enable(hw_timer_bank1, (paused_mask >> TIMERS_IN_BANK) & ((1u << TIMERS_IN_BANK) - 1), 0);
 
     GLOBAL_INT_RESTORE();
 }
