@@ -38,17 +38,6 @@ Fix options:
 
 Recommendation: (c) until a real caller needs streaming.
 
-### F4. `wdt_set(unsigned long)` silently truncates to 16 bits
-
-File: `hardware_wdt/wdt.c` and `include/hardware/wdt.h`.
-
-`void wdt_set(unsigned long period)` stores the argument into
-`uint16_t g_period`. All current call sites pass values that fit, but the API
-invites a future bug.
-
-Fix: change the parameter type to `uint16_t` in both the header and the
-implementation. All current callers (grep'd) already pass small literals.
-
 ### F5. `trng_disable` writes the data register
 
 File: `hardware_random/random.c`, function `trng_disable`.
@@ -523,6 +512,7 @@ For traceability — these are fixed:
 | --- | ------------------------------------------------- |
 | F2 | Timer `ctl` read-modify-write wrote pending W1C `irq_status` flags back as 1 and cleared them; all `enable` changes now go through one helper that writes `irq_status = 0` |
 | F3 | `intc_init` no longer unmasks any interrupt source; each driver unmasks its own after registering a handler |
+| F4 | `wdt_set` took `unsigned long` and truncated to 16 bits; parameter is now `uint16_t` |
 | A3 | Timer `read_ctl` / `read_value` registers do not exist on BK7221U; `timer_read()` and the register fields removed |
 | Arch8 | FreeRTOS context save/restore picks the nested path by `SPSR.mode`, so an IRQ before `vPortStartFirstTask()` cannot clobber the first task's frame |
 | 1 | `register_handler` left interrupts disabled        |

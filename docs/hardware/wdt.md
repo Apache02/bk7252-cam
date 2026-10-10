@@ -27,6 +27,20 @@ Offset in bytes from `0x00802900`.
 The block is enabled by the ICU peripheral clock power-down register, bit `[8]`
 (`arm_wdt`). `0` = clock running, watchdog counts. `1` = clock gated, watchdog stopped.
 
+The ICU clock gate-disable register has a separate `wdt` bit, `[9]` (`1` = gate disabled,
+clock always on). It reads `1` after reset. **It does not gate the watchdog clock.**
+With `arm_wdt = 0`, the watchdog counts and resets the chip after the same time with the
+bit at `0` or `1` (2003 ms at `period = 2000`). Flipping the bit while the countdown runs
+(to the opposite value at 500 ms, back at 1500 ms) does not delay the reset: 2002 ms
+starting from `1`, 2003 ms starting from `0`. `ctrl` writes are accepted at either value.
+Clearing the register's `icu` bit `[0]` together with `wdt` does not stop the watchdog
+either: 2003 ms.
+Whether the bit matters in a low-power state is not characterised; leave it at `1`. The `tl410_wdt` bits in the ICU belong to the TL410 core's own watchdog, not to
+this block.
+
+`ctrl` is writable and readable while `arm_wdt = 1` (clock stopped), in both states of
+the gate-disable bit.
+
 ---
 
 ## Operation model
