@@ -31,13 +31,18 @@ There is no unit-test framework — `smoke_build.sh` only verifies clean compila
 
 ## Flash / backup / monitor
 
+The board runs this project's own bootloader (`src/applications/bootloader`), not the vendor one. The vendor-protocol tools (`tools/flasher/uartprogram`, `uartreader`) do not work against it — they are kept only for the vendor bootloader (commands in `README.md`). Use `tools/bkloader`:
+
 ```sh
-./flash.sh              # tools/flasher/uartprogram --segment app build/app_crc.bin
-./backup.sh             # dumps app segment from /dev/ttyUSB0 into backups/
+tools/bkloader flash build/app_crc.bin   # flash the app partition
+tools/bkloader backup                    # dump the app partition into backups/
+tools/bkloader iram build/app_iram.bin --capture 10   # run from RAM, no flash write
 tio -b 115200 /dev/ttyUSB0
 ```
 
-Flasher tools (`tools/flasher/uartprogram`, `uartreader`) are Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/bkloader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`.
+Installing the own bootloader on a vendor-bootloader board (see `README.md`, *Bootloader*): flash `ram_loader` into the app partition with `uartprogram`, then run `bootloader_installer--iram` via `tools/bkloader iram` (it embeds the `bootloader` build and writes it to flash `0x000000`), then restore the vendor app — it works with the own bootloader.
+
+`tools/flasher/` holds Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/bkloader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`.
 
 ## Architecture
 
@@ -61,6 +66,8 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
 
 - `src/tests/` — standalone driver smoke tests built as IRAM firmware images (one `add_executable` per subdir, wrapped with `bk_firmware_iram`). Same auto-discovery as `src/applications/`. Loaded via `tools/bkloader iram` without flashing.
 
+- `src/devices/` — composite devices built on several drivers plus board wiring, one library per device. Currently `camera` (`device_camera`): DVP sensor + JPEG encoder + GDMA capture. A sensor is one `camera_sensor_t` (I2C address, `probe()`, init table, encoder settings) in `devices/camera/sensors/`, listed in `sensors.c`.
+
 - `src/boards/` — board pin/feature headers. `BOARD` CMake var (or `$ENV{BOARD}`, default `A9_B_V1_3`) selects the active board and adds `BOARD_<NAME>` as a compile definition via the `board_config` INTERFACE library; `include/board.h` is the umbrella header consumers include.
 
 - `src/linker/` — three linker scripts: `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`), `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`), and `bootloader.lds` (bootloader image from flash @ `0x00000000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.md` for the full chip memory map.
@@ -79,7 +86,7 @@ External dependencies are fetched into `libs/` by `dependencies.cmake` via `Fetc
 - CRC wrapping (`tools/crc`) is required to produce a flashable image — never flash the raw `*.bin`, always `*_crc.bin` / `app_crc.bin`.
 - The IRAM build (`*--iram` target, `app_iram.bin`) is for loading and running directly out of RAM block 2 via `tools/bkloader iram` — useful for fast iteration without writing flash. `tools/bkloader iram` requires a shell with `loadi`, `go`, and `speed` commands running on the chip; `src/applications/ram_loader` is the dedicated app for this purpose.
 - All source content (identifiers, comments, strings, docs) must be English-only.
-- Do not run the build (`cmake`, `make`, `./smoke_build.sh`) — the user runs builds themselves. Exception: `make test_probe--iram` is allowed when using the `run-on-chip` skill for `src/tests/probe/` experiments.
+- Do not run the build (`cmake`, `make`, `./smoke_build.sh`) — the user runs builds themselves. Exception: `make test_<name>--iram` is allowed for any target under `src/tests/` (including `test_probe--iram`) when using the `run-on-chip` skill; applications are never built.
 - `src/tests/probe/` is the scratch template for the `run-on-chip` skill — never commit anything in that directory unless explicitly told to (e.g. when updating the template itself).
 - `docs/hardware/*.md` describe silicon/register behavior only — no references to this project's driver function/type/macro names, file paths, or software design choices (those belong in driver source comments, e.g. `src/platform/drivers/*/*.c`); see the `hardware-block-reference` skill.
 - `src/linker/*.lds` are preprocessed with the C preprocessor (`cmake/linker_script.cmake`, `-x assembler-with-cpp`) before being handed to `ld`, so they can `#include` headers and use `#define` constants — see `src/platform/boot/include/platform/stacks.h` for the mode-stack size/color macros shared with `boot_reset.S`.

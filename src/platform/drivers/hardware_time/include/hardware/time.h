@@ -1,7 +1,12 @@
 #ifndef _HARDWARE_TIME_H
 #define _HARDWARE_TIME_H
 
-#include "stdint.h"
+#include <stdint.h>
+
+// Backed by the monotonic counter in the MAC/WiFi (rwnx/mac_core.h)
+// hardware block, which can be powered off. sctrl_rf_init() powers that
+// block up, so the counter runs after it.
+// Code that must keep working regardless cannot rely on this module for timing
 
 typedef struct {
     uint64_t time_raw;
@@ -11,7 +16,6 @@ typedef struct {
 extern "C" {
 #endif
 
-// high frequency counter
 uint32_t get_hf_counter();
 
 // microseconds counter, part of get_absolute_time

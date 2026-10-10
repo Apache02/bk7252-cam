@@ -257,12 +257,14 @@ typedef volatile struct {
             uint32_t mac_prot_trigger: 1; // [21]
             uint32_t mac_general: 1;      // [22]
             uint32_t sdio_dma: 1;         // [23]
-            uint32_t mailbox0: 1;         // [24]
-            uint32_t mailbox1: 1;         // [25]
+            uint32_t mailbox0: 1;         // [24] name from the SDK, likely wrong: this chip has no mailbox,
+            uint32_t mailbox1: 1;         // [25] irq_enable has usb_plug_inout / security at these bits
             uint32_t mac: 1;              // [26]
             uint32_t reserved_27_31: 5;   // [31:27]
         };
     } arm_wakeup_en;
 } hw_icu_t;
+
+static_assert(sizeof(hw_icu_t) == 21 * sizeof(uint32_t), "hw_icu_t size mismatch");
 
 #define hw_icu ((volatile hw_icu_t *)ICU_BASE_ADDR)

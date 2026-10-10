@@ -24,5 +24,3 @@ void bk_trap_swi() {
     panic_blink(5);
     panic("bk_trap_swi");
 }
-
-// eof

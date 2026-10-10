@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdint.h>
 #include "platform/soc.h"
 
 
@@ -109,6 +108,10 @@ typedef volatile struct {
     uint32_t       c_rst;      // 0x92
     const uint32_t c_mem_data; // 0x93
 } hw_security_rsa_t;
+
+static_assert(sizeof(hw_security_aes_t) == 20 * sizeof(uint32_t), "hw_security_aes_t size mismatch");
+static_assert(sizeof(hw_security_sha_t) == 51 * sizeof(uint32_t), "hw_security_sha_t size mismatch");
+static_assert(sizeof(hw_security_rsa_t) == 20 * sizeof(uint32_t), "hw_security_rsa_t size mismatch");
 
 #define hw_aes ((volatile hw_security_aes_t *)SECURITY_AES_BASE)
 #define hw_sha ((volatile hw_security_sha_t *)SECURITY_SHA_BASE)

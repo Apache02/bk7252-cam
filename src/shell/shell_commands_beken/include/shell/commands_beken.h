@@ -39,6 +39,8 @@ int command_flash_dump(int argc, const char *argv[]);
 
 int command_flash_read_binary(int argc, const char *argv[]);
 
+int command_memory_read_binary(int argc, const char *argv[]);
+
 int command_flash_write(int argc, const char *argv[]);
 
 int command_flash(int argc, const char *argv[]);
@@ -54,6 +56,11 @@ int command_sha256(int argc, const char *argv[]);
 int command_sha512(int argc, const char *argv[]);
 
 int command_gpio(int argc, const char *argv[]);
+
+// `i2c scan|read|write|xfer i2c1 ... [--baud <hz>] [--no_dvp]`: scan prints an
+// ACK map of the non-reserved 7-bit addresses; read, write and xfer move bytes
+// to or from one device. `i2c --help` lists the arguments.
+int command_i2c(int argc, const char *argv[]);
 
 // Interrupt controller state: enabled/raw sources, sources that fired without a
 // handler, the count of exceptions taken with an empty status, and — behind

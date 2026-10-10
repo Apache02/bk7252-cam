@@ -114,7 +114,6 @@ static const gpio_func_map_entry_t gpio_func_map[] = {
     // [GPIO_FUNC_ADC6]           = {12, 12, PERIAL_MODE_2, GPIO_SECOND_FUNC},
 };
 
-// Sets the 2-bit peripheral-mode field for one pin in its func_cfg_1/2/3 register.
 static inline void gpio_set_func_mode(gpio_num_t gpio, uint32_t mode) {
     static volatile uint32_t *const func_cfg_regs[] = {
         &hw_gpio->func_mux_1,

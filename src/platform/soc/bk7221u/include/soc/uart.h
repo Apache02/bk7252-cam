@@ -113,5 +113,7 @@ typedef volatile struct {
 
 } hw_uart_t;
 
+static_assert(sizeof(hw_uart_t) == 8 * sizeof(uint32_t), "hw_uart_t size mismatch");
+
 #define hw_uart1 ((volatile hw_uart_t *)UART1_BASE_ADDR)
 #define hw_uart2 ((volatile hw_uart_t *)UART2_BASE_ADDR)

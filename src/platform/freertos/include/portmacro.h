@@ -27,6 +27,8 @@ typedef uint32_t       TickType_t;
 #define portINITIAL_SPSR     ((StackType_t)0x1F) /* System mode, ARM mode, interrupts enabled. */
 #define portINSTRUCTION_SIZE ((StackType_t)4)
 
+#define portTICK_TYPE_IS_ATOMIC    1
+
 /*-----------------------------------------------------------*/
 
 /* Architecture specifics. */
@@ -76,8 +78,8 @@ void vPortDisableInterrupts();
 extern void vPortEnterCritical(void);
 extern void vPortExitCritical(void);
 
-#define portENTER_CRITICAL() vPortEnterCritical();
-#define portEXIT_CRITICAL()  vPortExitCritical();
+#define portENTER_CRITICAL() vPortEnterCritical()
+#define portEXIT_CRITICAL()  vPortExitCritical()
 
 /*-----------------------------------------------------------*/
 

@@ -64,4 +64,6 @@ typedef volatile struct {
     hw_pwm_ch_t ch[PWM_CHANNELS];
 } hw_pwm_t;
 
+static_assert(sizeof(hw_pwm_t) == 20 * sizeof(uint32_t), "hw_pwm_t size mismatch");
+
 #define hw_pwm ((volatile hw_pwm_t *)PWM_BASE_ADDR)

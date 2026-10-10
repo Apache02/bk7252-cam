@@ -108,8 +108,6 @@ void bootloader_sctrl_init() {
     busy_wait_at_least_cycles(1300);
     coarse_delay(100);
 
-    // mclk_source + divider must change atomically — transient DPLL/1 = 480 MHz
-    // if written separately, so preserve all other bits with read-modify-write.
     sctrl_set_cpu_freq_hz(DEFAULT_CPU_FREQ);
 
     coarse_delay(100);

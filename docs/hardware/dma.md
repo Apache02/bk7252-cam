@@ -60,9 +60,9 @@ characterised in detail.
 | --------- | ------------------- | -------------------------------------- |
 | `[3:0]`   | `src_req`           | Source peripheral request line (`0` = DTCM/memory) |
 | `[7:4]`   | `dst_req`           | Destination peripheral request line     |
-| `[8]`     | `dtcm_wr_wait_word` | Function not characterised             |
-| `[15:12]` | `src_rd_intval`     | Cycles between source reads (rate-limit, not characterised) |
-| `[19:16]` | `dst_wr_intval`     | Cycles between destination writes (rate-limit, not characterised) |
+| `[8]`     | `dtcm_wr_wait_word` | Function unknown; no effect on DTCM-to-DTCM copies (see below) |
+| `[15:12]` | `src_rd_interval`   | Minimum period between source reads (see "Pacing intervals") |
+| `[19:16]` | `dst_wr_interval`   | Minimum period between destination writes (see "Pacing intervals") |
 
 ### Peripheral request line values (`src_req` / `dst_req`)
 
@@ -134,6 +134,44 @@ full bus utilisation: `ceil(N / 4)` reads and `ceil(N / 4)` writes for N
 bytes. Using `src_dw = dst_dw = 0` runs roughly 4× slower — each bus cycle
 moves one useful byte, and dst has three-byte gaps between meaningful bytes.
 
+### Pacing intervals
+
+`mux_reqs.src_rd_interval` and `mux_reqs.dst_wr_interval` (4 bits each, `0..15`) rate-limit a
+channel. Measured on a DTCM-to-DTCM copy of 8192 bytes, `src_dw = dst_dw = 2`, with
+the bus clock at 120 MHz (8.33 ns per cycle). The copied data was correct for every
+value.
+
+| `interval` (either field, or both set equal) | Copy time (2048 words) | Cycles per word |
+| ------------------------------------------ | ---------------------- | --------------- |
+| `0..5`                                     | 122.2 us               | 7.2             |
+| `6`                                        | 139.3 us               | 8.2             |
+| `8`                                        | 173.5 us               | 10.2            |
+| `10`                                       | 207.7 us               | 12.2            |
+| `12`                                       | 241.9 us               | 14.2            |
+| `15`                                       | 293.0 us               | 17.2            |
+
+The interval is a guaranteed minimum period, not an extra delay added to each word:
+
+- A word costs about 7.2 cycles by itself (one read plus one write). A value that
+  fits inside that time changes nothing, so `0..5` all give 122.2 us.
+- From `6` upward the period is `interval + ~2` cycles and sets the pace. Each step
+  adds one cycle per word (about 17.1 us per 2048 words). The constant `~2` is a fit
+  to the measurements, not a documented offset.
+- Setting both fields to the same value gives the same time as setting one: the
+  limits do not add up. Unequal values (for example source `15`, destination `3`)
+  were not measured.
+- Whether the limit frees bus bandwidth for other masters was not measured; only
+  the copy time was.
+
+### `dtcm_wr_wait_word`
+
+Setting `mux_reqs[8]` made no difference on DTCM-to-DTCM copies. Source and
+destination widths (8, 16 and 32 bit) in all nine combinations, flag `0` and `1`,
+gave byte-identical destination buffers and the same copy time. In particular it
+does not change the +4 address step or fill the gaps left by a narrow destination
+width. Its purpose, if any, is probably tied to a peripheral endpoint, which was
+not tested.
+
 ### Tail artefact
 
 For some sizes the last dst write contains a trailing zero byte — e.g.
@@ -201,5 +239,5 @@ keeps `IRQ_SOURCE_GDMA` high.
 - Loop mode (`repeat_mode = 1` with `*_addr_loop = 1` and the four
   `*_loop_*_addr` registers) was not exercised; it is intended for continuous
   peripheral streaming (e.g. DVP → JPEG → RAM).
-- `mux_reqs.src_rd_intval`, `dst_wr_intval`, and `dtcm_wr_wait_word` have not
-  been characterised. Leave at `0`.
+- `mux_reqs.dtcm_wr_wait_word` has no known effect; leave at `0`.
+  `src_rd_interval` / `dst_wr_interval` are described under "Pacing intervals".

@@ -15,4 +15,7 @@ target_sources(
 target_link_libraries(
         platform_port_newlib INTERFACE
         platform_cpu
+        platform_timeout
+        hardware_random
+        platform_panic
 )

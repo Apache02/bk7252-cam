@@ -19,10 +19,8 @@ uint32_t flash_id();
 
 void flash_read(uint32_t addr, uint8_t *dst, uint32_t count);
 
-/* Read flash Status Register 1 (SR1). */
 uint8_t flash_read_sr1(void);
 
-/* Read flash Status Register 2 (SR2). */
 uint8_t flash_read_sr2(void);
 
 /* Write flash Status Register 1 (SR1) via WREN + WRSR.

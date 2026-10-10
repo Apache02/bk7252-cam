@@ -16,4 +16,6 @@ typedef volatile struct {
     uint32_t irq_index;              // 0x40
 } hw_intc_t;
 
+static_assert(sizeof(hw_intc_t) == 17 * sizeof(uint32_t), "hw_intc_t size mismatch");
+
 #define hw_intc ((volatile hw_intc_t *)INTC_BASE_ADDR)

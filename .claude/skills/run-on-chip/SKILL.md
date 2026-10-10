@@ -1,18 +1,18 @@
 ---
 name: run-on-chip
-description: Use when testing a hardware hypothesis on the real BK7252 chip — register behaviour, peripheral interaction, driver correctness. Triggers on "test this on chip", "verify on hardware", "check what this register does", "probe this peripheral", "let me see on real hardware", or any task requiring autonomous write→build→flash→capture→iterate in src/tests/probe/.
+description: Use when testing a hardware hypothesis on the real BK7252 chip — register behaviour, peripheral interaction, driver correctness. Triggers on "test this on chip", "verify on hardware", "check what this register does", "probe this peripheral", "let me see on real hardware", or any task requiring autonomous write→build→flash→capture→iterate in src/tests/probe/, or running an existing test from src/tests/ on the chip.
 ---
 
 # Run-on-Chip
 
-Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this to confirm or disprove hardware hypotheses before writing documentation or proper driver tests.
+Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this to confirm or disprove hardware hypotheses before writing documentation or proper driver tests. The same build→flash→capture steps run any existing test under `src/tests/` (see "Running an existing test").
 
 ## Scope
 
 | Zone | Autonomous | Notes |
 |---|---|---|
 | `src/tests/probe/` | Write, build, flash, iterate | — |
-| `src/tests/<name>/` | Write, build, flash | Ask before starting |
+| `src/tests/<name>/` | Build, flash, capture | Writing or editing a test only on user command |
 | `src/applications/` | Write code | — |
 | `src/applications/` build/flash | ❌ never | — |
 | `docs/` | — | Explicit command required |
@@ -43,9 +43,11 @@ Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this
    Then:
    ```sh
    tools/bkloader iram --speed 921600 --port <PORT> \
-       --capture 10 --until "==END==" build/app_iram.bin
+       --capture 10 --until "==END==" --until "Bootloader*" build/app_iram.bin
    ```
+   `--until` can be given several times; the first match stops the capture. A line matches when it contains the pattern, and `*` matches any text. The second pattern catches the bootloader banner: the chip rebooted mid-run (watchdog reset, panic, assert), so the capture stops early instead of waiting out the timeout.
 5. **Interpret output:**
+   - The log line `Sentinel found: 'Bootloader*'` → the chip reset before `==END==`. Treat as a failure; look at the output above the banner for the cause.
    - All lines `[ OK ]` and summary shows `N / N passed` → hypothesis confirmed, go to step 6.
    - Any `[FAIL]` or no sentinel → revise hypothesis, return to step 1.
    - After 5 iterations without resolution → stop, report findings to user.
@@ -53,6 +55,18 @@ Autonomous hardware testing loop for the BK7252 via `src/tests/probe/`. Use this
 6. **After confirmation** — ask the user:
    - Whether to write a proper test to `src/tests/<name>/` (ask before starting, then proceed autonomously)
    - Whether to write documentation to `docs/hardware/<block>.md` (wait for explicit command)
+
+## Running an existing test
+
+Any directory under `src/tests/` is built as `test_<name>--iram` (for example `test_gdma--iram`, `test_i2c1_scan--iram`). Build and flash it with the same commands as the probe, substituting the target:
+
+```sh
+(cd build && make test_<name>--iram)
+tools/bkloader iram --speed 921600 --port <PORT> \
+    --capture <SECONDS> --until "==END==" --until "Bootloader*" build/app_iram.bin
+```
+
+Not every test prints the `==END==` sentinel. If it does not, capture runs until the timeout, so pick `<SECONDS>` from the test's expected runtime. Keep `--until "Bootloader*"` either way: a reboot before the test ends is a failure, and this stops the wait early. If the test finishes by rebooting on purpose, drop that pattern. Read the pass/fail lines from the output. If a test fails, report it and stop; fixing the test or the driver needs the user's go-ahead. The iteration limit of 5 applies only to probe experiments.
 
 ## probe.cpp invariants
 

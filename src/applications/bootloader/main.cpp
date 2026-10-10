@@ -5,6 +5,7 @@
 #include "platform/cpu.h"
 #include "platform/arm.h"
 #include "hardware/intc.h"
+#include "hardware/random.h"
 #include "hardware/uart.h"
 #include "hardware/wdt.h"
 #include "shell/commands_beken.h"
@@ -141,6 +142,10 @@ static void preinit() {
 PREINIT_AT(preinit, 01);
 
 int main() {
+    // Started first so the generator runs through the whole autoboot wait and is already
+    // warm when the application reads it.
+    trng_enable();
+
     uart2_init();
     print_reset_cause();
     print_registers();

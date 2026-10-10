@@ -16,7 +16,14 @@ static int help(__unused int intc, __unused const char *argv[]) {
 
 extern int command_uptime(int argc, const char *argv[]);
 extern int command_blink(int argc, const char *argv[]);
-extern int command_test_net(int argc, const char *argv[]);
+// extern int command_test_net(int argc, const char *argv[]);
+extern int command_i2c_scan(int argc, const char *argv[]);
+extern int command_i2c1_init_camera(int argc, const char *argv[]);
+extern int command_trigger_camera(int argc, const char *argv[]);
+extern int command_stat_camera(int argc, const char *argv[]);
+extern int command_capture_frame(int argc, const char *argv[]);
+extern int command_capture_start(int argc, const char *argv[]);
+extern int command_capture_stream(int argc, const char *argv[]);
 
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
@@ -33,21 +40,32 @@ const Shell::Handler shell_handlers[] = {
     {"free", command_free, nullptr},
     {"blink", command_blink, nullptr},
     {"flash_dump", command_flash_dump, nullptr},
+    {"memory_read", command_memory_read_binary, nullptr},
+    {"speed", command_uart2_baudrate, nullptr},
     {"tlv", command_tlv, nullptr},
     {"random_test", command_random_test, nullptr},
     {"timer_delay", command_time_delay, nullptr},
     {"uptime", command_uptime, nullptr},
     {"cpu_speed", command_cpu_speed, nullptr},
     {"mclk", command_mclk, nullptr},
+    {"i2c", command_i2c, nullptr},
     {"loadi", command_iram_load, nullptr},
     {"loadx", command_iram_xmodem, nullptr},
     {"go", command_jump, nullptr},
-    {"test_net", command_test_net, nullptr},
+    // {"test_net", command_test_net, nullptr},
     {"probe_ram", command_probe_ram, nullptr},
     {"sha1", command_sha1, nullptr},
     {"sha224", command_sha224, nullptr},
     {"sha256", command_sha256, nullptr},
     {"sha512", command_sha512, nullptr},
+    {"intc", command_intc, nullptr},
+    {"i2c_scan", command_i2c_scan, nullptr},
+    {"init_camera", command_i2c1_init_camera, nullptr},
+    {"trigger_camera", command_trigger_camera, nullptr},
+    {"stat_camera", command_stat_camera, nullptr},
+    {"capture_frame", command_capture_frame, nullptr},
+    {"capture_start", command_capture_start, nullptr},
+    {"capture_stream", command_capture_stream, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };

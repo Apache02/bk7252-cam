@@ -7,7 +7,9 @@
 extern "C" {
 #endif
 
-// TODO: ...
+// TODO: RSA driver needs to be implemented from scratch. No vendor example
+// to port from, unlike AES/SHA. Register probing on real hardware was tried
+// and hit a dead end — see wip/rsa_experiments before repeating that approach.
 
 #ifdef __cplusplus
 }

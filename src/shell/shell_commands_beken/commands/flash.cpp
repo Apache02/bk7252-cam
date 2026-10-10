@@ -1,20 +1,14 @@
 #include "shell/commands_beken.h"
 #include "shell/Parser.h"
 #include "hardware/flash.h"
-#include "utils/busy_wait.h"
 #include "utils/crc32.h"
 #include <stdio.h>
 #include <string.h>
 
-#define CHUNK       (256u)
-#define SECTOR_SIZE FLASH_SECTOR_SIZE
-
+#define CHUNK             (256u)
+#define SECTOR_SIZE       FLASH_SECTOR_SIZE
 #define DUMP_DEFAULT_SIZE (1 * CHUNK)
 #define DUMP_MAX_SIZE     (16 * CHUNK)
-
-#define ACK            0x06
-#define ACK_TIMEOUT_MS 5000
-#define POLL_INTERVAL  10
 
 // validations
 
@@ -54,24 +48,6 @@ static uint32_t flash_crc32(uint32_t flash_addr, uint32_t size) {
     return crc32_final(crc);
 }
 
-static bool has_ack(uint32_t timeout_ms) {
-    int  countdown = timeout_ms / POLL_INTERVAL;
-    bool ack       = false;
-    while (countdown > 0 && !ack) {
-        busy_wait_ms(POLL_INTERVAL);
-        int c = getchar();
-        if (c == ACK) {
-            ack = true;
-        } else if (c >= 0) {
-            countdown = timeout_ms / POLL_INTERVAL;
-        } else {
-            countdown--;
-        }
-    }
-
-    return ack;
-}
-
 // commands
 
 int command_flash_crc32(int argc, const char *argv[]) {
@@ -80,8 +56,8 @@ int command_flash_crc32(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
+    const uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
+    const uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
 
     if (size == 0) {
         printf("Invalid size\r\n");
@@ -98,8 +74,8 @@ int command_flash_dump(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t size = argc == 3 ? static_cast<uint32_t>(take_int(argv[2]).ok_or(DUMP_DEFAULT_SIZE)) : DUMP_DEFAULT_SIZE;
+    const uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
+    const uint32_t size = argc == 3 ? static_cast<uint32_t>(take_int(argv[2]).ok_or(DUMP_DEFAULT_SIZE)) : DUMP_DEFAULT_SIZE;
 
     if (!valid_size(size)) {
         printf("Invalid size\r\n");
@@ -121,47 +97,6 @@ int command_flash_dump(int argc, const char *argv[]) {
     return 0;
 }
 
-int command_flash_read_binary(int argc, const char *argv[]) {
-    if (argc != 3) {
-        printf("Usage: %s <addr> <size>\r\n", argv[0]);
-        return 1;
-    }
-
-    uint32_t addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t size = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
-
-    if (size == 0) {
-        printf("Invalid size\r\n");
-        return 1;
-    }
-
-    printf("Send ACK (0x06) to start binary transfer or wait to abort\r\n");
-
-    if (!has_ack(ACK_TIMEOUT_MS)) {
-        printf("Aborted\r\n");
-        return 0;
-    }
-
-    uint8_t  buf[CHUNK];
-    uint32_t crc = crc32_init();
-
-    for (uint32_t off = 0; off < size; off += CHUNK) {
-        uint32_t n = size - off;
-        if (n > CHUNK) n = CHUNK;
-        flash_read(addr + off, buf, n);
-        for (uint32_t i = 0; i < n; i++) putchar(buf[i]);
-        crc = crc32_update(crc, buf, n);
-    }
-
-    crc = crc32_final(crc);
-    putchar(static_cast<uint8_t>(crc & 0xFF));
-    putchar(static_cast<uint8_t>((crc >> 8) & 0xFF));
-    putchar(static_cast<uint8_t>((crc >> 16) & 0xFF));
-    putchar(static_cast<uint8_t>((crc >> 24) & 0xFF));
-
-    return 0;
-}
-
 int command_flash_write(int argc, const char *argv[]) {
     if (argc != 5) {
         printf("Usage: %s <ram_addr> <flash_addr> <size> <checksum>\r\n", argv[0]);
@@ -169,9 +104,9 @@ int command_flash_write(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t from_addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
-    uint32_t to_addr   = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
-    uint32_t size      = static_cast<uint32_t>(take_int(argv[3]).ok_or(0));
+    const uint32_t from_addr = static_cast<uint32_t>(take_int(argv[1]).ok_or(0));
+    const uint32_t to_addr   = static_cast<uint32_t>(take_int(argv[2]).ok_or(0));
+    const uint32_t size      = static_cast<uint32_t>(take_int(argv[3]).ok_or(0));
 
     if (!valid_checksum(from_addr, to_addr, size, static_cast<uint32_t>(take_int(argv[4]).ok_or(0)))) {
         printf("Invalid checksum\r\n");
@@ -206,26 +141,26 @@ int command_flash_write(int argc, const char *argv[]) {
 typedef union {
     uint8_t v;
     struct {
-        uint8_t wip : 1;  // [0] Write In Progress (read-only, hardware-cleared)
-        uint8_t wel : 1;  // [1] Write Enable Latch (set by WREN, cleared after write/erase)
-        uint8_t bp : 3;   // [4:2] Block Protect
-        uint8_t tb : 1;   // [5] Top/Bottom protect (0=top, 1=bottom)
-        uint8_t sec : 1;  // [6] Sector/Block select (0=64KB blocks, 1=4KB sectors)
-        uint8_t srp0 : 1; // [7] Status Register Protect 0 (hardware WP# pin enable)
+        uint8_t wip: 1;  // [0] Write In Progress (read-only, hardware-cleared)
+        uint8_t wel: 1;  // [1] Write Enable Latch (set by WREN, cleared after write/erase)
+        uint8_t bp: 3;   // [4:2] Block Protect
+        uint8_t tb: 1;   // [5] Top/Bottom protect (0=top, 1=bottom)
+        uint8_t sec: 1;  // [6] Sector/Block select (0=64KB blocks, 1=4KB sectors)
+        uint8_t srp0: 1; // [7] Status Register Protect 0 (hardware WP# pin enable)
     };
 } flash_sr1_t;
 
 typedef union {
     uint8_t v;
     struct {
-        uint8_t srp1 : 1; // [0] Status Register Protect 1
-        uint8_t qe : 1;   // [1] Quad Enable
-        uint8_t r : 1;    // [2] Reserved
-        uint8_t lb1 : 1;  // [3] Security Register Lock 1
-        uint8_t lb2 : 1;  // [4] Security Register Lock 2
-        uint8_t lb3 : 1;  // [5] Security Register Lock 3
-        uint8_t cmp : 1;  // [6] Complement Protect
-        uint8_t sus : 1;  // [7] Erase/Write Suspend
+        uint8_t srp1: 1; // [0] Status Register Protect 1
+        uint8_t qe: 1;   // [1] Quad Enable
+        uint8_t r: 1;    // [2] Reserved
+        uint8_t lb1: 1;  // [3] Security Register Lock 1
+        uint8_t lb2: 1;  // [4] Security Register Lock 2
+        uint8_t lb3: 1;  // [5] Security Register Lock 3
+        uint8_t cmp: 1;  // [6] Complement Protect
+        uint8_t sus: 1;  // [7] Erase/Write Suspend
     };
 } flash_sr2_t;
 

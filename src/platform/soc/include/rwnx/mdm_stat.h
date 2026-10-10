@@ -328,4 +328,6 @@ typedef volatile struct {
     } radarfifostat;                         // 0x68
 } hw_mdm_stat_t;
 
+static_assert(sizeof(hw_mdm_stat_t) == 27 * sizeof(uint32_t), "hw_mdm_stat_t size mismatch");
+
 #define hw_mdm_stat ((volatile hw_mdm_stat_t *)MDM_STAT_BASE_ADDR)

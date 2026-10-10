@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <sys/cdefs.h>
+#include <assert.h>
 
 
 // hw_write_fields - atomic multi-field write to a memory-mapped register.

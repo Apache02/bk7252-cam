@@ -1,0 +1,420 @@
+#!/usr/bin/env python3
+"""
+jpeg_over_uart — show JPEG frames pulled from the BK7252 shell over UART in a window.
+
+Per frame it runs `capture_frame` (prints "addr 0x... size N"), then `memory_read`
+for that region, checks the CRC32 and draws the JPEG. The statistics and the link
+state are shown under the frame. If the port disappears or the device resets, the
+window shows a red ERROR! and the tool reconnects on its own.
+The firmware must be running a shell with both commands (freertos_shell).
+
+Usage:
+    jpeg_over_uart [--port PORT] [--baud BAUD] [--speed SPEED] [--timeout SECS]
+
+Options:
+    --port PORT         serial port (default: /dev/ttyUSB0)
+    --baud BAUD         initial baud rate (default: 115200)
+    --speed SPEED       switch the shell to this baud rate (e.g. 921600); restored on exit
+    --timeout SECS      serial read timeout in seconds (default: 5)
+    --tx-delay MS       pause between transmitted command bytes (default: 0)
+"""
+
+import argparse
+import importlib.machinery
+import importlib.util
+import io
+import os
+import re
+import sys
+import threading
+import time
+import zlib
+from collections import deque
+
+import serial
+
+try:
+    import tkinter as tk
+    import tkinter.font
+    from PIL import Image, ImageTk
+except ImportError as e:
+    sys.exit(f"Missing dependency: {e}. Install python3-tk and pillow.")
+
+
+def load_bkloader():
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "bkloader")
+    loader = importlib.machinery.SourceFileLoader("bkloader", path)
+    spec = importlib.util.spec_from_loader("bkloader", loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+bk = load_bkloader()
+
+ACK = b"\x06"
+CTRL_C = b"\x03"
+PROMPT = b"> "
+CAPTURE_RE = re.compile(rb"addr\s+0x([0-9a-fA-F]+)\s+size\s+(\d+)")
+ACK_REQUEST = b"wait to abort\r\n"
+
+# Everything that can go wrong on the link; the grabber recovers from all of them.
+LINK_ERRORS = (serial.SerialException, OSError)
+
+
+class LinkError(Exception):
+    pass
+
+
+class ShellLink:
+    """Command/response access to the firmware shell on a serial port, with reconnect."""
+
+    RESYNC_TIMEOUT_S = 1.5
+    RETRY_PAUSE_S = 0.5
+
+    def __init__(self, port, baud, speed, timeout, tx_delay_s):
+        self.port = port
+        self.baud = baud
+        self.speed = speed if (speed and speed != baud) else None
+        self.timeout = timeout
+        self.tx_delay_s = tx_delay_s
+        self.ser = None
+
+    # --- low level ---
+
+    def _write(self, data):
+        if self.tx_delay_s > 0:
+            bk.serial_write_slow(self.ser, data, self.tx_delay_s)
+        else:
+            self.ser.write(data)
+            self.ser.flush()
+
+    def _check_port_present(self):
+        if not os.path.exists(self.port):
+            raise LinkError(f"port {self.port} disappeared")
+
+    def _read_until(self, done, timeout):
+        buf = bytearray()
+        start = time.monotonic()
+        deadline = start + timeout
+        next_check = start + 0.5
+        while True:
+            now = time.monotonic()
+            if now >= deadline:
+                raise LinkError(f"no response, got {bytes(buf[-40:])!r}")
+            chunk = self.ser.read(self.ser.in_waiting or 1)
+            if chunk:
+                buf += chunk
+                if done(buf):
+                    return bytes(buf)
+            elif now >= next_check:
+                self._check_port_present()
+                next_check = now + 0.5
+
+    def _read_exact(self, count, timeout):
+        buf = bytearray()
+        deadline = time.monotonic() + timeout
+        while len(buf) < count and time.monotonic() < deadline:
+            chunk = self.ser.read(count - len(buf))
+            if chunk:
+                buf += chunk
+        if len(buf) < count:
+            self._check_port_present()
+            raise LinkError(f"incomplete transfer: {len(buf)}/{count} bytes")
+        return bytes(buf)
+
+    # --- connection ---
+
+    def open(self, baud):
+        self.ser = serial.Serial(self.port, baud, timeout=0.05, exclusive=True)
+        time.sleep(0.1)
+
+    def close(self):
+        if self.ser is not None:
+            try:
+                self.ser.close()
+            except LINK_ERRORS:
+                pass
+            self.ser = None
+
+    def sync(self, timeout=None):
+        """Ctrl+C then Enter: drops a half-typed command and waits for a fresh prompt."""
+        self.ser.write(CTRL_C)
+        time.sleep(0.1)
+        self.ser.reset_input_buffer()
+        self._write(b"\r\n")
+        self._read_until(lambda b: b.endswith(PROMPT), timeout or self.timeout)
+
+    def _switch_speed(self):
+        if not bk.step_switch_speed(self.ser, self.speed, self.timeout):
+            raise LinkError("failed to switch baud rate")
+        self.ser.timeout = 0.05
+        self.sync()
+
+    def find_shell(self, first_baud):
+        """Finds the shell at either known baud rate; leaves the link at the working rate."""
+        rates = [first_baud] + [b for b in (self.speed, self.baud) if b and b != first_baud]
+        for rate in dict.fromkeys(rates):
+            self.ser.baudrate = rate
+            try:
+                self.sync(self.RESYNC_TIMEOUT_S)
+            except LinkError:
+                continue
+            if self.speed and rate != self.speed:
+                self._switch_speed()
+            return True
+        return False
+
+    def reconnect(self, stop_event, on_status):
+        """Reopens the port and finds the shell again; blocks until it works or stop_event is set."""
+        while not stop_event.is_set():
+            try:
+                self.close()
+                self.open(self.speed or self.baud)
+                if self.find_shell(self.speed or self.baud):
+                    return
+                on_status("no shell prompt, reconnecting...")
+            except (LinkError, *LINK_ERRORS) as e:
+                on_status(f"{e}, reconnecting...")
+            stop_event.wait(self.RETRY_PAUSE_S)
+
+    # --- commands ---
+
+    def run(self, command):
+        """Runs a shell command and returns everything it printed before the next prompt."""
+        self._write(command.encode() + b"\n")
+        return self._read_until(lambda b: b.endswith(PROMPT), self.timeout)
+
+    def capture_frame(self):
+        out = self.run("capture_frame")
+        match = CAPTURE_RE.search(out)
+        if not match:
+            raise LinkError(f"no address in capture_frame reply: {out[-40:]!r}")
+        return int(match.group(1), 16), int(match.group(2))
+
+    def memory_read(self, addr, size):
+        self._write(f"memory_read 0x{addr:08x} {size}\n".encode())
+        self._read_until(lambda b: ACK_REQUEST in b, self.timeout)
+        self.ser.write(ACK)
+        self.ser.flush()
+
+        transfer_timeout = (size + 4) / (self.ser.baudrate / 10) + self.timeout
+        raw = self._read_exact(size + 4, transfer_timeout)
+        self._read_until(lambda b: b.endswith(PROMPT), self.timeout)
+
+        data = raw[:size]
+        device_crc = int.from_bytes(raw[size:], "little")
+        local_crc = zlib.crc32(data) & 0xFFFFFFFF
+        if device_crc != local_crc:
+            raise LinkError(f"CRC mismatch: local=0x{local_crc:08x} device=0x{device_crc:08x}")
+        return data
+
+
+class Grabber(threading.Thread):
+    """Pulls frames in a loop, keeps only the newest one and tracks the link state."""
+
+    def __init__(self, link):
+        super().__init__(daemon=True)
+        self.link = link
+        self.stop_event = threading.Event()
+        self.lock = threading.Lock()
+        self.frame = None
+        self.failed = False
+        self.errors = 0
+        self.message = ""
+
+    def run(self):
+        while not self.stop_event.is_set():
+            try:
+                addr, size = self.link.capture_frame()
+                data = self.link.memory_read(addr, size)
+            except (LinkError, *LINK_ERRORS) as e:
+                self._fail(str(e) or type(e).__name__)
+                self._recover()
+                continue
+            with self.lock:
+                self.frame = data
+                self.failed = False
+
+    def _fail(self, message):
+        with self.lock:
+            self.errors += 1
+            self.failed = True
+            self.message = message
+
+    def _set_message(self, message):
+        with self.lock:
+            self.message = message
+
+    def _recover(self):
+        if self.stop_event.is_set():
+            return
+        try:
+            self.link.sync(ShellLink.RESYNC_TIMEOUT_S)
+            return
+        except (LinkError, *LINK_ERRORS):
+            pass
+        self.link.reconnect(self.stop_event, self._set_message)
+
+    def take_frame(self):
+        with self.lock:
+            frame, self.frame = self.frame, None
+            return frame
+
+    def state(self):
+        with self.lock:
+            return self.failed, self.errors, self.message
+
+
+class Viewer:
+    FPS_WINDOW_S = 1.0
+    POLL_MS = 5
+    TEXT_MS = 200
+    VIEW_W, VIEW_H = 640, 480
+    BG = "#202020"
+    FG = "#e0e0e0"
+    OK = "#40c040"
+    BAD = "#ff3030"
+
+    def __init__(self, grabber):
+        self.grabber = grabber
+        self.shown = deque()  # (timestamp, jpeg size) of recently drawn frames
+        self.decode_errors = 0
+        self.photo = None
+        self.size_px = (0, 0)
+        self.view = (self.VIEW_W, self.VIEW_H)
+
+        self.root = tk.Tk()
+        self.root.title("jpeg_over_uart")
+        self.root.configure(bg=self.BG)
+
+        self.canvas = tk.Canvas(self.root, width=self.view[0], height=self.view[1], bg="black", highlightthickness=0)
+        self.canvas.pack()
+        self.image_item = self.canvas.create_image(self.view[0] // 2, self.view[1] // 2, anchor="center")
+
+        mono = tk.font.nametofont("TkFixedFont").copy()
+        mono.configure(size=12)
+        status_font = tk.font.nametofont("TkDefaultFont").copy()
+        status_font.configure(size=20, weight="bold")
+
+        self.status = tk.Label(self.root, text="waiting for a frame...", font=status_font, bg=self.BG, fg=self.FG,
+                               anchor="w", justify="left")
+        self.status.pack(fill="x", padx=10, pady=(8, 0))
+        self.info = tk.Label(self.root, text="\n\n", font=mono, bg=self.BG, fg=self.FG, anchor="w", justify="left")
+        self.info.pack(fill="x", padx=10, pady=(0, 8))
+
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
+
+    def run(self):
+        self.root.after(self.POLL_MS, self.poll)
+        self.root.after(self.TEXT_MS, self.refresh_text)
+        self.root.mainloop()
+
+    def close(self):
+        self.root.quit()
+
+    def poll(self):
+        frame = self.grabber.take_frame()
+        if frame is not None:
+            self.draw(frame)
+        self.root.after(self.POLL_MS, self.poll)
+
+    def draw(self, data):
+        try:
+            image = Image.open(io.BytesIO(data))
+            image.load()
+        except Exception:
+            self.decode_errors += 1
+            return
+
+        self.size_px = image.size
+        scale = max(1, min(self.VIEW_W // image.width, self.VIEW_H // image.height))
+        if scale > 1:
+            image = image.resize((image.width * scale, image.height * scale), Image.NEAREST)
+
+        view = (max(self.VIEW_W, image.width), max(self.VIEW_H, image.height))
+        if view != self.view:
+            self.view = view
+            self.canvas.config(width=view[0], height=view[1])
+            self.canvas.coords(self.image_item, view[0] // 2, view[1] // 2)
+
+        self.photo = ImageTk.PhotoImage(image)
+        self.canvas.itemconfig(self.image_item, image=self.photo)
+        self.shown.append((time.monotonic(), len(data)))
+
+    def refresh_text(self):
+        failed, errors, message = self.grabber.state()
+        self.update_status(failed, message)
+        self.update_info(errors, message)
+        self.root.after(self.TEXT_MS, self.refresh_text)
+
+    def update_status(self, failed, message):
+        if failed:
+            self.status.config(text=f"ERROR! {message}", fg=self.BAD)
+        elif self.shown:
+            self.status.config(text="OK", fg=self.OK)
+
+    def update_info(self, errors, message):
+        now = time.monotonic()
+        while self.shown and now - self.shown[0][0] > self.FPS_WINDOW_S:
+            self.shown.popleft()
+
+        fps = len(self.shown) / self.FPS_WINDOW_S
+        kbps = sum(size for _, size in self.shown) / self.FPS_WINDOW_S / 1024
+        last_size = self.shown[-1][1] if self.shown else 0
+        self.info.config(text=(f"{fps:.1f} FPS   {self.size_px[0]}x{self.size_px[1]}   {last_size} B   {kbps:.1f} KB/s\n"
+                               f"link errors {errors}   decode errors {self.decode_errors}\n"
+                               f"last message: {message[:80]}"))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog="jpeg_over_uart",
+        description="Show JPEG frames pulled from the BK7252 shell over UART in a window.",
+    )
+    parser.add_argument("--port", default=bk.DEFAULT_PORT, help=f"Serial port (default: {bk.DEFAULT_PORT})")
+    parser.add_argument("--baud", default=bk.DEFAULT_BAUD, type=int,
+                        help=f"Baud rate (default: {bk.DEFAULT_BAUD})")
+    parser.add_argument("--speed", default=None, type=int,
+                        help="Switch the shell to this baud rate (e.g. 921600)")
+    parser.add_argument("--timeout", default=5.0, type=float, help="Serial read timeout in seconds (default: 5)")
+    parser.add_argument("--tx-delay", dest="tx_delay", default=0.0, type=float, metavar="MS",
+                        help="Pause between transmitted command bytes in ms (default: 0)")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    bk.log(f"Port: {args.port} @ {args.baud} baud" + (f"  (transfer at {args.speed})" if args.speed else ""))
+    link = ShellLink(args.port, args.baud, args.speed, args.timeout, args.tx_delay / 1000.0)
+
+    # Same errors as bkloader for the first open (port busy, not found), then a plain shell search.
+    link.ser = bk.open_serial(args.port, args.baud, args.timeout)
+    link.ser.timeout = 0.05
+    try:
+        if not link.find_shell(args.baud):
+            bk.die("No shell prompt detected. Is the device running?")
+    except (LinkError, *LINK_ERRORS) as e:
+        bk.die(f"Cannot talk to the shell: {e}")
+    bk.log_ok("Shell ready.")
+
+    grabber = Grabber(link)
+    grabber.start()
+    try:
+        Viewer(grabber).run()
+    finally:
+        grabber.stop_event.set()
+        grabber.join(args.timeout * 2)
+
+    if link.speed and link.ser is not None:
+        try:
+            link.sync(ShellLink.RESYNC_TIMEOUT_S)
+            bk.step_switch_speed(link.ser, args.baud, args.timeout)
+        except (LinkError, *LINK_ERRORS):
+            bk.log_warn(f"Failed to restore baud rate to {args.baud}.")
+    link.close()
+
+
+if __name__ == "__main__":
+    main()

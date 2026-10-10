@@ -87,4 +87,6 @@ typedef volatile struct {
 
 } hw_flash_t;
 
+static_assert(sizeof(hw_flash_t) == 10 * sizeof(uint32_t), "hw_flash_t size mismatch");
+
 #define hw_flash ((volatile hw_flash_t *)FLASH_BASE)

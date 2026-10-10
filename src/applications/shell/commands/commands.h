@@ -23,3 +23,9 @@ int command_timers_test(int argc, const char *argv[]);
 int command_timers_test2(int argc, const char *argv[]);
 
 int command_write_regs(int argc, const char *argv[]);
+
+// Camera: capture_start brings up the encoder and the sensor; capture_frame prints
+// "addr 0x... size N" of a finished JPEG for memory_read.
+int command_capture_start(int argc, const char *argv[]);
+
+int command_capture_frame(int argc, const char *argv[]);

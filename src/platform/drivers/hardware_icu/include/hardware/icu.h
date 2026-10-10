@@ -78,6 +78,14 @@ static inline void icu_i2c1_power_up() { hw_icu->peri_clk_pwd.i2c1 = 0; }
 
 static inline void icu_i2c1_power_down() { hw_icu->peri_clk_pwd.i2c1 = 1; }
 
+static inline void icu_i2c2_power_up() { hw_icu->peri_clk_pwd.i2c2 = 0; }
+
+static inline void icu_i2c2_power_down() { hw_icu->peri_clk_pwd.i2c2 = 1; }
+
+static inline void icu_jpeg_power_up() { hw_icu->peri_clk_pwd.jpeg_encoder = 0; }
+
+static inline void icu_jpeg_power_down() { hw_icu->peri_clk_pwd.jpeg_encoder = 1; }
+
 #ifdef __cplusplus
 }
 #endif

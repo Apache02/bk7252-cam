@@ -35,6 +35,10 @@ const Shell::Handler shell_handlers[] = {
     {"stack", command_stack, nullptr},
     {"write_regs", command_write_regs, nullptr},
     {"uart_baud", command_uart_baudrate, nullptr},
+    {"speed", command_uart2_baudrate, nullptr},
+    {"memory_read", command_memory_read_binary, nullptr},
+    {"capture_start", command_capture_start, nullptr},
+    {"capture_frame", command_capture_frame, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };

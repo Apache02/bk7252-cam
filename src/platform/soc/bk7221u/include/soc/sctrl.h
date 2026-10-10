@@ -17,6 +17,9 @@ typedef volatile struct {
             uint32_t mclk_source: 2;       // [1:0]   0=DCO, 1=26M_XTAL, 2=DPLL, 3=LPO
             uint32_t reserved_2_3: 2;      // [3:2]
             uint32_t divider: 4;           // [7:4]   MCU clock = source / (divider+1) when DPLL
+                                           //         (divider floors at 2 with DPLL, i.e. /3,
+                                           //         160 MHz max, even if set lower; measured
+                                           //         on hardware via clock and current draw)
             uint32_t flash_26m: 1;         // [8]     1 = flash clock uses 26 MHz XTAL
             uint32_t hclk_div2_en: 1;      // [9]     1 = AHB bus clock halved from MCU clock
             uint32_t modem_clk480m_pwd: 1; // [10]    1 = power down modem 480 MHz clock
@@ -27,7 +30,8 @@ typedef volatile struct {
             uint32_t ble_rf_en: 1;         // [15]    1 = BLE RF enabled
             uint32_t qspi_io_volt: 2;      // [17:16] QSPI I/O voltage select
             uint32_t flash_sck_io_cap: 2;  // [19:18] flash SCK I/O capacitance
-            uint32_t psram_vddpad_volt: 2; // [21:20] PSRAM VDD pad voltage
+            uint32_t psram_vddpad_volt: 2; // [21:20] VDDRAM output pin level, live: 0 = 1.8 V, 1 = 2.5 V, 2 and 3 = 3.5 V
+                                           //         (measured); the pin is powered by block_enable.mic_qspi_ram_or_flash
             uint32_t flash_spi_mux: 1;     // [22]    1 = flash driven by SPI controller (not flash controller)
             uint32_t efuse_vdd25_en: 1;    // [23]    1 = eFuse 2.5 V supply enabled
             uint32_t reserved_24_31: 8;    // [31:24]
@@ -122,7 +126,7 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t mode: 2;           // [1:0]   logic-analyser sample mode
+            uint32_t mode: 2;           // [1:0]   logic-analyzer sample mode
             uint32_t clk_invert: 1;     // [2]
             uint32_t finish: 1;         // [3]     read-only; 1 = capture complete
             uint32_t reserved_4_15: 12; // [15:4]
@@ -332,7 +336,8 @@ typedef volatile struct {
             uint32_t audio_random_generator: 1;     // [15]
             uint32_t audio_pll: 1;                  // [16]
             uint32_t audio: 1;                      // [17]
-            uint32_t mic_qspi_ram_or_flash: 1;      // [18]
+            uint32_t mic_qspi_ram_or_flash: 1;      // [18]   1 = QSPI block on and VDDRAM output pin powered at the
+                                                    //        level in control.psram_vddpad_volt (0 V while clear)
             uint32_t nc: 1;                         // [19]
             uint32_t write_key: 12;                 // [31:20] must write 0xA5C alongside any block enable change
         };

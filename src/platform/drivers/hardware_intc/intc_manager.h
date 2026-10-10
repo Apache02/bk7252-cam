@@ -13,7 +13,6 @@
     GLOBAL_INT_DISABLE()
 #define restore_interrupts() GLOBAL_INT_RESTORE()
 
-// max interrupts handlers
 #define MAX_HANDLERS 32
 
 

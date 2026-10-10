@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdint.h>
 #include "platform/soc.h"
 
 
@@ -224,6 +223,9 @@ typedef volatile struct {
 
     uint32_t reserved_0x90_0x92[3];
 } hw_mpb_extra_t;
+
+static_assert(sizeof(hw_mpb_t) == 12 * sizeof(uint32_t), "hw_mpb_t size mismatch");
+static_assert(sizeof(hw_mpb_extra_t) == 19 * sizeof(uint32_t), "hw_mpb_extra_t size mismatch");
 
 #define hw_mpb       ((volatile hw_mpb_t *)MPB_BASE)
 #define hw_mpb_extra ((volatile hw_mpb_extra_t *)MPB_EXTRA)

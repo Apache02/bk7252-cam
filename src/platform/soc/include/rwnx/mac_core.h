@@ -942,4 +942,6 @@ typedef volatile struct {
 
 } hw_mac_core_t;
 
+static_assert(sizeof(hw_mac_core_t) == 1376 * sizeof(uint32_t), "hw_mac_core_t size mismatch");
+
 #define hw_mac_core ((volatile hw_mac_core_t *)MAC_CORE_BASE_ADDR)

@@ -7,11 +7,9 @@
 extern "C" {
 #endif
 
-void wdt_init(void);
-
 void wdt_ping(void);
 
-void wdt_set(unsigned long period);
+void wdt_set(uint16_t period);
 
 void wdt_up(void);
 

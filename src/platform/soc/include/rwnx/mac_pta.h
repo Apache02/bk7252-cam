@@ -40,4 +40,6 @@ typedef volatile struct {
     uint32_t stat_wlan_rx_abort; // 0x24
 } hw_mac_pta_t;
 
+static_assert(sizeof(hw_mac_pta_t) == 10 * sizeof(uint32_t), "hw_mac_pta_t size mismatch");
+
 #define hw_mac_pta ((volatile hw_mac_pta_t *)MAC_PTA_BASE_ADDR)

@@ -32,4 +32,6 @@ typedef volatile struct {
 
 } hw_efuse_t;
 
+static_assert(sizeof(hw_efuse_t) == 2 * sizeof(uint32_t), "hw_efuse_t size mismatch");
+
 #define hw_efuse ((volatile hw_efuse_t *)EFUSE_BASE)

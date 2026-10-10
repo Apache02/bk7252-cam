@@ -1,12 +1,13 @@
 #include "shell/commands_beken.h"
 #include <stdio.h>
 #include "hardware/uart.h"
+#include "soc/clock.h"
 
 #include "shell/console_colors.h"
 #include "shell/Parser.h"
 #include "utils/busy_wait.h"
 
-#define UART_CLOCK_HZ    (26000000)
+#define UART_CLOCK_HZ    (XTAL_CLOCK_HZ)
 #define MIN_BAUDRATE     (UART_CLOCK_HZ / ((1 << 14) - 1))
 #define MAX_BAUDRATE     (UART_CLOCK_HZ / 2)
 #define DEFAULT_BAUDRATE (115200)

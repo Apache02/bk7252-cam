@@ -18,4 +18,6 @@ typedef volatile struct {
     uint32_t data; // read-only; new random 32-bit word per read
 } hw_trng_t;
 
+static_assert(sizeof(hw_trng_t) == 2 * sizeof(uint32_t), "hw_trng_t size mismatch");
+
 #define hw_trng ((volatile hw_trng_t *)TRNG_BASE_ADDR)
