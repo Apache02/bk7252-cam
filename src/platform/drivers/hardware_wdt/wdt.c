@@ -3,19 +3,22 @@
 #include "soc/wdt.h"
 #include <stdbool.h>
 
-static uint16_t g_period;
-
-void wdt_init(void) { g_period = 0; }
-
-void wdt_ping(void) {
-    hw_wdt->ctrl.v = ((uint32_t)WDT_KEY_1ST << 16) | g_period;
-    hw_wdt->ctrl.v = ((uint32_t)WDT_KEY_2ND << 16) | g_period;
+// Every reload writes the period too, so it has to be supplied each time. ctrl reads the
+// period back, so no copy is kept.
+static void wdt_reload(uint16_t period) {
+    hw_write_fields(hw_wdt->ctrl,
+        .period = period,
+        .key = WDT_KEY_1ST,
+    );
+    hw_write_fields(hw_wdt->ctrl,
+        .period = period,
+        .key = WDT_KEY_2ND,
+    );
 }
 
-void wdt_set(unsigned long period) {
-    g_period = period;
-    wdt_ping();
-}
+void wdt_ping(void) { wdt_reload(hw_wdt->ctrl.period); }
+
+void wdt_set(uint16_t period) { wdt_reload(period); }
 
 void wdt_up(void) { hw_icu->peri_clk_pwd.arm_wdt = 0; }
 

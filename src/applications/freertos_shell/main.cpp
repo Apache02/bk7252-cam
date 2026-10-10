@@ -21,7 +21,6 @@ static StaticTask_t wdtTaskTCB;
 static StackType_t  wdtTaskStack[40];
 
 void vTaskWdt(__unused void *pvParams) {
-    wdt_init();
     wdt_down();
     wdt_set(2000);
     wdt_up();
