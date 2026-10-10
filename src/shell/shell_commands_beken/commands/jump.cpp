@@ -26,11 +26,9 @@ static void jump(uint32_t addr, unsigned int delay, bool disarm_wdt) {
         // Target does not manage the watchdog itself (e.g. firmware built
         // from the original SDK) — leave it disarmed instead of arming a
         // fallback, or it will reset the target out from under it.
-        wdt_init();
         wdt_down();
     } else {
         // Fallback by watchdog after 5 seconds
-        wdt_init();
         wdt_set(5000);
         wdt_up();
     }

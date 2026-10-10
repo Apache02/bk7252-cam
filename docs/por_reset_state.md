@@ -166,7 +166,7 @@ All read `0x00000028`: same pull-down default as bank 0.
 
 ## WDT (`0x00802900`)
 
-`ctrl` = `0x00004000`: `period=0x4000` (16384 cycles).  The vendor bootloader
+`ctrl` = `0x00004000`: `period=0x4000` (16384 ms, see `hardware/wdt.md`).  The vendor bootloader
 configures the watchdog before handing control; the period value at entry
 reflects the vendor ROM's WDT setting.
 
