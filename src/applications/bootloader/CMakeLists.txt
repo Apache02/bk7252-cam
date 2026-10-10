@@ -18,6 +18,7 @@ target_link_libraries(
         hardware_sctrl
         hardware_intc
         hardware_wdt
+        hardware_random
         utils_busy_wait
         utils_crc
         platform_fal
