@@ -12,6 +12,7 @@
 #include "shell_handlers.h"
 #include "utils/busy_wait.h"
 #include "soc/sctrl.h"
+#include "version.h"
 
 
 extern "C" void bootloader_sctrl_init();
@@ -50,8 +51,6 @@ static bool enter_shell(int seconds) {
 
     return false;
 }
-
-static void print_version() { printf("Bootloader by Apache02 (built " __DATE__ " " __TIME__ ")\r\n\n"); }
 
 static inline int hex_digit(int digit) { return (digit > 9 ? 'a' - 0xa : '0') + digit; }
 
