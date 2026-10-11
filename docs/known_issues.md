@@ -235,9 +235,21 @@ corrupted or the fetch returned garbage.
 
 File: `hardware_flash/flash.c`.
 
-`flash_read` is `void`-returning. It silently succeeds with garbage if:
-- `addr + count` walks past the end of the flash (no upper bound check),
-- the flash is in deep-power-down mode.
+`flash_read` is `void`-returning and never reports an error.
+
+**Addresses past the end of the flash are deliberately not limited.** The chip uses only
+as many address bits as the flash has, so an address past the end wraps: on a 2 MB flash
+`0x200000` reads the same bytes as `0x000000`, `0x200010` the same as `0x000010`, and so on
+(the address is taken modulo the flash size). A read that starts near the end and runs past
+it continues from the start. Nothing fails, and the data returned is real flash content,
+only from a different place than the address says.
+
+This is relied on: the `full_4m` segment of `tools/bkloader` reads 4 MB, which on a 2 MB
+board returns the same 2 MB twice, with no need to know the board's size in advance.
+
+The same wrap applies to `flash_write` and `flash_erase_sector`. A write or erase past the
+end lands at the start of the flash, over the bootloader. Nothing in the firmware limits
+that, and no tool in this project sends such an address.
 
 Note: `sr_data_crc_cnt.error_count` was investigated and its function is not
 confirmed — it was never observed to increment in any tested scenario. Do not
@@ -249,7 +261,7 @@ than returning corrupt data silently. This is a hardware-level guard that
 applies only to instruction / data cache fetches, not to the OPERATE_SW read
 path used by `flash_read`.
 
-Fix: return `int` with a meaningful error code, validate `addr + count`.
+Fix: none planned. Reads past the end stay unrestricted.
 
 ---
 
