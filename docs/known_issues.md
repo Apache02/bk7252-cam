@@ -59,56 +59,53 @@ Use `get_absolute_time()` from `hardware_time` (NXMAC monotonic counter at
 `0xC000011C`) as a drop-in replacement — it provides microsecond resolution
 and is confirmed working on this chip.
 
-### F8. `platform_stdio_init()` requires a settle delay before first TX
+### F8. First ~5 ms of output after `go` is garbled when `bkloader iram` uses `--speed`
 
-File: `src/platform/misc/stdio/stdio.c`.
+File: `tools/bkloader` (host side); the delay itself sits in the tests, e.g.
+`src/tests/probe/probe.cpp`.
 
-Output written immediately after `platform_stdio_init()` is transmitted with the wrong
-bit timing and arrives at the host as garbage. The delay is still required; what it
-guards against is corruption, not a crash.
+**`platform_stdio_init()` needs no settle delay.** Right after it returns, the UART
+transmits at the correct rate. The delay `busy_wait_ms(20)` that tests put after it is
+not needed for the UART.
 
-Measured during hardware probing (`src/tests/probe/`, August 2026):
+What is real: when an IRAM image is started with `bkloader iram --speed 921600`, the
+first ~5 ms of the program's output arrives as null bytes. After that it is clean.
 
-| Delay after `platform_stdio_init()` | Result |
+Measured on the chip (`src/tests/probe/`, October 2026), one labelled line per millisecond
+starting right after `platform_stdio_init()`:
+
+| Run | Result |
 |---|---|
-| 0 ms | garbled output; the chip survives and keeps running |
-| ≤ 5 ms | garbled output |
-| ≥ 6 ms | clean output |
-| 20 ms | clean output (chosen as safe default with margin) |
+| no `--speed` | clean from the first byte, `T=00` onward |
+| `--speed 921600` | `T=00`..`T=04` garbled (null bytes), `T=05` onward clean |
+| `--speed 921600`, one line per 20 ms | only `T=000` garbled, `T=020` onward clean |
+| `--speed 921600`, program waits 300 ms **before** `platform_stdio_init()` | clean from `T=00` |
 
-The threshold was pinned by emitting one labelled 6-byte line per millisecond starting
-at 0 ms and reading off the first legible label: `T=00`..`T=05` arrived corrupted,
-`T=06` onward clean, with a worst-case emit drift of 2 µs against the intended
-schedule. Single run at 1 ms granularity — treat 6 ms as the observed floor, not a
-qualified minimum.
+The last row is the one that matters. If the garbling came from the UART settling after
+init, it would repeat when the init is moved 300 ms later. It does not. The garbling is
+tied to the time since the jump to the program, not to the time since UART init.
 
-The corruption depends on elapsed time since init, not on how many bytes have been
-sent: after a 20 ms delay output is clean from the very first byte.
+The loader talks at 921600 before `go`. The program then runs its UART at 115200, and the
+host switches back to 115200 only after the jump. Output sent in between is read at the
+wrong rate and comes out as null bytes. This matches the observation, and it is the
+likeliest cause. **It is not proven**: `bkloader` waits 0.5 s after `go` before it
+switches the port back, not 5 ms, and this is not explained. Running from flash instead
+of through `bkloader` has not been tried.
 
-No pollable readiness signal exists, so the blind delay cannot be replaced by polling.
-Sampled immediately after `uart2_init()` and repeatedly over the following
-microseconds, `fifo_status` already reads `0x001a0000` — `tx_empty`, `rx_empty` and
-`wr_ready` all set, `tx_fifo_count` zero — and `config` already holds the correct
-divisor (`0xe1` = 225 for 115200 from the 26 MHz XTAL). Every register the UART block
-exposes reports ready while transmission is still corrupt, which places the cause in
-the clock domain (ICU gating / clock switch), not in the UART.
-
-Two earlier descriptions of this entry were wrong and are corrected above:
+Two earlier descriptions of this entry were wrong:
 
 - The failure was recorded as a hard fault with a register dump and bootloader
-  takeover. It is not — the chip neither faults nor resets. The dump previously
-  attributed to F8 was most likely the deliberate `wdt_reboot()` at the end of a probe.
+  takeover. The chip neither faults nor resets. The dump previously attributed to F8 was
+  most likely the deliberate `wdt_reboot()` at the end of a probe.
 - The observation that "10 ms produced no output" was a host-side artefact of the old
   `tio` workflow: the loader closed the serial port, discarding the OS receive buffer,
-  before `tio` opened it. The bytes were transmitted correctly but arrived during the
-  port-close gap. With `--capture` on `bkloader iram` the port stays open.
+  before `tio` opened it. With `--capture` on `bkloader iram` the port stays open.
 
-Workaround: `busy_wait_ms(20)` between `platform_stdio_init()` and the first
-I/O call. Used in `src/tests/probe/probe.cpp`.
+Workaround: none needed without `--speed`. With `--speed`, ignore the first ~5 ms of
+output, or keep the `busy_wait_ms(20)` the tests already have before the first print.
 
-Fix: none available inside the UART block — see the readiness-signal paragraph above.
-Reducing the delay means characterising the clock switch in `icu_uartN_clk()` /
-`icu_uartN_power_up()`, or accepting the measured 6 ms floor with margin.
+Fix: to be found on the host side, in how `tools/bkloader` hands over the baud rate
+after `go`.
 
 ### F10. `uart_isr()` consumes the TX queue with FIQ unmasked
 

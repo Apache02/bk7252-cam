@@ -134,7 +134,7 @@ static unsigned s_detach_tx_bit;
 int main() {
     wdt_down();
     platform_stdio_init();
-    busy_wait_ms(20); // UART settle, see F8 in docs/known_issues.md
+    busy_wait_ms(20); // first ~5 ms after go can arrive garbled with --speed, see F8 in docs/known_issues.md
     setvbuf(stdout, NULL, _IONBF, 0);
     wdt_set(10000);
     wdt_up();

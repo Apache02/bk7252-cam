@@ -76,7 +76,7 @@ Always uphold these — every experiment, no exceptions:
 int main() {
     wdt_down();               // FIRST — disables watchdog immediately
     platform_stdio_init();
-    busy_wait_ms(20);         // UART settle — below ~6 ms output is garbled (see F8 in known_issues.md)
+    busy_wait_ms(20);         // with --speed, the first ~5 ms after go arrive garbled (see F8 in known_issues.md)
     setvbuf(stdout, NULL, _IONBF, 0);  // unbuffered — output visible even on crash
 
     wdt_set(10000);           // set 10 s period
@@ -110,7 +110,7 @@ latency. Effective code throughput from IRAM is ~57 % of rated CPU speed (stable
 Consequences for probe experiments:
 
 - `busy_wait_ms(20)` in the template delivers ~35 ms, not 20 ms — this is fine
-  for the UART settle delay but do not rely on it for precise timing.
+  for the post-`go` garbage window (F8) but do not rely on it for precise timing.
 - Do not use `busy_wait_*` to measure or create calibrated delays in experiments.
   Use `hardware_time` (`get_absolute_time`, `absolute_time_diff_us`) instead —
   the hardware timer is independent of the CPU fetch path and is accurate.
