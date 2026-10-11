@@ -231,19 +231,6 @@ corrupted or the fetch returned garbage.
 
 ## API / contract
 
-### A2. `intc_register_irq_handler` return value is uninformative
-
-File: `hardware_intc/intc.c`, also `intc_manager.h::register_handler`.
-
-`register_handler` returns `true` unconditionally; the only way it ever
-returns `false` is the explicit `count >= MAX_HANDLERS` check in
-`intc_register_irq_handler`. Bad input (`func == NULL`, `source == 0`,
-duplicate registration) is silently accepted.
-
-Fix: validate inputs in `register_handler` itself and return `false` on
-unrecognised cases. Update the callers to surface the failure (currently the
-return is mostly ignored).
-
 ### A4. `flash_read` has no error reporting
 
 File: `hardware_flash/flash.c`.
@@ -450,6 +437,7 @@ For traceability — these are fixed:
 | F6 | `trng_enable` delay is measured: with a delay of 16 µs or more the first word differs after every reset; with no delay it repeated in one measurement and not in another. 32 µs kept as margin. `ctrl` has no ready bit |
 | F11 | `bootloader_installer` now resets the chip through the watchdog after a verified install, so the new bootloader starts instead of the stale one in the instruction cache; verified on the chip |
 | A1 | `intc_manager` moved from a header into `intc.c`; the header is gone |
+| A2 | `intc_register_irq_handler` returned `true` unconditionally and no caller read it; it is now `void` and asserts on a NULL handler, an empty source or a full table. Registering the same handler again adds sources to it, on purpose |
 | A3 | Timer `read_ctl` / `read_value` registers do not exist on BK7221U; `timer_read()` and the register fields removed |
 | Arch8 | FreeRTOS context save/restore picks the nested path by `SPSR.mode`, so an IRQ before `vPortStartFirstTask()` cannot clobber the first task's frame |
 | 1 | `register_handler` left interrupts disabled        |

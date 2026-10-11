@@ -25,7 +25,9 @@ extern "C" {
 
 void intc_reset();
 
-bool intc_register_irq_handler(uint32_t source, int_handler_fn *func);
+// Makes `func` also serve `source`. Calling it again for the same `func` adds sources.
+// A NULL `func`, an empty `source` or a full handler table is a programming error: assert only.
+void intc_register_irq_handler(uint32_t source, int_handler_fn *func);
 
 bool intc_unregister_irq_handler(uint32_t source, int_handler_fn *func);
 

@@ -88,7 +88,10 @@ static inline void recompute_handled_mask(struct handlers_collection_t *collecti
     collection->handled_mask = mask;
 }
 
-static inline bool register_handler(struct handlers_collection_t *collection, uint32_t source, int_handler_fn *func) {
+static inline void register_handler(struct handlers_collection_t *collection, uint32_t source, int_handler_fn *func) {
+    assert(func != NULL);
+    assert(source != 0);
+
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
 
@@ -111,7 +114,6 @@ static inline bool register_handler(struct handlers_collection_t *collection, ui
     collection->handled_mask |= source;
 
     GLOBAL_INT_RESTORE();
-    return true;
 }
 
 static inline bool unregister_handler(struct handlers_collection_t *collection, uint32_t source, int_handler_fn *func) {
@@ -259,9 +261,8 @@ void intc_fiq(void) {
     UPDATE_STAT(source, orphans);
 }
 
-bool intc_register_irq_handler(uint32_t source, int_handler_fn *func) {
-    if (intc_manager.count >= MAX_HANDLERS) return false;
-    return register_handler(&intc_manager, source, func);
+void intc_register_irq_handler(uint32_t source, int_handler_fn *func) {
+    register_handler(&intc_manager, source, func);
 }
 
 bool intc_unregister_irq_handler(uint32_t source, int_handler_fn *func) {
