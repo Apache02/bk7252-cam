@@ -11,6 +11,7 @@ target_link_libraries(
         hardware_uart
         hardware_intc
         hardware_time
+        hardware_sctrl
         hardware_wdt
         utils_busy_wait
         utils_ring_buffer

@@ -25,6 +25,7 @@
 #include "hardware/uart.h"
 #include "hardware/intc.h"
 #include "hardware/time.h"
+#include "hardware/sctrl.h"
 
 #include "soc/uart.h"
 #include "soc/icu.h"
@@ -130,6 +131,8 @@ static unsigned s_detach_queued;
 static bool     s_detach_emptied;
 static unsigned s_detach_tx_bit;
 
+static bool s_clock_runs; // does the microsecond counter the timings rely on advance
+
 
 int main() {
     wdt_down();
@@ -140,6 +143,12 @@ int main() {
     wdt_up();
 
     printf("\r\n=== uart tx queue ===\r\n");
+
+    // The counter sits in the MAC block, which stays powered down until this runs.
+    sctrl_rf_init();
+    const uint32_t clock_before = get_us_counter();
+    busy_wait_ms(1);
+    s_clock_runs = get_us_counter() != clock_before;
 
     intc_register_irq_handler(IRQ_SOURCE_UART2, test_count_isr);
     portENABLE_IRQ();
@@ -197,6 +206,9 @@ int main() {
 
     // A write inside the FIFO never waits on the wire, with or without a queue.
     // ~58 and ~114 us against a 1376 us bound.
+    // Every timing below is meaningless with a stopped counter, so say that first.
+    report("the microsecond counter runs", s_clock_runs);
+
     report("64 B does not wait on the wire, no queue", s_small_off.write_us < wire_us(64) / 4);
     report("64 B does not wait on the wire, queued", s_small_on.write_us < wire_us(64) / 4);
 
