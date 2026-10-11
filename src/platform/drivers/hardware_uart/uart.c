@@ -267,17 +267,24 @@ static void uart_isr(const struct uart_port *p) {
         return;
     }
 
+    GLOBAL_INT_DECLARATION();
+
     // Batching by tx_fifo_count - exact where wr_ready lags - empties the queue in a handful
     // of interrupts. Leaving on room rather than on bytes keeps the bit set, so it re-fires.
     for (unsigned room = TX_FIFO_DEPTH - uart->fifo_status.tx_fifo_count; room; room--) {
         uint8_t byte;
 
-        if (!ringbuf_get_byte(ring, &byte)) {
+        // Masked against FIQ too: a FIQ that prints drains this queue from the synchronous path,
+        // and with the byte held outside the section its own bytes would overtake it.
+        GLOBAL_INT_DISABLE();
+        bool got_byte = ringbuf_get_byte(ring, &byte);
+        if (got_byte) uart->fifo_data.v = byte;
+        GLOBAL_INT_RESTORE();
+
+        if (!got_byte) {
             uart_tx_disarm(p);
             return;
         }
-
-        uart->fifo_data.v = byte;
     }
 }
 
