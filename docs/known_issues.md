@@ -251,16 +251,6 @@ RSA is ever needed, design the API from scratch then.
 
 These are larger pieces that require a design pass, not a patch.
 
-### Arch1. Audit remaining register-write call sites
-
-The `hw_write_fields` helper in `soc.h` is the project-wide idiom
-for atomic multi-field MMIO writes. Known multi-field call sites (`efuse`,
-`gdma`, `intc::intc_init`, `uart::uart_init`) have been converted. Future
-drivers should follow the same shape; existing single-bit RMW writes
-(`sctrl`, `random`, `wdt`'s `wdt_up`/`wdt_down` toggle) are correct as-is
-— they intentionally preserve the other fields and should NOT be rewritten
-through the helper.
-
 ### Arch2. Uniform error coding across drivers
 
 Today each driver invents its own return scheme:
@@ -403,6 +393,7 @@ For traceability — these are fixed:
 | F6 | `trng_enable` delay is measured: with a delay of 16 µs or more the first word differs after every reset; with no delay it repeated in one measurement and not in another. 32 µs kept as margin. `ctrl` has no ready bit |
 | F10 | `uart_isr()` dequeued with FIQ unmasked, so a FIQ that prints (it reaches the queue through the synchronous path) could rewind the read cursor or overtake the byte the ISR held; the dequeue and the FIFO write now share one section with IRQ and FIQ masked, per byte. Known residue: the FIFO room is counted once before the loop, so bytes a FIQ writes meanwhile could overfill the FIFO; not observed, and no FIQ handler in the tree prints |
 | F11 | `bootloader_installer` now resets the chip through the watchdog after a verified install, so the new bootloader starts instead of the stale one in the instruction cache; verified on the chip |
+| Arch1 | Multi-field register writes go through `hw_write_fields` (one store). The last three field-by-field sites (`sha` config, `aes` config, `jpeg` ctrl0) were converted; `sha` used to enable the engine before setting its mode. Single-field and shared-register read-modify-write sites (`sctrl`, `random`, `wdt`, the `icu` clock gates in `timer`) are left as they are: they must keep the other bits |
 | A1 | `intc_manager` moved from a header into `intc.c`; the header is gone |
 | A2 | `intc_register_irq_handler` returned `true` unconditionally and no caller read it; it is now `void` and asserts on a NULL handler, an empty source or a full table. Registering the same handler again adds sources to it, on purpose |
 | A3 | Timer `read_ctl` / `read_value` registers do not exist on BK7221U; `timer_read()` and the register fields removed |

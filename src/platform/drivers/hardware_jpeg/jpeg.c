@@ -44,11 +44,13 @@ void jpeg_power_up() { icu_jpeg_power_up(); }
 
 void jpeg_init() {
     icu_jpeg_power_down();
-    hw_jpeg->ctrl0.v               = 0;
-    hw_jpeg->ctrl1.v               = 0;
-    hw_jpeg->status.v              = hw_jpeg->status.v;
-    hw_jpeg->ctrl0.start_frame_int = 1;
-    hw_jpeg->ctrl0.end_frame_int   = 1;
+    hw_jpeg->ctrl0.v  = 0;
+    hw_jpeg->ctrl1.v  = 0;
+    hw_jpeg->status.v = hw_jpeg->status.v;
+    hw_write_fields(hw_jpeg->ctrl0,
+        .start_frame_int = 1,
+        .end_frame_int = 1,
+    );
 
     intc_register_irq_handler(FIQ_SOURCE_JPEG_ENCODER, jpeg_isr);
     intc_enable_irq_source(FIQ_SOURCE_JPEG_ENCODER);
