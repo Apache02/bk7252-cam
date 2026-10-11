@@ -19,6 +19,11 @@ int command_time_delay(int argc, const char *argv[]) {
         return 1;
     }
 
+    if (!time_counter_is_running()) {
+        printf(COLOR_RED("Error: the microsecond counter is stopped (MAC block is powered down)") "\r\n");
+        return 1;
+    }
+
     absolute_time_t start = get_absolute_time();
     char            sTime[16];
     printf("start at %s\r\n", sprint_time(sTime, to_us_since_boot(start)));

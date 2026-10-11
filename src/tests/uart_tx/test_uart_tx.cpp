@@ -146,9 +146,7 @@ int main() {
 
     // The counter sits in the MAC block, which stays powered down until this runs.
     sctrl_rf_init();
-    const uint32_t clock_before = get_us_counter();
-    busy_wait_ms(1);
-    s_clock_runs = get_us_counter() != clock_before;
+    s_clock_runs = time_counter_is_running();
 
     intc_register_irq_handler(IRQ_SOURCE_UART2, test_count_isr);
     portENABLE_IRQ();

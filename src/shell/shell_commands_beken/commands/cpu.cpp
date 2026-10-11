@@ -188,6 +188,12 @@ int command_cpu_speed(int argc, const char *argv[]) {
         return 1;
     }
 
+    if (!use_timer && !time_counter_is_running()) {
+        printf("Error: the NXMAC counter is stopped (MAC block is powered down).\r\n");
+        printf("Pass --use_timer, which does not depend on it.\r\n");
+        return 1;
+    }
+
     bool wdg_was_active = false;
     if (pause_wdg) {
         wdg_was_active = wdt_is_active() != 0;
