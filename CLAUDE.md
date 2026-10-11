@@ -21,13 +21,13 @@ Other application targets (see `src/applications/`): `hello`, `blink`, `shell`, 
 
 Each firmware target produced by `bk_firmware()` (see `cmake/firmware.cmake`) post-processes the ELF into `<target>.bin` and a CRC-wrapped `<target>_crc.bin`, copying the latter to `build/app_crc.bin`. Targets wrapped with `bk_firmware_iram()` additionally produce an IRAM-linked variant (`<target>--iram`) using `src/linker/iram.lds` and write `build/app_iram.bin`.
 
-Smoke-build the main app targets in a throwaway directory:
+Smoke-build the app targets and the IRAM test images in a throwaway directory:
 
 ```sh
 ./smoke_build.sh
 ```
 
-There is no unit-test framework — `smoke_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell ram_loader`.
+There is no unit-test framework — `smoke_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell ram_loader bootloader bootloader_installer--iram` and the `test_<name>--iram` images (`probe random security gdma i2c1_scan uart_tx`). A new test or application has to be added to its `TESTS` / `TARGETS` lists by hand.
 
 ## Flash / backup / monitor
 

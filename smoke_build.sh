@@ -3,7 +3,8 @@
 PROJECT_DIR=$(pwd)
 BUILD_DIR=$(mktemp -d)
 BOARD=A9_B_V1_3
-TARGETS="blink hello shell freertos_example freertos_shell ram_loader"
+TESTS="test_probe--iram test_random--iram test_security--iram test_gdma--iram test_i2c1_scan--iram test_uart_tx--iram"
+TARGETS="blink hello shell freertos_example freertos_shell ram_loader bootloader bootloader_installer--iram $TESTS"
 
 
 cd $BUILD_DIR || exit 1
