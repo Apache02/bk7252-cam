@@ -23,6 +23,7 @@ set(CMAKE_EXE_LINKER_FLAGS "-Wl,--gc-sections,--print-memory-usage")
 set(CMAKE_OBJCOPY ${TOOLCHAIN}-objcopy)
 set(CMAKE_OBJDUMP ${TOOLCHAIN}-objdump)
 set(CMAKE_SIZE ${TOOLCHAIN}-size)
+set(CMAKE_NM ${TOOLCHAIN}-nm)
 
 function(print_section_sizes TARGET)
     add_custom_command(TARGET ${TARGET} POST_BUILD COMMAND ${CMAKE_SIZE} ${TARGET})
