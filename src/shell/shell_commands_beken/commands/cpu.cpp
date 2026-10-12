@@ -107,7 +107,7 @@ static void cpu_speed_tick_isr(int timer_num) {
 
 // --use_timer timebase: Timer Bank 0, 26 MHz, independent of mclk. Pauses
 // every other timer channel (e.g. FreeRTOS/RTC tick) so only ours can fire.
-// Needs global IRQs enabled, unlike time_via_nxmac — coarser too (+-1 tick,
+// Counts ticks in an interrupt, unlike time_via_nxmac — coarser too (+-1 tick,
 // 1 ms), so out_ticks lets the caller warn on too few ticks.
 static int64_t time_via_timer(bench_fn_t fn, uint32_t iterations, uint32_t *out_ticks) {
     g_tick_count = 0;
@@ -117,12 +117,17 @@ static int64_t time_via_timer(bench_fn_t fn, uint32_t iterations, uint32_t *out_
         return -1;
     }
 
+    // The bootloader shell runs with CPU IRQs masked, so the tick would never be counted.
+    const bool irq_was_enabled = portENABLED_IRQ();
+    portENABLE_IRQ();
+
     uint32_t paused_mask = timer_pause_all();
     timer_start(timer_num);
 
     fn(iterations);
 
     uint32_t ticks = g_tick_count;
+    if (!irq_was_enabled) portDISABLE_IRQ();
     timer_remove(timer_num);
     timer_resume_all(paused_mask);
 
