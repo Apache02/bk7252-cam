@@ -228,11 +228,6 @@ System control / PLL · ICU · INTC · eFuse · Watchdog · Microsecond timebase
 
 Register layouts only (no driver code yet): I2C · SAR ADC · FFT · JPEG · RSA
 
-### Known gaps
-
-- **`timer_read()`** — exported but not working (marked in source).
-- **AES / SHA** — hardware has one context; concurrent use produces incorrect output. Use the one-shot helpers only.
-
 ---
 
 ## Extending
