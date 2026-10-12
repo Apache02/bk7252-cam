@@ -1,0 +1,36 @@
+This project's own code is licensed under the MIT License (see LICENSE).
+The files listed below are third-party material and are NOT covered by it.
+
+Beken vendor binary
+-------------------
+Copyright (c) Beken Corporation. No license is granted by this project.
+
+  src/platform/port_wifi/libip_7221u.a   WiFi MAC/LMAC library
+
+Third-party bootloader images (owner unknown)
+---------------------------------------------
+  bootloaders/*.bin
+
+These are not this project's work and no license is granted by this project.
+The owner of each image is not known: it may be Beken or a camera maker.
+bootloader_a9_v720_crc.bin was dumped from an A9 camera; the others come from
+another project. See bootloaders/README.md.
+
+tools/flasher/bkutils/
+----------------------
+Taken from https://github.com/tiancj/hid_download_py
+Copyright (c) BekenCorp. (chunjian.tian@bekencorp.com). All rights reserved.
+Distributed under the terms of the BSD license, as stated in the header of
+each file. Keep those headers when copying or modifying these files.
+
+The command-line scripts around it (tools/flasher/uartprogram, uartreader)
+are this project's own work.
+
+Downloaded at build time (not stored in this repository)
+--------------------------------------------------------
+FreeRTOS-Kernel   MIT
+lwIP              BSD
+tlsf              BSD
+
+Each one keeps its own license in the directory it is downloaded to
+(libs/).

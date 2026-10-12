@@ -255,3 +255,10 @@ or `src/applications/freertos_shell/commands/`. Auto-discovered by `file(GLOB)`.
 - [`docs/bootloader.md`](docs/bootloader.md) — vendor bootloader internals, PLL init sequence
 - [`docs/known_issues.md`](docs/known_issues.md) — deferred bugs and architectural follow-ups
 - [`docs/hardware/`](docs/hardware/) — per-peripheral hardware references
+
+---
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Vendor binaries and code taken from other projects
+keep their own terms; see [`NOTICE`](NOTICE).
