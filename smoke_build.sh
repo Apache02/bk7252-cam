@@ -19,8 +19,9 @@ exit_status=0
 
 for target in $TARGETS ; do
   error_output=$(cmake --build . --target $target 2>&1 >/dev/null)
+  build_status=$?
 
-  if [ -n "$error_output" ]; then
+  if [ $build_status -ne 0 ]; then
     echo "Build $target \033[31mFailed\033[0m"
     exit_status=1
     echo "----------------"
