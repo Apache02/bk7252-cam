@@ -153,10 +153,10 @@ static int find_handlers(const struct handlers_collection_t *collection, const u
     int count = 0;
 
     for (int i = 0; i < collection->count; i++) {
-        assert(count < length);
-
         if ((collection->handlers[i].source & source) != 0) {
-            handlers[count] = collection->handlers[i].handler;
+            if (count < length) {
+                handlers[count] = collection->handlers[i].handler;
+            }
             count++;
         }
     }
@@ -166,9 +166,13 @@ static int find_handlers(const struct handlers_collection_t *collection, const u
 
 static inline void process_handlers(const struct handlers_collection_t *collection, uint32_t source) {
     int_handler_fn *handlers[4];
-    int             count = find_handlers(collection, source, handlers, count_of(handlers));
+    const int       max_count = count_of(handlers);
+    const int       count     = find_handlers(collection, source, handlers, max_count);
 
-    for (int i = 0; i < count; i++) {
+    assert(count <= max_count);
+
+    const int n = max_count < count ? max_count : count;
+    for (int i = 0; i < n; i++) {
         handlers[i]();
     }
 }
@@ -261,9 +265,7 @@ void intc_fiq(void) {
     UPDATE_STAT(source, orphans);
 }
 
-void intc_register_irq_handler(uint32_t source, int_handler_fn *func) {
-    register_handler(&intc_manager, source, func);
-}
+void intc_register_irq_handler(uint32_t source, int_handler_fn *func) { register_handler(&intc_manager, source, func); }
 
 bool intc_unregister_irq_handler(uint32_t source, int_handler_fn *func) {
     return unregister_handler(&intc_manager, source, func);
