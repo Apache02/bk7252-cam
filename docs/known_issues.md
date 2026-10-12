@@ -127,8 +127,8 @@ Reproduce.
    --until "Bootloader*" build/app_iram.bin`. Bare metal fails after roughly 45 s.
 4. Replace `busy_wait_ms(1)` with `usleep(1000)` (1 kHz timer interrupt on). It froze before
    the first 5 s line.
-5. Under FreeRTOS (`freertos_shell--iram`), run `capture_start`, then `capture_stream 3`
-   (or `capture_stream 10`). It breaks within seconds, in a different way on each try.
+5. Under FreeRTOS (`freertos_shell--iram`), run `capture_stream 3`
+   (or `capture_stream 10`); it starts the camera itself. It breaks within seconds, in a different way on each try.
 6. Flash `freertos_shell` instead (`tools/bkloader flash build/app_crc.bin`) and run
    `capture_stream 10`, `capture_stream 300`. Stable.
 

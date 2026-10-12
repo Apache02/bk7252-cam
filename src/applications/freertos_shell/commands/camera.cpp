@@ -1,37 +1,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "camera_session.h"
 #include "device/camera.h"
 #include "platform/unistd.h"
-
-// Frames are 12-27 KB depending on the scene.
-#define FRAME_BUF_BYTES (48 * 1024)
-
-static uint8_t g_frame_buf[FRAME_BUF_BYTES] __attribute__((aligned(4)));
-
-// Full camera start, then a short check that frames really arrive.
-int command_capture_start(__unused int argc, __unused const char *argv[]) {
-    const camera_config_t config = {
-        .sensor          = nullptr,
-        .frame_buf       = g_frame_buf,
-        .frame_buf_size  = sizeof(g_frame_buf),
-        .frame_min_bytes = sizeof(g_frame_buf) / 2,
-        .frame_max_bytes = sizeof(g_frame_buf) - 1024,
-    };
-    const int rc = camera_start(&config);
-    if (rc != 0) {
-        printf("camera start failed: %s\r\n", camera_strerror(rc));
-        return 1;
-    }
-    printf("sensor: %s\r\n", camera_sensor_name());
-
-    const uint32_t before = camera_frames_seen();
-    usleep(500000);
-    const uint32_t frames = camera_frames_seen() - before;
-
-    printf("camera started: %lu frames in ~0.5 s, last frame %lu bytes\r\n", frames, camera_last_frame_size());
-    return frames > 0 ? 0 : 1;
-}
 
 #define STREAM_SLOT_BYTES (48 * 1024)
 #define STREAM_SLOT_COUNT (3)
@@ -51,6 +23,14 @@ int command_capture_stream(int argc, const char *argv[]) {
         return 1;
     }
 
+    CameraSession session;
+    const int     start_rc = session.ensure_started();
+    if (start_rc != 0) {
+        printf("camera start failed: %s\r\n", camera_strerror(start_rc));
+        free(slots);
+        return 1;
+    }
+
     const camera_stream_config_t config = {
         .slots      = slots,
         .slot_size  = STREAM_SLOT_BYTES,
@@ -64,9 +44,9 @@ int command_capture_stream(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t frames = 0;
-    uint32_t bytes  = 0;
-    uint32_t biggest = 0;
+    uint32_t frames   = 0;
+    uint32_t bytes    = 0;
+    uint32_t biggest  = 0;
     uint32_t bad_ends = 0;
     for (unsigned t = 0; t < seconds * (1000000 / STREAM_POLL_US); t++) {
         camera_frame_t frame;
@@ -94,9 +74,12 @@ int command_capture_stream(int argc, const char *argv[]) {
     return frames > 0 ? 0 : 1;
 }
 
+// Starts the camera on the first call. The frame stays in the camera's buffer until the next call.
 int command_capture_frame(__unused int argc, __unused const char *argv[]) {
+    CameraSession  session;
     camera_frame_t frame;
-    const int      rc = camera_capture_frame(&frame);
+    int            rc = session.ensure_started();
+    if (rc == 0) rc = camera_capture_frame(&frame);
     if (rc != 0) {
         printf("capture failed: %s (encoder reports a frame of %lu bytes)\r\n", camera_strerror(rc),
                camera_last_frame_size());
