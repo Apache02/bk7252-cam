@@ -10,6 +10,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// For struct apm_start_cfm, which rw_msg_send_apm_start_req() fills in.
+#include "libip/tasks/apm.h"
+// For struct me_sta_add_cfm, which rw_msg_send_me_sta_add() fills in.
+#include "libip/tasks/me.h"
 // For struct mm_add_if_cfm, which rw_msg_send_add_if() fills in.
 #include "libip/tasks/mm.h"
 // For VIF_STA and the rest of enum vif_type, which rw_msg_send_add_if() takes.
@@ -55,6 +59,26 @@ int rw_msg_send_sm_connect_req(uint8_t vif_idx, const char *ssid, const uint8_t 
 // SM handles this only once it is idle, so a request sent mid-association is
 // held by the LMAC and replayed, and this call then times out.
 int rw_msg_send_sm_disconnect_req(uint8_t vif_idx, uint16_t reason_code);
+
+// ---- Access point ---------------------------------------------------------
+
+// Starts beaconing on a VIF added with VIF_AP. beacon is the whole template, from
+// the MAC header; tim_oft and tim_len say where its TIM element is. The LMAC
+// downloads the template during the call, but keep it for as long as the AP runs.
+int rw_msg_send_apm_start_req(uint8_t vif_idx, uint8_t channel, const uint8_t *beacon, uint16_t beacon_len,
+                              uint16_t tim_oft, uint8_t tim_len, struct apm_start_cfm *cfm);
+int rw_msg_send_apm_stop_req(uint8_t vif_idx);
+
+// Registers an associated client with the LMAC, and opens or closes its control
+// port. APM_ASSOC_IND is sent once the port is opened.
+int rw_msg_send_me_sta_add(uint8_t vif_idx, const uint8_t mac[6], uint16_t aid, struct me_sta_add_cfm *cfm);
+int rw_msg_send_me_sta_del(uint8_t sta_idx);
+int rw_msg_send_me_set_control_port(uint8_t sta_idx, bool open);
+
+// Transmits one management frame, MAC header first. The frame is copied before
+// the call returns, but the LMAC edits its first byte in place, so it must be
+// writable.
+int rw_msg_send_mgmt_tx(uint8_t vif_idx, uint8_t *frame, uint16_t len);
 
 #ifdef __cplusplus
 }

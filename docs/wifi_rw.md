@@ -437,14 +437,26 @@ destinations for `RXU_MGT_IND`, see the note above.
 
 #### APM (task 5) — AP mode
 
-Compiled in because `NX_BEACONING` was on when this archive was built — a
-build-time choice about the archive itself, unrelated to what any particular
-application does with it. (Separately: this port's own STA-only
-`wifi_connect_start` never calls into APM — an application-level fact, not a
-consequence of the archive's build.) `apm_start_req_handler`,
-`_start_cac_req_handler`, `_stop_req_handler`, `_stop_cac_req_handler` are the
-only handlers actually present in `apm_task.o` — the three `_IND` rows are
-sent by APM, never received by it, so they need no local handler.
+Compiled in because `NX_BEACONING` was on when this archive was built. APM only
+starts and stops beaconing, from a template the host builds
+(`APM_START_REQ.bcn_addr`, `bcn_len`, `tim_oft`, `tim_len`): it has no probe,
+authentication or association handling. In an AP VIF the LMAC hands those frames
+(probe request, authentication, association and reassociation request,
+disassociation, deauthentication) to the host by calling `ke_mgmt_packet_tx()`,
+whole 802.11 frame from the MAC header, and the host answers with
+`ME_MGMT_TX_REQ`. For each frame the host sends, the LMAC calls the same function
+once more, synchronously inside the request handler and before the confirmation,
+with its own copy of the frame.
+
+A client becomes real when the host sends `ME_STA_ADD_REQ` and then
+`ME_SET_CONTROL_PORT_REQ`; `APM_ASSOC_IND` follows the second. `ME_MGMT_TX_REQ`
+with `req_malloc_flag` set makes the LMAC `os_free()` the frame it was handed
+once it has copied it, so only a heap buffer may carry that flag.
+
+`apm_start_req_handler`, `_start_cac_req_handler`, `_stop_req_handler`,
+`_stop_cac_req_handler` are the only handlers actually present in `apm_task.o` —
+the three `_IND` rows are sent by APM, never received by it, so they need no
+local handler.
 
 | Idx | Value | Message | Notes |
 |----|-------|---------|-------|

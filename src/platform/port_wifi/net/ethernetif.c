@@ -24,6 +24,7 @@
 
 #include "libip/tx.h"
 #include "wifi/bmsg.h"
+#include "wifi/handlers/ap_handler.h"
 #include "wifi/net.h"
 
 #include "iface.h"
@@ -83,12 +84,13 @@ static void tx_reap(void) {
     }
 }
 
-// The peer an outgoing frame is addressed to. Read from the archive's own
-// interface table rather than cached: a station's peer changes on a roam without
-// the host being told, and an access point has no single peer at all.
-static uint8_t tx_staid(const struct net_if *iface) {
-    if (iface->type != VIF_STA) return INVALID_AP_IDX;
-    return vif_info_tab[iface->vif].u.sta.ap_id;
+// The peer an outgoing frame is addressed to. A station's peer is read from the
+// archive's own interface table rather than cached: it changes on a roam without
+// the host being told. An access point has one peer per client, and the AP keeps
+// that table.
+static uint8_t tx_staid(const struct net_if *iface, const uint8_t dest[6]) {
+    if (iface->type == VIF_STA) return vif_info_tab[iface->vif].u.sta.ap_id;
+    return ap_tx_staid(dest);
 }
 
 // Runs on the Wi-Fi core task, and gives the pbuf reference away on every path.
@@ -104,6 +106,17 @@ void wifi_net_tx_from_core(struct pbuf *p, uint8_t vif_idx) {
     }
 
     if (p->tot_len <= ETH_HDR_LEN) {
+        iface->stat.tx_dropped++;
+        pbuf_free(p);
+        return;
+    }
+
+    // Looked up before anything is allocated: a frame for a client that has left
+    // has nowhere to go.
+    uint8_t dest[6];
+    pbuf_copy_partial(p, dest, sizeof(dest), 0);
+    uint8_t staid = tx_staid(iface, dest);
+    if (staid == AP_NO_STATION) {
         iface->stat.tx_dropped++;
         pbuf_free(p);
         return;
@@ -182,7 +195,7 @@ void wifi_net_tx_from_core(struct pbuf *p, uint8_t vif_idx) {
     td->host.flags   = 0;
     td->host.tid     = 0xFF; // no QoS: this port never negotiates WMM
     td->host.vif_idx = iface->vif;
-    td->host.staid   = tx_staid(iface);
+    td->host.staid   = staid;
 
     td->lmac.agg_desc = NULL;
 

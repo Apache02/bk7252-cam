@@ -19,8 +19,7 @@
 #include "lwip/pbuf.h"
 
 
-// The interfaces there are to ask for. Only the station is implemented; the
-// access point is a name with no bring-up behind it yet.
+// The interfaces there are to ask for.
 #define WIFI_IFACE_STA "sta"
 #define WIFI_IFACE_AP  "ap"
 
@@ -89,6 +88,12 @@ bool wifi_net_get_address(uint32_t *addr, uint32_t *netmask, uint32_t *gateway);
 // Sets a fixed address, in host byte order, and stops DHCP. Passing 0 for addr
 // hands the interface back to DHCP instead.
 void wifi_net_set_address(uint32_t addr, uint32_t netmask, uint32_t gateway);
+
+// The access point's side of the link: gives the interface a fixed address, marks
+// it up and starts the DHCP server on it, or undoes all three. Both take host byte
+// order, and the first returns false while the interface has not been brought up.
+bool wifi_net_ap_link_up(uint32_t addr, uint32_t netmask);
+void wifi_net_ap_link_down(void);
 
 // Frames naming a vif index no interface here carries, in each direction. They
 // are counted apart from struct net_if's own tallies because there is no

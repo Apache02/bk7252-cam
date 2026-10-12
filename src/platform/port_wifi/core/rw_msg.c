@@ -293,3 +293,131 @@ int rw_msg_send_sm_disconnect_req(uint8_t vif_idx, uint16_t reason_code) {
     LOG_I("SM_DISCONNECT_REQ vif=%u reason=%u", vif_idx, reason_code);
     return rw_msg_send(req, SM_DISCONNECT_CFM, NULL, 0);
 }
+
+// ---- Access point ---------------------------------------------------------
+
+#define AP_BEACON_INTERVAL_TU 100
+
+// What the LMAC sees an association as, regardless of what the client offered:
+// the legacy rates the reference build always registers, with the four basic
+// rates first.
+static const uint8_t k_sta_rates[12] = {130, 132, 139, 150, 36, 48, 72, 108, 12, 18, 24, 96};
+
+int rw_msg_send_apm_start_req(uint8_t vif_idx, uint8_t channel, const uint8_t *beacon, uint16_t beacon_len,
+                              uint16_t tim_oft, uint8_t tim_len, struct apm_start_cfm *cfm) {
+    uint16_t freq = rw_ieee80211_get_centre_frequency(channel);
+    if (!freq) {
+        LOG_W("%s(channel=%u): not a 2.4 GHz channel", __func__, (unsigned)channel);
+        return -1;
+    }
+
+    struct apm_start_req *req = ke_msg_alloc(APM_START_REQ, TASK_APM, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    // ke_msg_alloc() promises no zeroes, and the padding and unused fields reach the LMAC.
+    memset(req, 0, sizeof(*req));
+
+    req->basic_rates.length   = 4;
+    req->basic_rates.array[0] = 130;
+    req->basic_rates.array[1] = 132;
+    req->basic_rates.array[2] = 139;
+    req->basic_rates.array[3] = 150;
+
+    req->chan.freq     = freq;
+    req->chan.band     = 0;
+    req->chan.flags    = 0;
+    req->chan.tx_power = 20;
+
+    req->center_freq1 = freq;
+    req->center_freq2 = 0;
+    req->ch_width     = 0;
+
+    req->bcn_addr = (uint32_t)beacon;
+    req->bcn_len  = beacon_len;
+    req->tim_oft  = tim_oft;
+    req->tim_len  = tim_len;
+    req->bcn_int  = AP_BEACON_INTERVAL_TU;
+
+    // No WPA: the flags stay clear. The ethertype is what the LMAC lets through a
+    // closed control port, and is stored in network byte order.
+    req->flags               = 0;
+    req->ctrl_port_ethertype = __builtin_bswap16(0x888E);
+    req->vif_idx             = vif_idx;
+
+    LOG_I("APM_START_REQ vif=%u channel=%u bcn_len=%u tim_oft=%u", vif_idx, (unsigned)channel, beacon_len, tim_oft);
+    return rw_msg_send(req, APM_START_CFM, cfm, sizeof(*cfm));
+}
+
+int rw_msg_send_apm_stop_req(uint8_t vif_idx) {
+    struct apm_stop_req *req = ke_msg_alloc(APM_STOP_REQ, TASK_APM, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    req->vif_idx = vif_idx;
+
+    struct apm_stop_cfm cfm = {.status = 0xFF};
+    LOG_I("APM_STOP_REQ vif=%u", vif_idx);
+    if (rw_msg_send(req, APM_STOP_CFM, &cfm, sizeof(cfm)) != 0) return -1;
+    return cfm.status == 0 ? 0 : -1;
+}
+
+int rw_msg_send_me_sta_add(uint8_t vif_idx, const uint8_t mac[6], uint16_t aid, struct me_sta_add_cfm *cfm) {
+    struct me_sta_add_req *req = ke_msg_alloc(ME_STA_ADD_REQ, TASK_ME, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    // The capability blocks below are mostly left empty on purpose, so they must start at zero.
+    memset(req, 0, sizeof(*req));
+
+    memcpy(req->mac_addr.array, mac, 6);
+    req->vif_idx = vif_idx;
+    req->aid     = aid;
+    req->flags   = 0x01; // STA_QOS_CAPA, as the reference build sets it
+
+    req->rate_set.length = sizeof(k_sta_rates);
+    memcpy(req->rate_set.array, k_sta_rates, sizeof(k_sta_rates));
+    req->ht_cap.mcs_rate[0] = 0xFF;
+
+    LOG_I("ME_STA_ADD_REQ aid=%u %02x:%02x:%02x:%02x:%02x:%02x", aid, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return rw_msg_send(req, ME_STA_ADD_CFM, cfm, sizeof(*cfm));
+}
+
+int rw_msg_send_me_sta_del(uint8_t sta_idx) {
+    struct me_sta_del_req *req = ke_msg_alloc(ME_STA_DEL_REQ, TASK_ME, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    req->sta_idx  = sta_idx;
+    req->tdls_sta = false;
+
+    LOG_I("ME_STA_DEL_REQ sta=%u", sta_idx);
+    return rw_msg_send(req, ME_STA_DEL_CFM, NULL, 0);
+}
+
+int rw_msg_send_me_set_control_port(uint8_t sta_idx, bool open) {
+    struct me_set_control_port_req *req = ke_msg_alloc(ME_SET_CONTROL_PORT_REQ, TASK_ME, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    req->sta_idx           = sta_idx;
+    req->control_port_open = open;
+
+    LOG_I("ME_SET_CONTROL_PORT_REQ sta=%u open=%u", sta_idx, open);
+    return rw_msg_send(req, ME_SET_CONTROL_PORT_CFM, NULL, 0);
+}
+
+int rw_msg_send_mgmt_tx(uint8_t vif_idx, uint8_t *frame, uint16_t len) {
+    struct me_mgmt_tx_req *req = ke_msg_alloc(ME_MGMT_TX_REQ, TASK_ME, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    req->addr            = (uint32_t)frame;
+    req->hostid          = (uint32_t)frame;
+    req->len             = len;
+    req->no_cck          = false;
+    req->no_ack          = false;
+    req->off_channel     = false;
+    req->vif_idx         = vif_idx;
+    // Set, it makes the LMAC os_free() the frame once it has copied it, and
+    // this one is the caller's.
+    req->req_malloc_flag = 0;
+
+    struct me_mgmt_tx_cfm cfm = {0};
+    if (rw_msg_send(req, ME_MGMT_TX_CFM, &cfm, sizeof(cfm)) != 0) return -1;
+    return cfm.status == 0 ? 0 : -1;
+}

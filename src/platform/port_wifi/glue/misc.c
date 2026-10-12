@@ -4,15 +4,16 @@
 // #define DEBUG_NAME "misc"
 #include "debug.h"
 
-// ---- LMAC → supplicant management frame pipe (func/hostapd-2.5/bk_patch/sk_intf.c) ----
+#include "wifi/handlers/ap_handler.h"
+
+// ---- LMAC → host management frame pipe (func/hostapd-2.5/bk_patch/sk_intf.c) ----
 // imported: libip(me_task.o, rxu_cntrl.o)
-// In the SDK this delivers 802.11 management frames to wpa_supplicant/hostapd
-// via an internal "kernel socket" (ke_sk_send). No supplicant is linked here, so
-// the frame is dropped and success reported: a non-zero return would send the
-// LMAC into wpa_hostapd_queue_poll(), which is equally absent.
+// The LMAC calls this on an AP interface only, for the probe, authentication,
+// association and leave frames it leaves to the host, and once more for each frame
+// the host sends, with the LMAC's copy of it. In the SDK it feeds hostapd; here it feeds the AP task. Returning
+// non-zero would send the LMAC into wpa_hostapd_queue_poll(), which is absent.
 int ke_mgmt_packet_tx(unsigned char *buf, int len, int flag) {
-    LOG_W("%s(len=%d, vif=%d): dropped (no supplicant)", __func__, len, flag);
-    (void)buf;
+    if (len > 0) ap_mgmt_rx(buf, (uint16_t)len, (uint8_t)flag);
     return 0;
 }
 

@@ -36,7 +36,7 @@ enum {
 
     // Real in this archive (NX_BEACONING was 1 at build time — confirmed by
     // nx_txdesc_cnt/txl_cfm_evt_bit's compiled size, 5 uint32_t entries, not
-    // 4), but this port never sends on it: no AP mode.
+    // 4). The host never sends on it: the LMAC transmits beacons by itself.
     AC_BCN = AC_VO + 1,
 };
 

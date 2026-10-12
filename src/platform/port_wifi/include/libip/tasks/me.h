@@ -9,7 +9,9 @@
 //
 // Payload layouts were read out of the archive's DWARF debug info.
 
+#include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "libip/ke.h"
@@ -65,6 +67,69 @@ struct me_chan_config_req {
     uint8_t              chan2G4_cnt;
     uint8_t              chan5G_cnt;
 };
+
+struct me_set_control_port_req {
+    uint8_t sta_idx;
+    bool    control_port_open;
+};
+
+struct me_mgmt_tx_req {
+    uint32_t addr;   // 0, host address of the frame
+    uint32_t hostid; // 4, the same address; handed back in the confirmation
+    uint16_t len;    // 8
+    bool     no_cck;
+    bool     no_ack;
+    bool     off_channel;
+    uint8_t  vif_idx;         // 13
+    uint32_t req_malloc_flag; // 16
+};
+
+struct me_mgmt_tx_cfm {
+    uint32_t hostid; // 0, the LMAC's copy of the frame on an AP interface, already freed
+    uint8_t  status;
+    bool     rsp_frm_new;
+    uint16_t length;
+};
+
+struct me_sta_add_req {
+    struct mac_addr          mac_addr;     // 0
+    struct mac_rateset       rate_set;     // 6
+    struct mac_htcapability  ht_cap;       // 20
+    struct mac_vhtcapability vht_cap;      // 52
+    uint32_t                 flags;        // 64
+    uint16_t                 aid;          // 68
+    uint8_t                  uapsd_queues; // 70
+    uint8_t                  opmode;       // 71
+    uint8_t                  vif_idx;      // 72
+    bool                     tdls_sta;     // 73
+};
+
+struct me_sta_add_cfm {
+    uint8_t sta_idx;
+    uint8_t status;
+    uint8_t pm_state;
+};
+
+struct me_sta_del_req {
+    uint8_t sta_idx;
+    bool    tdls_sta;
+};
+
+static_assert(sizeof(struct me_set_control_port_req) == 2, "me_task.o DWARF");
+static_assert(sizeof(struct me_mgmt_tx_req) == 20, "me_task.o DWARF");
+static_assert(offsetof(struct me_mgmt_tx_req, len) == 8, "");
+static_assert(offsetof(struct me_mgmt_tx_req, vif_idx) == 13, "");
+static_assert(offsetof(struct me_mgmt_tx_req, req_malloc_flag) == 16, "");
+static_assert(sizeof(struct me_mgmt_tx_cfm) == 8, "me_task.o DWARF");
+static_assert(sizeof(struct me_sta_add_req) == 76, "me_task.o DWARF");
+static_assert(offsetof(struct me_sta_add_req, rate_set) == 6, "");
+static_assert(offsetof(struct me_sta_add_req, ht_cap) == 20, "");
+static_assert(offsetof(struct me_sta_add_req, vht_cap) == 52, "");
+static_assert(offsetof(struct me_sta_add_req, flags) == 64, "");
+static_assert(offsetof(struct me_sta_add_req, aid) == 68, "");
+static_assert(offsetof(struct me_sta_add_req, vif_idx) == 72, "");
+static_assert(sizeof(struct me_sta_add_cfm) == 3, "me_task.o DWARF");
+static_assert(sizeof(struct me_sta_del_req) == 2, "me_task.o DWARF");
 
 #ifdef __cplusplus
 }
