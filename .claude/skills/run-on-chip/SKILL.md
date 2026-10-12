@@ -157,7 +157,7 @@ Hardware-confirmed UNDEFINED details (probe result, ARM state, fault at `0x000F0
 - `SPSR_und = 0x000000D3` = SVC mode, ARM state, IRQ+FIQ masked
 - Return to next instruction: `MOVS PC, LR`
 
-Data Abort hookability from IRAM context: the bootloader's DABORT handler at `0x00000628` does read `hook_dabort` at `0x00400014` (confirmed by disassembly of `bootloaders/bootloader_a9_v720.bin`). However, installing a handler via `hook_dabort` and triggering `0x00200000` (flash mirror CRC abort) did not route to the installed handler in repeated tests from IRAM. Root cause not resolved. Data Abort hooks may work from flashed firmware but are unreliable from IRAM.
+Data Abort hookability from IRAM context: the bootloader's DABORT handler at `0x00000628` does read `hook_dabort` at `0x00400014` (confirmed by disassembly of `bootloaders/bootloader_a9_v720_crc.bin` after `tools/uncrc`). However, installing a handler via `hook_dabort` and triggering `0x00200000` (flash mirror CRC abort) did not route to the installed handler in repeated tests from IRAM. Root cause not resolved. Data Abort hooks may work from flashed firmware but are unreliable from IRAM.
 
 Mode switch without CPS (ARMv5, no CPS instruction):
 ```asm
