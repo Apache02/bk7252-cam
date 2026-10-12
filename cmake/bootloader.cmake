@@ -12,6 +12,8 @@ function(bk_bootloader TARGET)
     add_custom_command(
             TARGET ${TARGET}
             POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -DNM=${CMAKE_NM} -DELF=$<TARGET_FILE:${TARGET}>
+                    -P ${CMAKE_SOURCE_DIR}/cmake/print_heap.cmake
             COMMAND chmod -x ${TARGET}
             COMMAND ${CMAKE_OBJCOPY} -Obinary ${TARGET} ${TARGET}.bin
             COMMAND chmod -x ${TARGET}.bin

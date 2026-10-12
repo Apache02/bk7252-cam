@@ -71,11 +71,15 @@ int main() {
     flash_write(FLASH_ADDR, payload, payload_size);
 
     uint32_t mismatch = find_mismatch();
-    if (mismatch == UINT32_MAX) {
-        printf("OK\r\n");
-    } else {
+    if (mismatch != UINT32_MAX) {
         printf("FAILED (addr 0x%06lx)\r\n", static_cast<unsigned long>(mismatch));
+        return 1;
     }
+
+    // The instruction cache may still hold the old bootloader; a reset starts the new one.
+    // Not done on failure: a reset would boot the damaged image.
+    printf("OK\r\nRebooting...\r\n");
+    wdt_reboot(1000);
 
     return 0;
 }

@@ -526,6 +526,7 @@ typedef volatile struct {
     } mib_table_write;                    // 0x118
 
     // 0x11C — MONOTONIC_COUNTER_1: monotonic counter 1 (32-bit)
+    // Runs at about 40 MHz (measured against counter 2); reads 0 while the MAC block is powered down.
     uint32_t monotonic_counter_1;         // 0x11C
 
     // 0x120 — MONOTONIC_COUNTER_2_LO: monotonic counter 2 low word

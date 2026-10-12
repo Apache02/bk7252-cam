@@ -17,12 +17,7 @@ static int help(__unused int intc, __unused const char *argv[]) {
 extern int command_uptime(int argc, const char *argv[]);
 extern int command_blink(int argc, const char *argv[]);
 // extern int command_test_net(int argc, const char *argv[]);
-extern int command_i2c_scan(int argc, const char *argv[]);
-extern int command_i2c1_init_camera(int argc, const char *argv[]);
-extern int command_trigger_camera(int argc, const char *argv[]);
-extern int command_stat_camera(int argc, const char *argv[]);
 extern int command_capture_frame(int argc, const char *argv[]);
-extern int command_capture_start(int argc, const char *argv[]);
 extern int command_capture_stream(int argc, const char *argv[]);
 
 const Shell::Handler shell_handlers[] = {
@@ -59,12 +54,7 @@ const Shell::Handler shell_handlers[] = {
     {"sha256", command_sha256, nullptr},
     {"sha512", command_sha512, nullptr},
     {"intc", command_intc, nullptr},
-    {"i2c_scan", command_i2c_scan, nullptr},
-    {"init_camera", command_i2c1_init_camera, nullptr},
-    {"trigger_camera", command_trigger_camera, nullptr},
-    {"stat_camera", command_stat_camera, nullptr},
     {"capture_frame", command_capture_frame, nullptr},
-    {"capture_start", command_capture_start, nullptr},
     {"capture_stream", command_capture_stream, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},

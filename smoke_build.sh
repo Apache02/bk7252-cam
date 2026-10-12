@@ -3,7 +3,8 @@
 PROJECT_DIR=$(pwd)
 BUILD_DIR=$(mktemp -d)
 BOARD=A9_B_V1_3
-TARGETS="blink hello shell freertos_example freertos_shell ram_loader"
+TESTS="test_probe--iram test_random--iram test_security--iram test_gdma--iram test_i2c1_scan--iram test_uart_tx--iram"
+TARGETS="blink hello shell freertos_example freertos_shell freertos_wifi ram_loader bootloader bootloader_installer--iram $TESTS"
 
 
 cd $BUILD_DIR || exit 1
@@ -18,8 +19,9 @@ exit_status=0
 
 for target in $TARGETS ; do
   error_output=$(cmake --build . --target $target 2>&1 >/dev/null)
+  build_status=$?
 
-  if [ -n "$error_output" ]; then
+  if [ $build_status -ne 0 ]; then
     echo "Build $target \033[31mFailed\033[0m"
     exit_status=1
     echo "----------------"
