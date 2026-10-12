@@ -42,9 +42,10 @@ static inline void wait_ready(void) { while (!hw_aes->status.ready); }
 // After this call the engine is ready to consume 16-byte blocks via NEXT.
 static void engine_init(const aes_context_t *c) {
     hw_aes->control.v     = 0;
-    hw_aes->config.v      = 0;
-    hw_aes->config.encode = c->encode ? 1 : 0;
-    hw_aes->config.mode   = c->mode;
+    hw_write_fields(hw_aes->config,
+        .encode = c->encode ? 1 : 0,
+        .mode = c->mode,
+    );
 
     int key_words = aes_key_bytes[c->mode] / sizeof(uint32_t);
     for (int i = 0; i < key_words; i++) {

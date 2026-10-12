@@ -1,6 +1,7 @@
 add_executable(
         bootloader
         main.cpp
+        version.c
         bootloader_init.c
         shell_handlers.cpp
         partition_table.c
@@ -24,7 +25,21 @@ target_link_libraries(
         platform_fal
 )
 
-target_compile_definitions(bootloader PRIVATE ENTRY_BACKUP_REGISTERS)
+execute_process(
+        COMMAND git -C ${CMAKE_CURRENT_LIST_DIR} describe --always --dirty
+        OUTPUT_VARIABLE BOOTLOADER_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+)
+if (NOT BOOTLOADER_VERSION)
+    set(BOOTLOADER_VERSION "unknown")
+endif ()
+
+target_compile_definitions(
+        bootloader PRIVATE
+        ENTRY_BACKUP_REGISTERS
+        BOOTLOADER_VERSION="${BOOTLOADER_VERSION}"
+)
 
 bk_bootloader(bootloader)
 bk_firmware_iram(bootloader)

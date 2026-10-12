@@ -6,6 +6,16 @@ uint32_t get_hf_counter() { return hw_mac_core->monotonic_counter_1; }
 
 uint32_t get_us_counter() { return hw_mac_core->monotonic_counter_2_lo; }
 
+bool time_counter_is_running() {
+    const uint32_t first = hw_mac_core->monotonic_counter_1;
+
+    for (uint32_t i = 0; i < 16; i++) {
+        if (hw_mac_core->monotonic_counter_1 != first) return true;
+    }
+
+    return false;
+}
+
 absolute_time_t get_absolute_time() {
     // 48-bit counter split across two MMIO words. Read high, low, high again;
     // if the high half changed, the low half wrapped between the two reads —

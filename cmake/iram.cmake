@@ -25,6 +25,8 @@ function(bk_firmware_iram BASE_TARGET)
     add_custom_command(
             TARGET ${RAM_TARGET}
             POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -DNM=${CMAKE_NM} -DELF=$<TARGET_FILE:${RAM_TARGET}>
+                    -P ${CMAKE_SOURCE_DIR}/cmake/print_heap.cmake
             COMMAND chmod -x ${RAM_TARGET}
             COMMAND ${CMAKE_OBJCOPY} -Obinary ${RAM_TARGET} ${RAM_TARGET}.bin
             COMMAND chmod -x ${RAM_TARGET}.bin

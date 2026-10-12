@@ -1,12 +1,9 @@
 include(FetchContent)
 
-# FetchContent_Populate() is deprecated in CMake 3.30+ (CMP0169 NEW). The
-# three dependencies below are integrated manually via their source-dir
-# variables, not via add_subdirectory, so we keep the old populate-only
-# pattern rather than switching to FetchContent_MakeAvailable.
-if(POLICY CMP0169)
-    cmake_policy(SET CMP0169 OLD)
-endif()
+# The three dependencies below are integrated manually via their source-dir
+# variables. SOURCE_SUBDIR points at a directory that does not exist, so
+# FetchContent_MakeAvailable() only downloads them and never calls
+# add_subdirectory() on their own CMakeLists.txt.
 
 # FreeRTOS
 message("Fetching FreeRTOS-Kernel ...")
@@ -15,12 +12,9 @@ FetchContent_Declare(
         GIT_REPOSITORY  https://github.com/FreeRTOS/FreeRTOS-Kernel.git
         GIT_TAG         V11.1.0
         GIT_SHALLOW     TRUE
+        SOURCE_SUBDIR   no_cmake
 )
-
-FetchContent_GetProperties(freertos_kernel)
-if (NOT freertos_kernel_POPULATED)
-    FetchContent_Populate(freertos_kernel)
-endif ()
+FetchContent_MakeAvailable(freertos_kernel)
 
 set(FREERTOS_KERNEL_PATH ${freertos_kernel_SOURCE_DIR} CACHE PATH "")
 
@@ -32,11 +26,9 @@ FetchContent_Declare(
         GIT_REPOSITORY  https://github.com/lwip-tcpip/lwip.git
         GIT_TAG         STABLE-2_2_0_RELEASE
         GIT_SHALLOW     TRUE
+        SOURCE_SUBDIR   no_cmake
 )
-FetchContent_GetProperties(lwip)
-if(NOT lwip_POPULATED)
-    FetchContent_Populate(lwip)
-endif()
+FetchContent_MakeAvailable(lwip)
 
 set(LWIP_DIR ${lwip_SOURCE_DIR} CACHE PATH "")
 set(LWIP_INCLUDE_DIRS
@@ -52,8 +44,6 @@ FetchContent_Declare(
         GIT_REPOSITORY  https://github.com/mattconte/tlsf.git
         GIT_TAG         deff9ab509341f264addbd3c8ada533678591905
         GIT_SHALLOW     TRUE
+        SOURCE_SUBDIR   no_cmake
 )
-FetchContent_GetProperties(tlsf)
-if(NOT tlsf_POPULATED)
-    FetchContent_Populate(tlsf)
-endif()
+FetchContent_MakeAvailable(tlsf)

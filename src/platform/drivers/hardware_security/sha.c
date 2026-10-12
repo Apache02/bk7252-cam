@@ -73,8 +73,10 @@ static void *sha_create_context(SHA_MODE mode) {
     ctx->first_block = true;
     ctx->block_size  = (mode <= SHA256) ? SHA_BLOCK_SIZE_SMALL : SHA_BLOCK_SIZE_LARGE;
 
-    hw_sha->config.enable = 1;
-    hw_sha->config.mode   = mode;
+    hw_write_fields(hw_sha->config,
+        .enable = 1,
+        .mode = mode,
+    );
 
     return ctx;
 }

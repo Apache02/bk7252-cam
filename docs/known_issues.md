@@ -38,139 +38,54 @@ Fix options:
 
 Recommendation: (c) until a real caller needs streaming.
 
-### F7. Calendar block (`beken378/driver/calendar/`) absent on BK7221U
 
-The Beken SDK ships a `calendar` driver (`calendar.c` / `calendar.h`,
-base address `0x00800000 + 0x55*4 = 0x00800154`) described as a 32 kHz
-free-running counter that exposes `cal_get_time_us()`.
+### F8. First ~5 ms of output after `go` is garbled when `bkloader iram` uses `--speed`
 
-Verified on hardware: the registers at `0x00800154–0x00800160` are unmapped
-on BK7221U — reads return 0, writes are silently ignored regardless of
-`SCTRL_BLOCK_EN_MUX` or `SCTRL_LOW_PWR_CLK` configuration. The block is
-not mentioned in `BK7252_Data_Sheet_V1.0.pdf`.
+File: `tools/bkloader` (host side); the delay itself sits in the tests, e.g.
+`src/tests/probe/probe.cpp`.
 
-In the SDK the calendar is only used when both `CFG_USE_TICK_CAL=1` and
-`CFG_LOW_VOLTAGE_PS=1` (low-voltage sleep tick calibration), a combination
-that is not used in this project. The SDK's `#if !(CFG_SOC_NAME == SOC_BK7252N)`
-guard around `cal_get_time_us()` in `os_clock.c` appears to be a copy-paste
-from other chip variants where the block does exist.
+**`platform_stdio_init()` needs no settle delay.** Right after it returns, the UART
+transmits at the correct rate. The delay `busy_wait_ms(20)` that tests put after it is
+not needed for the UART.
 
-Use `get_absolute_time()` from `hardware_time` (NXMAC monotonic counter at
-`0xC000011C`) as a drop-in replacement — it provides microsecond resolution
-and is confirmed working on this chip.
+What is real: when an IRAM image is started with `bkloader iram --speed 921600`, the
+first ~5 ms of the program's output arrives as null bytes. After that it is clean.
 
-### F8. `platform_stdio_init()` requires a settle delay before first TX
+Measured on the chip (`src/tests/probe/`, October 2026), one labelled line per millisecond
+starting right after `platform_stdio_init()`:
 
-File: `src/platform/misc/stdio/stdio.c`.
-
-Output written immediately after `platform_stdio_init()` is transmitted with the wrong
-bit timing and arrives at the host as garbage. The delay is still required; what it
-guards against is corruption, not a crash.
-
-Measured during hardware probing (`src/tests/probe/`, August 2026):
-
-| Delay after `platform_stdio_init()` | Result |
+| Run | Result |
 |---|---|
-| 0 ms | garbled output; the chip survives and keeps running |
-| ≤ 5 ms | garbled output |
-| ≥ 6 ms | clean output |
-| 20 ms | clean output (chosen as safe default with margin) |
+| no `--speed` | clean from the first byte, `T=00` onward |
+| `--speed 921600` | `T=00`..`T=04` garbled (null bytes), `T=05` onward clean |
+| `--speed 921600`, one line per 20 ms | only `T=000` garbled, `T=020` onward clean |
+| `--speed 921600`, program waits 300 ms **before** `platform_stdio_init()` | clean from `T=00` |
 
-The threshold was pinned by emitting one labelled 6-byte line per millisecond starting
-at 0 ms and reading off the first legible label: `T=00`..`T=05` arrived corrupted,
-`T=06` onward clean, with a worst-case emit drift of 2 µs against the intended
-schedule. Single run at 1 ms granularity — treat 6 ms as the observed floor, not a
-qualified minimum.
+The last row is the one that matters. If the garbling came from the UART settling after
+init, it would repeat when the init is moved 300 ms later. It does not. The garbling is
+tied to the time since the jump to the program, not to the time since UART init.
 
-The corruption depends on elapsed time since init, not on how many bytes have been
-sent: after a 20 ms delay output is clean from the very first byte.
+The loader talks at 921600 before `go`. The program then runs its UART at 115200, and the
+host switches back to 115200 only after the jump. Output sent in between is read at the
+wrong rate and comes out as null bytes. This matches the observation, and it is the
+likeliest cause. **It is not proven**: `bkloader` waits 0.5 s after `go` before it
+switches the port back, not 5 ms, and this is not explained. Running from flash instead
+of through `bkloader` has not been tried.
 
-No pollable readiness signal exists, so the blind delay cannot be replaced by polling.
-Sampled immediately after `uart2_init()` and repeatedly over the following
-microseconds, `fifo_status` already reads `0x001a0000` — `tx_empty`, `rx_empty` and
-`wr_ready` all set, `tx_fifo_count` zero — and `config` already holds the correct
-divisor (`0xe1` = 225 for 115200 from the 26 MHz XTAL). Every register the UART block
-exposes reports ready while transmission is still corrupt, which places the cause in
-the clock domain (ICU gating / clock switch), not in the UART.
-
-Two earlier descriptions of this entry were wrong and are corrected above:
+Two earlier descriptions of this entry were wrong:
 
 - The failure was recorded as a hard fault with a register dump and bootloader
-  takeover. It is not — the chip neither faults nor resets. The dump previously
-  attributed to F8 was most likely the deliberate `wdt_reboot()` at the end of a probe.
+  takeover. The chip neither faults nor resets. The dump previously attributed to F8 was
+  most likely the deliberate `wdt_reboot()` at the end of a probe.
 - The observation that "10 ms produced no output" was a host-side artefact of the old
   `tio` workflow: the loader closed the serial port, discarding the OS receive buffer,
-  before `tio` opened it. The bytes were transmitted correctly but arrived during the
-  port-close gap. With `--capture` on `bkloader iram` the port stays open.
+  before `tio` opened it. With `--capture` on `bkloader iram` the port stays open.
 
-Workaround: `busy_wait_ms(20)` between `platform_stdio_init()` and the first
-I/O call. Used in `src/tests/probe/probe.cpp`.
+Workaround: none needed without `--speed`. With `--speed`, ignore the first ~5 ms of
+output, or keep the `busy_wait_ms(20)` the tests already have before the first print.
 
-Fix: none available inside the UART block — see the readiness-signal paragraph above.
-Reducing the delay means characterising the clock switch in `icu_uartN_clk()` /
-`icu_uartN_power_up()`, or accepting the measured 6 ms floor with margin.
-
-### F10. `uart_isr()` consumes the TX queue with FIQ unmasked
-
-Files: `src/platform/drivers/hardware_uart/uart.c` (`uart_isr`),
-`src/platform/misc/ring_buffer/` (`ringbuf_get_byte`).
-
-`utils_ring_buffer` is single-producer/single-consumer: two consumers must be serialized by
-the caller. The TX path has three, and two of them serialize correctly.
-`uart_tx_send_byte_blocked()` and `uart_tx_flush_queue()` wrap the dequeue in
-`GLOBAL_INT_DISABLE()`, which masks IRQ *and* FIQ. `uart_isr()` does not — it runs with only
-IRQ masked, because that is all the core masks on IRQ entry, and `platform/freertos/port_asm.S`
-documents that a FIQ can land in the middle of `do_irq`.
-
-So any FIQ handler that reaches `uart_write_byte()` becomes a second consumer. The route
-exists: `bk_printf()` (`port_wifi/glue/platform_glue.c`) is what the WiFi archives log through, and
-in FIQ context `portENABLED_IRQ()` reads 0 — ARMv5 FIQ entry masks both bits — so the write
-takes the synchronous branch and calls `uart_tx_flush_queue()`, which dequeues.
-
-Failure mode, worse than interleaved output:
-
-- The FIQ lands inside `ringbuf_get_byte()`, after it has read `out` and before it stores
-  `out + 1`. The FIQ dequeues N bytes and advances `out`; the interrupted handler then stores
-  its stale `out + 1`, rewinding the cursor. Bytes are replayed, and `in - out` can grow past
-  the capacity, at which point `ringbuf_is_full()` is permanently true and the console is
-  dead until reboot.
-- The narrower window between the dequeue and `fifo_data.v = byte` reorders the stream: the
-  FIQ sees an empty ring, takes the direct-to-FIFO path, and its byte overtakes the one the
-  interrupted handler is still holding.
-
-Not reachable today. The FIQ handlers in the tree are `sctrl_dpll_isr()` (clears a latch,
-writes nothing) and `jpeg_isr()` (only calls the start/end-frame callbacks the camera
-device sets, which do not print). `intc_init()` unmasks no source. It becomes reachable the
-moment a FIQ handler logs, for example a MAC FIQ source going live, which is where the WiFi
-port is headed.
-
-Fix: mask FIQ around the ISR's dequeue loop. Two shapes, with the trade-off between them:
-
-- One section around the whole batch — simple, but holds FIQ off for up to a full FIFO's
-  worth of dequeue-and-write, tens of microseconds, once per interrupt.
-- One section per byte — windows stay at a few instructions, but costs a CPSR pair per byte
-  on a path deliberately trimmed to one MMIO read.
-
-The measured interrupt rate is low (14 per 2 KB at 115200), which favours the first.
-
-### F11. Instruction cache keeps the old bootloader after `bootloader_installer`
-
-Files: `src/applications/bootloader_installer/main.cpp`.
-
-The chip has an instruction cache over flash (see `docs/memory_map.md`). After
-`bootloader_installer` rewrites flash `0x000000`, the cache can still hold the old
-bootloader. Without a reset, the chip then either crashes or runs as if the bootloader
-had not changed. After a hardware reset (the reset button) the new bootloader runs
-correctly.
-
-The installer does not reboot or flush the cache; it verifies the write, prints `OK`
-and returns. Observed behaviour, not yet traced to the exact cache mechanism.
-
-Workaround: press the reset button after the installer prints `OK`. The same applies
-when installing a vendor bootloader image.
-
-Fix: not planned. A fix would be an explicit instruction-cache invalidate followed by
-a reset (watchdog or soft) at the end of the installer.
+Fix: to be found on the host side, in how `tools/bkloader` hands over the baud rate
+after `go`.
 
 ### F12. Sustained JPEG→RAM DMA crashes the firmware when it runs from IRAM
 
@@ -212,8 +127,8 @@ Reproduce.
    --until "Bootloader*" build/app_iram.bin`. Bare metal fails after roughly 45 s.
 4. Replace `busy_wait_ms(1)` with `usleep(1000)` (1 kHz timer interrupt on). It froze before
    the first 5 s line.
-5. Under FreeRTOS (`freertos_shell--iram`), run `capture_start`, then `capture_stream 3`
-   (or `capture_stream 10`). It breaks within seconds, in a different way on each try.
+5. Under FreeRTOS (`freertos_shell--iram`), run `capture_stream 3`
+   (or `capture_stream 10`); it starts the camera itself. It breaks within seconds, in a different way on each try.
 6. Flash `freertos_shell` instead (`tools/bkloader flash build/app_crc.bin`) and run
    `capture_stream 10`, `capture_stream 300`. Stable.
 
@@ -411,44 +326,25 @@ back with, in the application rather than in the port.
 
 ## API / contract
 
-### A1. `intc_manager` is `static` in a header
-
-File: `hardware_intc/intc_manager.h`.
-
-```c
-static struct { ... } intc_manager;
-```
-
-Defining `static` storage in a header means every translation unit that
-includes it gets its own copy. Today only `intc.c` includes the header so the
-hazard is dormant, but adding any second user (a test, a shell command that
-inspects the table, a debug dump) would silently get an empty `intc_manager`
-and break `intc_register_*` from outside `intc.c`.
-
-Fix: declare `extern` in the header, define once in `intc.c`. While at it,
-consider moving `intc_manager.h` content into the `.c` since nothing else
-needs it.
-
-### A2. `intc_register_irq_handler` return value is uninformative
-
-File: `hardware_intc/intc.c`, also `intc_manager.h::register_handler`.
-
-`register_handler` returns `true` unconditionally; the only way it ever
-returns `false` is the explicit `count >= MAX_HANDLERS` check in
-`intc_register_irq_handler`. Bad input (`func == NULL`, `source == 0`,
-duplicate registration) is silently accepted.
-
-Fix: validate inputs in `register_handler` itself and return `false` on
-unrecognised cases. Update the callers to surface the failure (currently the
-return is mostly ignored).
-
 ### A4. `flash_read` has no error reporting
 
 File: `hardware_flash/flash.c`.
 
-`flash_read` is `void`-returning. It silently succeeds with garbage if:
-- `addr + count` walks past the end of the flash (no upper bound check),
-- the flash is in deep-power-down mode.
+`flash_read` is `void`-returning and never reports an error.
+
+**Addresses past the end of the flash are deliberately not limited.** The chip uses only
+as many address bits as the flash has, so an address past the end wraps: on a 2 MB flash
+`0x200000` reads the same bytes as `0x000000`, `0x200010` the same as `0x000010`, and so on
+(the address is taken modulo the flash size). A read that starts near the end and runs past
+it continues from the start. Nothing fails, and the data returned is real flash content,
+only from a different place than the address says.
+
+This is relied on: the `full_4m` segment of `tools/bkloader` reads 4 MB, which on a 2 MB
+board returns the same 2 MB twice, with no need to know the board's size in advance.
+
+The same wrap applies to `flash_write` and `flash_erase_sector`. A write or erase past the
+end lands at the start of the flash, over the bootloader. Nothing in the firmware limits
+that, and no tool in this project sends such an address.
 
 Note: `sr_data_crc_cnt.error_count` was investigated and its function is not
 confirmed — it was never observed to increment in any tested scenario. Do not
@@ -460,7 +356,7 @@ than returning corrupt data silently. This is a hardware-level guard that
 applies only to instruction / data cache fetches, not to the OPERATE_SW read
 path used by `flash_read`.
 
-Fix: return `int` with a meaningful error code, validate `addr + count`.
+Fix: none planned. Reads past the end stay unrestricted.
 
 ---
 
@@ -495,16 +391,6 @@ RSA is ever needed, design the API from scratch then.
 ## Architectural follow-ups
 
 These are larger pieces that require a design pass, not a patch.
-
-### Arch1. Audit remaining register-write call sites
-
-The `hw_write_fields` helper in `soc.h` is the project-wide idiom
-for atomic multi-field MMIO writes. Known multi-field call sites (`efuse`,
-`gdma`, `intc::intc_init`, `uart::uart_init`) have been converted. Future
-drivers should follow the same shape; existing single-bit RMW writes
-(`sctrl`, `random`, `wdt`'s `wdt_up`/`wdt_down` toggle) are correct as-is
-— they intentionally preserve the other fields and should NOT be rewritten
-through the helper.
 
 ### Arch2. Uniform error coding across drivers
 
@@ -575,52 +461,6 @@ Fix: if a production Data Abort handler is ever needed, increase
 `_UNUSED_STACK_SIZE_` in `boot.h` and give ABT mode its own dedicated region
 in `flash.lds` / `iram.lds`.
 
-### Arch6. RAM (0x00400000) is non-executable — `__data` / `.data` code causes prefetch abort
-
-Confirmed on hardware via `src/tests/probe/` (June 2026).
-
-The BK7252 MPU marks the general-purpose RAM region (`0x00400000–0x004FFFFF`) as
-non-executable.  Any attempt to branch to an address in this region immediately
-triggers a prefetch abort.  Only IRAM (`0x00900000–0x0093FFFF`) is executable.
-
-Implications:
-
-- The `__data` attribute (or `__attribute__((section(".data")))`) places the function
-  body in the `.data` section, which is linked to RAM VMA.  Code compiled with this
-  attribute will crash with a prefetch abort the first time it is called.
-- For flash firmware, code that must run during the XIP gap (e.g. `flash_bypass_xfer`
-  while `flash_spi_mux = 1`) **must** reside in IRAM.  Use
-  `__attribute__((section(".iram.text")))` or a dedicated IRAM section.
-- For IRAM firmware (`iram.lds`), all `.text` is already in IRAM, so this constraint
-  is automatically satisfied — no special attributes are needed.
-
-Workaround: for the bypass driver (see `wip/flash-bypass` branch), IRAM firmware is
-used for now.  A production flash-firmware version of `flash_bypass_xfer` will need an
-explicit IRAM section attribute.
-
-### Arch7. `FetchContent_Populate` deprecated in CMake 3.30+ (CMP0169)
-
-CMake 4.2 (shipped with CLion 2026.1.3) emits a deprecation warning for the
-direct `FetchContent_Populate()` calls in `dependencies.cmake` — all three
-dependencies (FreeRTOS-Kernel, lwIP, tlsf) use the old populate-only pattern.
-
-The modern replacement is `FetchContent_MakeAvailable`, which also calls
-`add_subdirectory` on the fetched content. The current code intentionally
-skips that step — each dependency is integrated manually via its source-dir
-variable (`FREERTOS_KERNEL_PATH`, `LWIP_DIR`, tlsf source) rather than
-through CMake's own targets.
-
-Migration path:
-1. Verify that the FreeRTOS-Kernel V11.1.0 `CMakeLists.txt` can be loaded via
-   `FetchContent_MakeAvailable` without conflicting with the port's manual
-   integration (setting `FREERTOS_KERNEL_PORT` will be required).
-2. Do the same for lwIP (requires the port's `lwipopts.h` to be on the
-   include path before `add_subdirectory`).
-3. tlsf has a trivial `CMakeLists.txt`; a thin wrapper target may suffice.
-
-Until the migration is done, `dependencies.cmake` sets `cmake_policy(SET CMP0169 OLD)`
-(guarded with `if(POLICY CMP0169)`), which suppresses the warning.
-
 ### Arch9. `hardware_pwm` is not wired into the build
 
 `src/platform/drivers/hardware_pwm/` has a complete `CMakeLists.txt`, `pwm.c`,
@@ -646,6 +486,14 @@ For traceability — these are fixed:
 | F4 | `wdt_set` took `unsigned long` and truncated to 16 bits; parameter is now `uint16_t` |
 | F5 | `trng_disable` wrote `0x1234` to `data`; the write only latches into the register while disabled and does not change the generated bytes, so it was removed |
 | F6 | `trng_enable` delay is measured: with a delay of 16 µs or more the first word differs after every reset; with no delay it repeated in one measurement and not in another. 32 µs kept as margin. `ctrl` has no ready bit |
+| Arch7 | `dependencies.cmake` called `FetchContent_Populate()`, deprecated in CMake 3.30+ (CMP0169), and silenced the warning with policy `OLD`. It now uses `FetchContent_MakeAvailable()` with `SOURCE_SUBDIR` pointing at a directory that does not exist, so the dependencies are only downloaded and their own `CMakeLists.txt` is still not loaded; the `*_SOURCE_DIR` variables are unchanged |
+| Arch6 | Not a firmware bug: RAM Block 1 is not executable (prefetch abort). Moved to `docs/memory_map.md` (*Not executable*), corrected: RAM Block 2 and the upper SRAM bank are executable, not only IRAM. The flash-build linker script still has no section for code that must run during a flash-bypass window; add one when a driver needs it |
+| F7 | Not a firmware bug: the vendor calendar block is absent on this chip. Moved to `docs/hardware/bk7252.md` (*Calendar (not present)*) |
+| F10 | `uart_isr()` dequeued with FIQ unmasked, so a FIQ that prints (it reaches the queue through the synchronous path) could rewind the read cursor or overtake the byte the ISR held; the dequeue and the FIFO write now share one section with IRQ and FIQ masked, per byte. Known residue: the FIFO room is counted once before the loop, so bytes a FIQ writes meanwhile could overfill the FIFO; not observed, and no FIQ handler in this tree's own code prints. The WiFi archives log through `bk_printf()` (`port_wifi/glue/platform_glue.c`), which a libip FIQ handler could reach; whether one does is not checked |
+| F11 | `bootloader_installer` now resets the chip through the watchdog after a verified install, so the new bootloader starts instead of the stale one in the instruction cache; verified on the chip |
+| Arch1 | Multi-field register writes go through `hw_write_fields` (one store). The last three field-by-field sites (`sha` config, `aes` config, `jpeg` ctrl0) were converted; `sha` used to enable the engine before setting its mode. Single-field and shared-register read-modify-write sites (`sctrl`, `random`, `wdt`, the `icu` clock gates in `timer`) are left as they are: they must keep the other bits |
+| A1 | `intc_manager` moved from a header into `intc.c`; the header is gone |
+| A2 | `intc_register_irq_handler` returned `true` unconditionally and no caller read it; it is now `void` and asserts on a NULL handler, an empty source or a full table. Registering the same handler again adds sources to it, on purpose |
 | A3 | Timer `read_ctl` / `read_value` registers do not exist on BK7221U; `timer_read()` and the register fields removed |
 | Arch8 | FreeRTOS context save/restore picks the nested path by `SPSR.mode`, so an IRQ before `vPortStartFirstTask()` cannot clobber the first task's frame |
 | 1 | `register_handler` left interrupts disabled        |

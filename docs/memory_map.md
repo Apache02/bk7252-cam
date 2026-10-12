@@ -131,6 +131,19 @@ canary pattern at boot; overflow detection reads the first word.
 ABT and UND modes share the UNUSED stack (they are not expected to trigger in
 normal operation).
 
+### Not executable
+
+**Code cannot run from RAM Block 1.** Branching to any address in
+`0x00400000`–`0x004FFFFF` raises a prefetch abort at once (confirmed by
+on-chip probing). Executable RAM on this chip is RAM Block 2 (IRAM) and the
+[Upper SRAM Bank](#upper-sram-bank-0x003f80000x003fffff). Data reads and writes
+in RAM Block 1 are unaffected.
+
+A function linked into `.data` (for example with `__attribute__((section(".data")))`)
+lands in RAM Block 1 and aborts on its first call. Code that has to run while
+flash is not readable (the SPI bypass window) must be placed in IRAM or the
+upper SRAM bank; the flash-build linker script has no section for either.
+
 ---
 
 ## RAM Block 2 (IRAM)
