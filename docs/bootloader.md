@@ -1,4 +1,4 @@
-# Vendor Bootloader Reference (`bootloader_a9_v720.bin`)
+# Vendor Bootloader Reference (`bootloader_a9_v720_crc.bin`)
 
 Documents the vendor bootloader that ships in the `bootloader` flash partition
 (`0x000000–0x00FFFF`). This bootloader is being replaced — see
@@ -80,8 +80,8 @@ After `FUN_000007c4` returns, `FUN_000015c4` switches `mclk` to DPLL/4
 (~120 MHz), sets the ICU peripheral clock mux, and trims the LDO bias before
 continuing with GPIO and UART init.
 
-The sequence was reverse-engineered from `bootloaders/bootloader_a9_v720.bin`
-(Ghidra disassembly) and verified by flashing a minimal proof-of-concept that
+The sequence was reverse-engineered from `bootloaders/bootloader_a9_v720_crc.bin`
+(stripped of its CRC with `tools/uncrc`; Ghidra disassembly) and verified by flashing a minimal proof-of-concept that
 produced UART2 output.
 The description below maps each raw register write to the named fields in
 `soc/sctrl.h` and `hardware/icu.h`.

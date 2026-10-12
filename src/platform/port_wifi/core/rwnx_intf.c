@@ -27,8 +27,10 @@
 
 #include "libip/message.h"
 #include "libip/rwnx.h"
+#include "libip/tasks/apm.h"
 #include "rwnx_intf.h"
 #include "wifi/net.h"
+#include "wifi/handlers/ap_handler.h"
 #include "wifi/handlers/connect_handler.h"
 #include "wifi/handlers/scan_handler.h"
 
@@ -123,6 +125,12 @@ void rwnx_recv_msg(void) {
                     break;
                 case SM_DISCONNECT_IND:
                     sm_disconnect_ind_handler(&rx_msg->param[0], rx_msg->param_len);
+                    break;
+                case APM_ASSOC_IND:
+                    ap_assoc_ind_handler(&rx_msg->param[0], rx_msg->param_len);
+                    break;
+                case APM_DEASSOC_IND:
+                    ap_deassoc_ind_handler(&rx_msg->param[0], rx_msg->param_len);
                     break;
                 case MM_CHANNEL_SWITCH_IND:
                 case MM_CHANNEL_PRE_SWITCH_IND:

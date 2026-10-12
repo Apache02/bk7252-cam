@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-// enum vif_type. VIF_STA is the only one this port asks for.
+// enum vif_type. VIF_STA and VIF_AP are the ones this port asks for.
 enum {
     VIF_STA = 0,
     VIF_IBSS,
@@ -71,7 +71,7 @@ struct vif_sta_info {
 };
 
 // The AP arm of the same union, and the larger of the two — it is what sets the
-// union's 124 bytes. Nothing in this port fills it in: no AP mode.
+// union's 124 bytes. The archive fills it in; the host never writes it.
 //
 // bcn_desc is the descriptor the hardware transmits beacons from on its own,
 // without the host being asked each time. Everything from tim_len down is the

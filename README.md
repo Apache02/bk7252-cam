@@ -228,11 +228,6 @@ System control / PLL · ICU · INTC · eFuse · Watchdog · Microsecond timebase
 
 Register layouts only (no driver code yet): I2C · SAR ADC · FFT · JPEG · RSA
 
-### Known gaps
-
-- **`timer_read()`** — exported but not working (marked in source).
-- **AES / SHA** — hardware has one context; concurrent use produces incorrect output. Use the one-shot helpers only.
-
 ---
 
 ## Extending
@@ -255,3 +250,10 @@ or `src/applications/freertos_shell/commands/`. Auto-discovered by `file(GLOB)`.
 - [`docs/bootloader.md`](docs/bootloader.md) — vendor bootloader internals, PLL init sequence
 - [`docs/known_issues.md`](docs/known_issues.md) — deferred bugs and architectural follow-ups
 - [`docs/hardware/`](docs/hardware/) — per-peripheral hardware references
+
+---
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Vendor binaries and code taken from other projects
+keep their own terms; see [`NOTICE`](NOTICE).

@@ -18,6 +18,8 @@
 #include "wifi/rw_msg.h"
 #include "wifi/station_status.h"
 
+#include "platform/dhcp_server.h"
+
 #include "iface.h"
 
 // #define DEBUG_NAME "wifi_iface"
@@ -271,4 +273,30 @@ void wifi_net_set_address(uint32_t addr, uint32_t netmask, uint32_t gateway) {
     ip4_addr_set_u32(&n, lwip_htonl(netmask));
     ip4_addr_set_u32(&g, lwip_htonl(gateway));
     netifapi_netif_set_addr(&iface->netif, &a, &n, &g);
+}
+
+bool wifi_net_ap_link_up(uint32_t addr, uint32_t netmask) {
+    struct net_if *iface = &wifi_ifaces[IFACE_AP];
+    if (!iface->started) return false;
+
+    ip4_addr_t a, n;
+    ip4_addr_set_u32(&a, lwip_htonl(addr));
+    ip4_addr_set_u32(&n, lwip_htonl(netmask));
+    netifapi_netif_set_addr(&iface->netif, &a, &n, &a);
+    netifapi_netif_set_link_up(&iface->netif);
+
+    if (!dhcp_server_start(&iface->netif)) LOG_W("%s: no DHCP server", __func__);
+
+    LOG_I("ap link up, %u.%u.%u.%u", (unsigned)(addr >> 24), (unsigned)((addr >> 16) & 0xFF),
+          (unsigned)((addr >> 8) & 0xFF), (unsigned)(addr & 0xFF));
+    return true;
+}
+
+void wifi_net_ap_link_down(void) {
+    struct net_if *iface = &wifi_ifaces[IFACE_AP];
+    if (!iface->started) return;
+
+    dhcp_server_stop();
+    netifapi_netif_set_link_down(&iface->netif);
+    LOG_I("ap link down");
 }

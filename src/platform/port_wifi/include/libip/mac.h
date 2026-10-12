@@ -4,6 +4,7 @@
 // Layouts are dictated by libip_7221u.a and were read out of its DWARF debug
 // info.
 
+#include <assert.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -18,6 +19,13 @@ struct mac_ssid {
     uint8_t length;
     uint8_t array[32];
 };
+
+struct mac_rateset {
+    uint8_t length;
+    uint8_t array[12];
+};
+
+static_assert(sizeof(struct mac_rateset) == 13, "me_task.o DWARF: mac_rateset is 13 bytes");
 
 // MAX_MCS_LEN = 16.
 struct mac_htcapability {

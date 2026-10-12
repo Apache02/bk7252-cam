@@ -7,7 +7,8 @@
 // wifi scan [iface]
 // wifi join <ssid> [--bssid value] [--channel N]
 // wifi disconnect [iface]
-// wifi ap <ssid> [--password pwd]
+// wifi ap <ssid> [--channel N]
+// wifi ap down
 // wifi stat [iface]
 // wifi ip [iface]
 

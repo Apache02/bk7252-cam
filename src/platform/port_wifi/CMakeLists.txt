@@ -18,6 +18,9 @@ target_include_directories(
 )
 
 target_sources(port_wifi INTERFACE
+    api/ap.cpp
+    api/ap_clients.c
+    api/ap_frames.c
     api/connect.cpp
     api/scan.cpp
 
@@ -56,6 +59,7 @@ target_link_libraries(port_wifi INTERFACE
     platform_freertos_beken
     platform_promise
     platform_port_lwip
+    platform_dhcp_server
     utils_busy_wait
     hardware_sctrl
     hardware_intc
