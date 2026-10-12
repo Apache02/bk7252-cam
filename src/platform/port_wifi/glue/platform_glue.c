@@ -18,20 +18,26 @@
 // imported: libip(38 objects)
 
 void bk_printf(const char *fmt, ...) {
+#ifdef DEBUG_NAME
     va_list ap;
     va_start(ap, fmt);
     vprintf(fmt, ap);
     va_end(ap);
+#endif
 }
 
 // imported: libip(me_task.o, ps.o, rwnx.o, rxl_cntrl.o, rxu_cntrl.o)
 int os_null_printf(const char *fmt, ...) {
+#ifdef DEBUG_NAME
     va_list ap;
     va_start(ap, fmt);
     int ret = vprintf(fmt, ap);
     va_end(ap);
 
     return ret;
+#else
+    return 0;
+#endif
 }
 
 // ---- sctrl_modem_core_reset ------------------------------------------------
