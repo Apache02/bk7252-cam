@@ -172,7 +172,7 @@ static bool ensure_task() {
     s_queue = xQueueCreate(QUEUE_DEPTH, sizeof(Msg *));
     if (!s_queue) return false;
 
-    if (xTaskCreate(wpa2_task, "wpa2", 1024, nullptr, configMAX_PRIORITIES - 4, nullptr) != pdPASS) {
+    if (xTaskCreate(wpa2_task, "wifi_wpa2", 1024, nullptr, configMAX_PRIORITIES - 4, nullptr) != pdPASS) {
         vQueueDelete(s_queue);
         s_queue = nullptr;
         return false;

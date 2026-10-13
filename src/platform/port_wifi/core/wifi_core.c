@@ -55,7 +55,7 @@ void app_set_sema(void) {
 // ---- WiFi core task --------------------------------------------------------
 
 static StaticTask_t s_core_task_buf;
-static StackType_t  s_core_stack[1024];
+static StackType_t  s_core_stack[512];
 static TaskHandle_t s_core_task;
 
 static void core_task_main(__unused void *arg) {
@@ -100,7 +100,7 @@ static void core_task_main(__unused void *arg) {
 // ---- kmsg task -------------------------------------------------------------
 
 static StaticTask_t s_kmsg_task_buf;
-static StackType_t  s_kmsg_stack[512];
+static StackType_t  s_kmsg_stack[256];
 static TaskHandle_t s_kmsg_task;
 
 static StaticSemaphore_t s_sema_buf;
