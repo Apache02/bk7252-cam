@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "libip/ke.h"
@@ -169,6 +170,34 @@ struct mm_channel_survey_ind {
     uint32_t chan_time_busy_ms;
 };
 static_assert(sizeof(struct mm_channel_survey_ind) == 12, "mm_task.o DWARF: mm_channel_survey_ind is 12 bytes");
+
+// The LMAC's own cipher numbers, not the 802.11 suite selectors.
+#define MAC_CIPHER_SUITE_CCMP 2
+
+struct mm_key_add_req {
+    uint8_t            key_idx; // read for a group key only
+    uint8_t            sta_idx; // 0xFF means a group key, whatever `pairwise` says
+    struct mac_sec_key key;
+    uint8_t            cipher_suite;
+    uint8_t            inst_nbr; // the vif
+    uint8_t            spp;
+    uint8_t            pairwise;
+};
+static_assert(sizeof(struct mm_key_add_req) == 44, "mm_task.o DWARF: mm_key_add_req is 44 bytes");
+static_assert(offsetof(struct mm_key_add_req, key) == 4, "mm_task.o DWARF");
+static_assert(offsetof(struct mm_key_add_req, cipher_suite) == 40, "mm_task.o DWARF");
+static_assert(offsetof(struct mm_key_add_req, pairwise) == 43, "mm_task.o DWARF");
+
+struct mm_key_add_cfm {
+    uint8_t status;
+    uint8_t hw_key_idx;
+};
+static_assert(sizeof(struct mm_key_add_cfm) == 2, "mm_task.o DWARF: mm_key_add_cfm is 2 bytes");
+
+struct mm_key_del_req {
+    uint8_t hw_key_idx; // from MM_KEY_ADD_CFM
+};
+static_assert(sizeof(struct mm_key_del_req) == 1, "mm_task.o DWARF: mm_key_del_req is 1 byte");
 
 #ifdef __cplusplus
 }

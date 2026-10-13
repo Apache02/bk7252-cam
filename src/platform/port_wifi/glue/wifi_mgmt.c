@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
+#include "wifi/platform_glue.h"
 #include "wifi/station_status.h"
 
 // #define DEBUG_NAME "wifi_mgmt"
@@ -36,5 +38,10 @@ void bk_wlan_ap_set_channel_config(uint8_t channel) {
 // ---- Security ---------------------------------------------------------------
 
 // imported: libip(me_utils.o)
-// Open networks only for now; the association path has no key handshake yet.
-uint32_t bk_sta_cipher_is_open(void) { return 1; }
+// me_build_capability() sets the Privacy bit of the association request when
+// this returns 0, so it has to say "secured" before a WPA2 join is asked for.
+static volatile bool s_sta_secure;
+
+void wifi_glue_set_sta_secure(bool secure) { s_sta_secure = secure; }
+
+uint32_t bk_sta_cipher_is_open(void) { return s_sta_secure ? 0 : 1; }

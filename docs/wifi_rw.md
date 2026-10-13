@@ -427,10 +427,10 @@ below are steps or reports along that chain, not independent operations.
 | 15 | `0x100F` | `SM_CONNECTION_START_IND` | marks the start of an attempt, ahead of the rest of the chain |
 | 16 | `0x1010` | `SM_BEACON_LOSE_IND` | the AP's beacon hasn't been heard for the loss threshold |
 | 17 | `0x1011` | `SM_AUTHEN_FAIL_IND` | the 802.11 authentication step failed |
-| 18 | `0x1012` | `SM_ASSOC_FAIL_INID` | the 802.11 association step failed — vendor typo in the name, kept verbatim, not `SM_ASSOC_FAILED_IND` (that's 21) |
+| 18 | `0x1012` | `SM_ASSOC_FAIL_IND` | the 802.11 association step failed — not `SM_ASSOC_FAILED_IND` (that's 21) |
 | 19 | `0x1013` | `SM_ASSOC_IND` | **Observed:** id and name only. **Inferred:** vendor's own header comment on this and the next two rows is the same copy-pasted sentence ("Indicates that the SM associated the AP") for all three — a mistake in the archive's own comments, not something this document introduced. **Unknown:** how this actually differs from `SM_CONNECT_IND`/`SM_DISCONNECT_IND`. |
 | 20 | `0x1014` | `SM_DEASSOC_IND` | **Observed:** id and name only, same copy-pasted vendor comment as row 19. **Inferred:** likely means disassociated, from the name. **Unknown:** exact trigger and how it differs from `SM_DISCONNECT_IND`. |
-| 21 | `0x1015` | `SM_ASSOC_FAILED_IND` | **Observed:** id and name only, same copy-pasted vendor comment as row 19. **Inferred:** likely distinct from `SM_ASSOC_FAIL_INID` (18) and `SM_AUTHEN_FAIL_IND` (17), from the name. **Unknown:** the actual distinction. |
+| 21 | `0x1015` | `SM_ASSOC_FAILED_IND` | **Observed:** id and name only, same copy-pasted vendor comment as row 19. **Inferred:** likely distinct from `SM_ASSOC_FAIL_IND` (18) and `SM_AUTHEN_FAIL_IND` (17), from the name. **Unknown:** the actual distinction. |
 
 Also defines its own `rxu_mgt_ind_handler` — one of three possible
 destinations for `RXU_MGT_IND`, see the note above.
@@ -471,6 +471,60 @@ local handler.
 | 8 | `0x1408` | `APM_ASSOC_IND` | sent by APM, no local handler needed |
 | 9 | `0x1409` | `APM_DEASSOC_IND` | sent by APM, no local handler needed |
 | 10 | `0x140A` | `APM_ASSOC_FAILED_IND` | sent by APM, no local handler needed |
+
+#### Station security (WPA2-Personal)
+
+The LMAC encrypts and decrypts CCMP in hardware once it holds a key. Everything
+before that is the host's: the passphrase becomes a PMK (PBKDF2-HMAC-SHA1, 4096
+rounds, the SSID as salt), the 4-way handshake derives the PTK, and the keys are
+installed with `MM_KEY_ADD_REQ`.
+
+What the association request needs:
+
+- `bk_sta_cipher_is_open()` must return 0 while the request is built, or
+  `me_build_capability()` leaves the Privacy bit out and the AP refuses.
+- `SM_CONNECT_REQ.flags` = `0x9`: `CONTROL_PORT_HOST` (0x1) and `WPA_WPA2_IN_USE`
+  (0x8). With the first set the port stays closed to everything except one
+  ethertype.
+- `ctrl_port_ethertype` holds `88 8E` in memory (network byte order).
+- `ie_buf` holds the RSN IE, `ie_len` its length: `30 14 01 00 00 0F AC 04 01 00
+  00 0F AC 04 01 00 00 0F AC 02 00 00` (version 1, CCMP group, one CCMP pairwise,
+  one PSK AKM, no capabilities).
+- `auth_type` stays 0: WPA2-PSK uses open-system authentication.
+
+EAPOL frames reach the host as ordinary Ethernet frames of ethertype `0x888E`,
+and the host sends its own through the normal data path. They have to be handled
+before the interface's link-up check, because the link comes up only after the
+handshake they belong to.
+
+Order after `SM_CONNECT_IND`: message 2 on message 1; on a valid message 3,
+message 4 first (unencrypted, as the AP expects it), then the pairwise key, then
+the group key, then `ME_SET_CONTROL_PORT_REQ {ap_idx, 1}`. A message 3 the AP
+repeats is answered again but installs nothing.
+
+`MM_KEY_ADD_REQ` (44 bytes) for a 16-byte CCMP key:
+
+| Field | Pairwise | Group |
+|-------|----------|-------|
+| `cipher_suite` | 2 (the LMAC's own number for CCMP) | 2 |
+| `sta_idx` | the AP's index, at most 3 | `0xFF` |
+| `key_idx` | 0 | 0 to 3, the GTK's id |
+| `pairwise` | 1 | 0 |
+| `inst_nbr` | the VIF | the VIF |
+
+The LMAC hangs in a `b .` loop on a pairwise `sta_idx` above 3, a `cipher_suite`
+above 5, a `key_idx` above 3 or a key longer than 32 bytes, so the request
+builder refuses those before anything is sent. The confirmation carries
+`status` and the hardware key slot.
+
+Limits: WPA2-PSK with CCMP only. No TKIP or WPA1, no WPA3, no 802.11w. A PTK
+rekey (a second message 1 after the keys are in) is ignored. The RSN IE of the
+AP is not compared with the one offered, so a downgrade is not detected.
+
+Keys must be freed with `MM_KEY_DEL_REQ {hw_key_idx}` (the slot `MM_KEY_ADD_CFM`
+returned) when the link ends. A key left in the LMAC is still used by the next
+association with the same AP index, and an open join after a WPA2 one then
+associates but passes no traffic.
 
 #### BAM (task 6) — Block Ack manager
 

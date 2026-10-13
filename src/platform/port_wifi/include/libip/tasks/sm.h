@@ -39,7 +39,7 @@ enum sm_msg_tag {
     SM_CONNECTION_START_IND,
     SM_BEACON_LOSE_IND,
     SM_AUTHEN_FAIL_IND,
-    SM_ASSOC_FAIL_INID, // vendor typo, kept verbatim — not SM_ASSOC_FAILED_IND
+    SM_ASSOC_FAIL_IND,
     SM_ASSOC_IND,
     SM_DEASSOC_IND,
     SM_ASSOC_FAILED_IND,

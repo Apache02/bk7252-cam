@@ -26,9 +26,13 @@
 
 #include "platform/Promise.h"
 
-// Associated — the LMAC reported success.
+// Associated — the link is usable. For a secured network that means the
+//              handshake is done and the control port is open.
 // Refused    — the AP replied with an 802.11 status code; `status_code` has it.
 // NoReply    — no indication arrived before the deadline.
+// AuthFailed — the association went through but the handshake did not finish:
+//              a wrong passphrase, or an AP that stopped answering. The BSS has
+//              been left, so another attempt can start.
 //
 // Spelled NoReply rather than Timeout because these enumerators are unscoped and
 // wifi/scan.h already publishes a Timeout.
@@ -36,6 +40,7 @@ typedef enum : uint8_t {
     Associated,
     Refused,
     NoReply,
+    AuthFailed,
 } ConnectStatus;
 
 struct ConnectResult {
@@ -50,14 +55,19 @@ struct ConnectResult {
 struct ConnectConfig {
     const char *ssid; // required, NUL-terminated
 
+    // NULL joins an open network. Otherwise, a WPA2-Personal passphrase of 8 to
+    // 63 printable ASCII characters. It is hashed into a key before this returns
+    // from wifi_connect_start(), which takes about half a second, and is not kept.
+    const char *passphrase;
+
     // Together these let the LMAC join the BSS straight away. Leave either out
     // and this scans for the SSID first to find them — see below.
     uint8_t bssid[6]; // all zeroes = not known
     uint8_t channel;  // 1..14, or 0 = not known
 };
 
-// Starts an open (no WPA) association and returns the promise that will carry
-// its outcome. Everything config points at is copied before this returns, so it
+// Starts an association, open or WPA2-Personal, and returns the promise that will
+// carry its outcome. Everything config points at is copied before this returns, so it
 // may live on the caller's stack.
 //
 // Without a BSSID and channel this first runs a scan for the SSID, and so blocks
@@ -66,8 +76,8 @@ struct ConnectConfig {
 // connection after boot. Pass a BSSID and channel and no scan happens.
 //
 // Returns an empty handle when nothing was started: the SSID was not found, an
-// association is already in flight, the LMAC refused the request outright, or
-// memory ran out. Then there is nothing to await.
+// association is already in flight, the passphrase is not 8 to 63 printable
+// characters, the LMAC refused the request outright, or memory ran out. Then there is nothing to await.
 Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const ConnectConfig *config);
 
 // Leaves the BSS and takes the interface's link down. Returns false when the

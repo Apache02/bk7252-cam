@@ -1,5 +1,4 @@
-// Associating, from the shell. Open networks only: the port links no
-// supplicant, so wifi/connect.h has no way to carry a key.
+// Associating, from the shell: open networks, and WPA2-Personal with --password.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,12 +12,14 @@
 #include "wifi/net.h"
 
 static void print_usage(const char *command, const char *name) {
-    printf("usage: %s %s <ssid> [--bssid xx:xx:xx:xx:xx:xx] [--channel N]\r\n", command, name);
+    printf("usage: %s %s <ssid> [--password <pwd>] [--bssid xx:xx:xx:xx:xx:xx] [--channel N]\r\n", command, name);
+    printf("  --password WPA2-Personal passphrase, 8 to 63 characters. Without it the join is open.\r\n");
     printf("  --bssid    the AP to join, when it is already known\r\n");
     printf("  --channel  1..14, the channel that AP is on\r\n");
-    printf("\r\n  Given both, the join goes straight out. Given neither, a full sweep\r\n");
-    printf("  runs first to find them, so this blocks for about a second longer.\r\n");
-    printf("\r\n  Open networks only: nothing here can carry a key.\r\n");
+    printf("\r\n  Given both bssid and channel, the join goes straight out. Given neither, a full\r\n");
+    printf("  sweep runs first to find them, so this blocks for about a second longer.\r\n");
+    printf("\r\n  WPA2 adds about half a second for the key and up to ten for the handshake.\r\n");
+    printf("  The shell keeps a history, so the password stays in it until it is cleared.\r\n");
 }
 
 // wifi join — associates, then hands the interface to DHCP.
@@ -51,6 +52,12 @@ int wifi_sub_join(const char *command, int argc, const char *argv[]) {
                 return -1;
             }
             config.channel = (uint8_t)channel;
+        } else if (strcmp(argv[i], "--password") == 0) {
+            if (++i >= argc) {
+                printf("[wifi] --password wants the passphrase\r\n");
+                return -1;
+            }
+            config.passphrase = argv[i];
         } else if (!config.ssid) {
             config.ssid = argv[i];
         } else {
@@ -72,7 +79,7 @@ int wifi_sub_join(const char *command, int argc, const char *argv[]) {
         return -1;
     }
 
-    printf("[wifi] joining \"%s\"\r\n", config.ssid);
+    printf("[wifi] joining \"%s\"%s\r\n", config.ssid, config.passphrase ? ", WPA2" : "");
 
     Shared<Promise<ConnectResult>> promise = wifi_connect_start(iface->vif, &config);
     if (promise.empty()) {
@@ -99,6 +106,9 @@ int wifi_sub_join(const char *command, int argc, const char *argv[]) {
             return -1;
         case NoReply:
             printf("[wifi] no answer before the deadline\r\n");
+            return -1;
+        case AuthFailed:
+            printf("[wifi] the handshake failed: wrong passphrase, or the AP stopped answering\r\n");
             return -1;
     }
 

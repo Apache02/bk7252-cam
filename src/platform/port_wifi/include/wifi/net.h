@@ -121,6 +121,11 @@ void wifi_net_tx_reset(void);
 // on the tcpip thread. Takes the caller's pbuf reference on every path.
 void wifi_net_tx_from_core(struct pbuf *p, uint8_t vif_idx);
 
+// Sends one Ethernet frame on the interface that carries vif_idx, through the
+// same path lwIP's frames take. For the supplicant's EAPOL frames, which do not
+// come from lwIP.
+err_t wifi_net_send_raw(uint8_t vif_idx, const uint8_t *frame, uint16_t len);
+
 #ifdef __cplusplus
 }
 #endif

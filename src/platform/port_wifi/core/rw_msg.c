@@ -17,6 +17,7 @@
 
 #include "libip/message.h"
 #include "libip/phy.h"
+#include "libip/vif.h"
 #include "rwnx_intf.h"
 #include "wifi/bmsg.h"
 #include "wifi/core.h"
@@ -229,15 +230,22 @@ int rw_msg_set_channel(uint32_t channel, uint32_t band_width, __unused void *cfm
 }
 
 // ---- rw_msg_send_sm_connect_req -------------------------------------------
-// Request an open (no WPA) association. vif_idx comes from
+// Request an association, open or WPA2. vif_idx comes from
 // rw_msg_send_add_if(); bssid and channel say which BSS to join.
 //
 // Blocks briefly for SM_CONNECT_CFM, which reports only whether the request was
 // accepted. The association result itself arrives later as SM_CONNECT_IND.
-int rw_msg_send_sm_connect_req(uint8_t vif_idx, const char *ssid, const uint8_t bssid[6], uint8_t channel) {
+
+// The bits of sm_connect_req.flags the host sets (ip/mac/mac.h in the reference build).
+#define SM_FLAG_CONTROL_PORT_HOST 0x01
+#define SM_FLAG_WPA_WPA2_IN_USE   0x08
+
+int rw_msg_send_sm_connect_req(uint8_t vif_idx, const char *ssid, const uint8_t bssid[6], const uint8_t channel,
+                               const uint8_t *ie, const uint16_t ie_len) {
     struct sm_connect_req *req;
-    size_t ssid_len = strlen(ssid);
+    const size_t ssid_len = strlen(ssid);
     if (ssid_len > sizeof(req->ssid.array)) return -1;
+    if (ie && ie_len > sizeof(req->ie_buf)) return -1;
 
     req = ke_msg_alloc(SM_CONNECT_REQ, TASK_SM, TASK_API, sizeof(*req));
     if (!req) return -1;
@@ -261,12 +269,16 @@ int rw_msg_send_sm_connect_req(uint8_t vif_idx, const char *ssid, const uint8_t 
     // the window sm_join_bss() has to hear the probe response in.
     req->chan.flags = SCAN_PASSIVE_BIT;
 
-    // Zero is what an open network wants. The bits (mac.h) are
-    // CONTROL_PORT_HOST, CONTROL_PORT_NO_ENC, DISABLE_HT, WPA_WPA2_IN_USE and
-    // MFP_IN_USE, none of which mean anything before WPA.
-    req->flags           = 0;
     req->listen_interval = 100;
-    req->auth_type       = 0; // open
+    req->auth_type       = 0; // open system authentication, WPA2-PSK included
+
+    if (ie) {
+        memcpy(req->ie_buf, ie, ie_len);
+        req->ie_len = ie_len;
+        req->flags  = SM_FLAG_CONTROL_PORT_HOST | SM_FLAG_WPA_WPA2_IN_USE;
+        // Stored in network byte order: the port stays closed to everything but EAPOL.
+        req->ctrl_port_ethertype = __builtin_bswap16(0x888E);
+    }
 
     struct sm_connect_cfm cfm = {0};
     LOG_I("SM_CONNECT_REQ ssid=\"%s\" vif=%u", ssid, vif_idx);
@@ -313,9 +325,6 @@ int rw_msg_send_apm_start_req(uint8_t vif_idx, uint8_t channel, const uint8_t *b
 
     struct apm_start_req *req = ke_msg_alloc(APM_START_REQ, TASK_APM, TASK_API, sizeof(*req));
     if (!req) return -1;
-
-    // ke_msg_alloc() promises no zeroes, and the padding and unused fields reach the LMAC.
-    memset(req, 0, sizeof(*req));
 
     req->basic_rates.length   = 4;
     req->basic_rates.array[0] = 130;
@@ -364,9 +373,6 @@ int rw_msg_send_me_sta_add(uint8_t vif_idx, const uint8_t mac[6], uint16_t aid, 
     struct me_sta_add_req *req = ke_msg_alloc(ME_STA_ADD_REQ, TASK_ME, TASK_API, sizeof(*req));
     if (!req) return -1;
 
-    // The capability blocks below are mostly left empty on purpose, so they must start at zero.
-    memset(req, 0, sizeof(*req));
-
     memcpy(req->mac_addr.array, mac, 6);
     req->vif_idx = vif_idx;
     req->aid     = aid;
@@ -400,6 +406,44 @@ int rw_msg_send_me_set_control_port(uint8_t sta_idx, bool open) {
 
     LOG_I("ME_SET_CONTROL_PORT_REQ sta=%u open=%u", sta_idx, open);
     return rw_msg_send(req, ME_SET_CONTROL_PORT_CFM, NULL, 0);
+}
+
+int rw_msg_send_mm_key_add(uint8_t vif_idx, uint8_t sta_idx, uint8_t key_idx, const uint8_t key[16],
+                           uint8_t *hw_key_idx) {
+    const bool group = sta_idx == 0xFF;
+    if (!key || vif_idx >= NX_VIRT_DEV_MAX || (group ? key_idx > 3 : (sta_idx > 3 || key_idx != 0))) {
+        LOG_W("%s: refused vif=%u sta=%u key=%u", __func__, vif_idx, sta_idx, key_idx);
+        return -1;
+    }
+
+    struct mm_key_add_req *req = ke_msg_alloc(MM_KEY_ADD_REQ, TASK_MM, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    req->key_idx      = key_idx;
+    req->sta_idx      = sta_idx;
+    req->key.length   = 16;
+    req->cipher_suite = MAC_CIPHER_SUITE_CCMP;
+    req->inst_nbr     = vif_idx;
+    req->pairwise     = group ? 0 : 1;
+    memcpy(req->key.array, key, 16);
+
+    struct mm_key_add_cfm cfm = {.status = 0xFF};
+    LOG_I("MM_KEY_ADD_REQ vif=%u sta=%u key=%u", vif_idx, sta_idx, key_idx);
+    if (rw_msg_send(req, MM_KEY_ADD_CFM, &cfm, sizeof(cfm)) != 0) return -1;
+    if (cfm.status != 0) return -1;
+
+    if (hw_key_idx) *hw_key_idx = cfm.hw_key_idx;
+    return 0;
+}
+
+int rw_msg_send_mm_key_del(uint8_t hw_key_idx) {
+    struct mm_key_del_req *req = ke_msg_alloc(MM_KEY_DEL_REQ, TASK_MM, TASK_API, sizeof(*req));
+    if (!req) return -1;
+
+    req->hw_key_idx = hw_key_idx;
+
+    LOG_I("MM_KEY_DEL_REQ hw_key=%u", hw_key_idx);
+    return rw_msg_send(req, MM_KEY_DEL_CFM, NULL, 0);
 }
 
 int rw_msg_send_mgmt_tx(uint8_t vif_idx, uint8_t *frame, uint16_t len) {

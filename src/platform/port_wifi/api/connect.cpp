@@ -22,10 +22,15 @@
 #include "libip/tasks/sm.h"
 #include "wifi/connect.h"
 #include "wifi/handlers/connect_handler.h"
+#include "wifi/handlers/wpa2_handler.h"
 #include "wifi/net.h"
+#include "wifi/platform_glue.h"
 #include "wifi/rw_msg.h"
 #include "wifi/scan.h"
 #include "wifi/station_status.h"
+
+#include "wpa2_eapol.h"
+#include "wpa2_kdf.h"
 
 // #define DEBUG_NAME "connect"
 #include "debug.h"
@@ -35,16 +40,29 @@
 // and the association.
 #define CONNECT_LIMIT_MS 10000
 
+// How long the AP gets to finish the handshake once the association is in. The
+// reference firmware waits the same for the first EAPOL frame.
+#define HANDSHAKE_LIMIT_MS 10000
+
 // ---- Session ---------------------------------------------------------------
 
 static SemaphoreHandle_t              s_lock;
 static TimerHandle_t                  s_timer;
 static Shared<Promise<ConnectResult>> s_promise;
 static ConnectResult                 *s_result;
+static bool                           s_secure;    // this attempt is WPA2: a passphrase was given
+static volatile bool                  s_handshake; // associated, the handshake is running
 
 static void session_finish(ConnectStatus status);
 
 static void timer_expired(__unused TimerHandle_t timer) {
+    if (s_handshake) {
+        // The supplicant leaves the BSS, which blocks, so the timer task only asks.
+        LOG_W("%s(): no handshake before the deadline", __func__);
+        wpa2_sta_abort();
+        return;
+    }
+
     LOG_W("%s(): no indication before the deadline", __func__);
     session_finish(ConnectStatus::NoReply);
 }
@@ -77,6 +95,7 @@ static void session_finish(ConnectStatus status) {
     if (promise.empty()) return;
 
     xTimerStop(s_timer, 0);
+    s_handshake = false;
 
     if (result) result->status = status;
 
@@ -103,6 +122,7 @@ void sm_connect_ind_handler(const void *param, uint16_t param_len) {
     if (!s_lock) return;
 
     xSemaphoreTake(s_lock, portMAX_DELAY);
+    const bool waiting = !s_promise.empty();
     if (s_result) {
         s_result->status_code = ind->status_code;
         memcpy(s_result->bssid, ind->bssid, sizeof(s_result->bssid));
@@ -112,6 +132,18 @@ void sm_connect_ind_handler(const void *param, uint16_t param_len) {
     }
     xSemaphoreGive(s_lock);
 
+    // A late indication, or a roam, has no attempt to resolve and no handshake to wait for.
+    if (!waiting) return;
+
+    if (ok && s_secure) {
+        // Associated is only the half of it: the handshake decides the outcome,
+        // and the supplicant reports it through wpa2_result_handler().
+        s_handshake = true;
+        xTimerChangePeriod(s_timer, pdMS_TO_TICKS(HANDSHAKE_LIMIT_MS), 0);
+        return;
+    }
+
+    if (s_secure) wpa2_sta_disarm();
     session_finish(ok ? ConnectStatus::Associated : ConnectStatus::Refused);
 }
 
@@ -128,7 +160,17 @@ void sm_disconnect_ind_handler(const void *param, uint16_t param_len) {
     // A pending attempt is left alone on purpose: the LMAC drops the old link
     // partway through an association and still sends SM_CONNECT_IND afterward,
     // so resolving here would report a failure the indication then contradicts.
+
+    // The AP dropping us mid-handshake is what a wrong passphrase looks like
+    // from the AP's side. s_handshake is set only after SM_CONNECT_IND, so the
+    // disconnect the LMAC sends while it joins is not mistaken for it.
+    if (s_handshake) {
+        wpa2_sta_disarm();
+        session_finish(ConnectStatus::AuthFailed);
+    }
 }
+
+void wpa2_result_handler(bool ok) { session_finish(ok ? ConnectStatus::Associated : ConnectStatus::AuthFailed); }
 
 // ---- Finding the BSS -------------------------------------------------------
 
@@ -150,8 +192,8 @@ static bool find_bss(const char *ssid, uint8_t bssid[6], uint8_t *channel, const
     }
     const uint8_t ssid_len = static_cast<uint8_t>(len);
 
-    bool found = false;
-    int try_number = 0;
+    bool found      = false;
+    int  try_number = 0;
     do {
         Shared<Promise<ScanResult>> promise = wifi_scan(&cfg);
         if (promise.empty()) return false;
@@ -172,8 +214,8 @@ static bool find_bss(const char *ssid, uint8_t bssid[6], uint8_t *channel, const
         if (found) {
             memcpy(bssid, best->bssid, 6);
             *channel = best->channel;
-            LOG_I("AP \"%s\" is %02x:%02x:%02x:%02x:%02x:%02x on channel %u, %d dBm", ssid, bssid[0], bssid[1], bssid[2],
-                  bssid[3], bssid[4], bssid[5], *channel, best->rssi);
+            LOG_I("AP \"%s\" is %02x:%02x:%02x:%02x:%02x:%02x on channel %u, %d dBm", ssid, bssid[0], bssid[1],
+                  bssid[2], bssid[3], bssid[4], bssid[5], *channel, best->rssi);
         }
     } while (!found && ++try_number < retry_count);
 
@@ -181,6 +223,12 @@ static bool find_bss(const char *ssid, uint8_t bssid[6], uint8_t *channel, const
 }
 
 // ---- wifi_connect_start ----------------------------------------------------
+
+// Through a volatile pointer, so the compiler cannot drop it as a dead store.
+static void wipe(void *p, size_t n) {
+    volatile uint8_t *b = static_cast<volatile uint8_t *>(p);
+    while (n--) *b++ = 0;
+}
 
 Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const ConnectConfig *config) {
     if (!config || !config->ssid || !*config->ssid) {
@@ -216,6 +264,29 @@ Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const Connect
         return {};
     }
 
+    // The key is worked out before anything is published or sent: a passphrase
+    // that cannot be one is refused here, and the half second of hashing happens
+    // while nothing waits on it.
+    const bool secure = config->passphrase != nullptr;
+    uint8_t    pmk[WPA2_PMK_LEN];
+    if (secure) {
+        const uint8_t *ssid = reinterpret_cast<const uint8_t *>(config->ssid);
+        if (!wpa2_pmk(config->passphrase, ssid, strlen(config->ssid), pmk)) {
+            LOG_W("%s(): the passphrase must be 8 to 63 printable characters", __func__);
+            return {};
+        }
+        // Armed before the request: the AP may send message 1 before SM_CONNECT_IND reaches us.
+        const bool armed = wpa2_sta_arm(vif_idx, pmk, bssid);
+        wipe(pmk, sizeof(pmk));
+        if (!armed) {
+            LOG_W("%s(): the supplicant could not start", __func__);
+            return {};
+        }
+    }
+    // An open join clears what an earlier secured one left in the LMAC.
+    if (!secure) wpa2_sta_disarm();
+    wifi_glue_set_sta_secure(secure);
+
     // Park the radio on the BSS's channel before asking to join it. SM_CONNECT_REQ
     // opens with a one-channel scan that probes the moment it has retuned, so a
     // join probe issued right after a full sweep is often lost and the
@@ -231,12 +302,14 @@ Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const Connect
     Owned<ConnectResult> result(new (std::nothrow) ConnectResult{});
     if (result.empty()) {
         LOG_W("%s(): OOM for the result", __func__);
+        if (secure) wpa2_sta_disarm();
         return {};
     }
 
     Shared<Promise<ConnectResult>> promise(new (std::nothrow) Promise<ConnectResult>());
     if (promise.empty() || !promise->valid()) {
         LOG_W("%s(): OOM for the promise", __func__);
+        if (secure) wpa2_sta_disarm();
         return {};
     }
 
@@ -247,19 +320,25 @@ Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const Connect
     // owner outright — from this frame to the session, and from the session to
     // the promise once the attempt ends.
     xSemaphoreTake(s_lock, portMAX_DELAY);
-    s_promise = promise;
-    s_result  = result.release();
+    s_promise   = promise;
+    s_result    = result.release();
+    s_secure    = secure;
+    s_handshake = false;
     xSemaphoreGive(s_lock);
 
     mhdr_set_station_status(MSG_CONNECTING);
     xTimerChangePeriod(s_timer, pdMS_TO_TICKS(CONNECT_LIMIT_MS), 0);
     xTimerStart(s_timer, 0);
 
-    LOG_I("SM_CONNECT_REQ \"%s\" bssid=%02x:%02x:%02x:%02x:%02x:%02x ch=%u", config->ssid, bssid[0], bssid[1],
-          bssid[2], bssid[3], bssid[4], bssid[5], channel);
+    LOG_I("SM_CONNECT_REQ \"%s\" bssid=%02x:%02x:%02x:%02x:%02x:%02x ch=%u", config->ssid, bssid[0], bssid[1], bssid[2],
+          bssid[3], bssid[4], bssid[5], channel);
 
-    if (rw_msg_send_sm_connect_req(vif_idx, config->ssid, bssid, channel) != 0) {
+    const auto ie      = secure ? WPA2_RSN_IE : nullptr;
+    const auto ie_size = secure ? sizeof(WPA2_RSN_IE) : 0;
+
+    if (rw_msg_send_sm_connect_req(vif_idx, config->ssid, bssid, channel, ie, ie_size) != 0) {
         LOG_W("%s(): the LMAC refused the request", __func__);
+        if (secure) wpa2_sta_disarm();
         xTimerStop(s_timer, 0);
         mhdr_set_station_status(MSG_CONN_FAIL);
         xSemaphoreTake(s_lock, portMAX_DELAY);
@@ -278,6 +357,8 @@ Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const Connect
 // ---- wifi_disconnect -------------------------------------------------------
 
 bool wifi_disconnect(uint8_t vif_idx) {
+    wpa2_sta_disarm();
+
     // Taken down first: DHCP stops and lwIP drops what it has queued before the
     // deauthentication goes out, rather than after the link is already gone.
     wifi_net_link_down();
