@@ -2,7 +2,7 @@ add_executable(
         camera
         main.cpp
         shell_handlers.cpp
-        http_server.cpp
+        camera_web.cpp
 )
 
 target_include_directories(
@@ -15,6 +15,7 @@ target_link_libraries(
         platform_stdio_uart2
         platform_freertos
         platform_port_lwip
+        platform_http_server
         shell_main
         shell_commands_common
         shell_commands_platform

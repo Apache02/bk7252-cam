@@ -11,7 +11,7 @@
 #include "net.h"
 #include "wifi/core.h"
 #include "shell_handlers.h"
-#include "http_server.h"
+#include "camera_web.h"
 
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
@@ -78,7 +78,7 @@ static void vTaskInit(__unused void *pvParams) {
     rwnxl_init();
     wifi_core_start();
 
-    http_server_start();
+    camera_web_start();
 
     vTaskDelete(nullptr);
 }

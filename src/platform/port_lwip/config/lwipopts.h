@@ -11,6 +11,9 @@
 #define MEMP_NUM_PBUF        16
 #define MEMP_NUM_TCP_SEG     16
 #define MEMP_NUM_SYS_TIMEOUT 8
+/* One netconn per socket: the DHCP server, the HTTP listener, its workers and
+   the connections waiting for one. */
+#define MEMP_NUM_NETCONN 8
 
 /* ---- Buffers ---- */
 #define PBUF_POOL_SIZE    8
@@ -47,6 +50,9 @@
 #define LWIP_SOCKET         1
 #define LWIP_COMPAT_SOCKETS 1
 #define LWIP_SO_RCVTIMEO    1
+#define LWIP_SO_SNDTIMEO    1
+/* SO_REUSEADDR: a server can bind again while its closed connections are in TIME_WAIT. */
+#define SO_REUSE 1
 
 /* ---- FreeRTOS sys_arch ---- */
 #define LWIP_FREERTOS_THREAD_STACKSIZE_IS_STACKWORDS 1
