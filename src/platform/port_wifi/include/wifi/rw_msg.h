@@ -42,15 +42,19 @@ int rw_msg_post(void *msg_params);
 // arguments; this port ignores cfm.
 int rw_msg_set_channel(uint32_t channel, uint32_t band_width, void *cfm);
 
-// Asks for an open (no WPA) association and waits only for SM_CONNECT_CFM, which
-// says the request was accepted — non-zero here means it was not, and no
-// indication will follow. The association itself lands later as SM_CONNECT_IND;
+// Asks for an association and waits only for SM_CONNECT_CFM, which says the
+// request was accepted — non-zero here means it was not, and no indication will
+// follow. The association itself lands later as SM_CONNECT_IND;
 // wifi/connect.h is the API that waits for that, and the one applications want.
 //
 // bssid is six bytes and channel is 1..14; together they make the LMAC join that
 // BSS directly. FF:FF:FF:FF:FF:FF instead sends it to its own scan cache, and to
 // a fresh scan when that misses.
-int rw_msg_send_sm_connect_req(uint8_t vif_idx, const char *ssid, const uint8_t bssid[6], uint8_t channel);
+//
+// ie is NULL for an open network. For WPA2 it is the RSN IE (at most 256 bytes),
+// and the request is flagged as a host-controlled port with WPA in use.
+int rw_msg_send_sm_connect_req(uint8_t vif_idx, const char *ssid, const uint8_t bssid[6], uint8_t channel,
+                               const uint8_t *ie, uint16_t ie_len);
 
 // Leaves the BSS, with an 802.11 reason code (libip/tasks/sm.h publishes
 // MAC_RS_SENDER_LEAVING for the ordinary one). The confirmation says only that
@@ -74,6 +78,17 @@ int rw_msg_send_apm_stop_req(uint8_t vif_idx);
 int rw_msg_send_me_sta_add(uint8_t vif_idx, const uint8_t mac[6], uint16_t aid, struct me_sta_add_cfm *cfm);
 int rw_msg_send_me_sta_del(uint8_t sta_idx);
 int rw_msg_send_me_set_control_port(uint8_t sta_idx, bool open);
+
+// Installs a 16-byte CCMP key. sta_idx is the AP's index (at most 3) for a
+// pairwise key, with key_idx 0, or 0xFF for a group key, with key_idx 0 to 3.
+// Anything else is refused here because the LMAC hangs on it. The hardware key
+// slot it chose comes back in hw_key_idx.
+int rw_msg_send_mm_key_add(uint8_t vif_idx, uint8_t sta_idx, uint8_t key_idx, const uint8_t key[16],
+                           uint8_t *hw_key_idx);
+
+// Frees a key slot that rw_msg_send_mm_key_add() returned. A key left behind
+// stays in use by the next association with the same AP index, even an open one.
+int rw_msg_send_mm_key_del(uint8_t hw_key_idx);
 
 // Transmits one management frame, MAC header first. The frame is copied before
 // the call returns, but the LMAC edits its first byte in place, so it must be

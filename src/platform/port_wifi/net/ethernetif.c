@@ -25,6 +25,7 @@
 #include "libip/tx.h"
 #include "wifi/bmsg.h"
 #include "wifi/handlers/ap_handler.h"
+#include "wifi/handlers/wpa2_handler.h"
 #include "wifi/net.h"
 
 #include "iface.h"
@@ -224,6 +225,20 @@ static err_t low_level_output(struct netif *nif, struct pbuf *p) {
     return ERR_OK;
 }
 
+err_t wifi_net_send_raw(uint8_t vif_idx, const uint8_t *frame, uint16_t len) {
+    struct net_if *iface = iface_from_vif(vif_idx);
+    if (!iface) return ERR_IF;
+
+    struct pbuf *p = pbuf_alloc(PBUF_RAW, len, PBUF_RAM);
+    if (!p) return ERR_MEM;
+
+    memcpy(p->payload, frame, len);
+    // low_level_output() takes a reference of its own, so ours is dropped either way.
+    err_t err = low_level_output(&iface->netif, p);
+    pbuf_free(p);
+    return err;
+}
+
 // ---- Receive ---------------------------------------------------------------
 
 // The archive writes to whatever the allocator returns without checking it for
@@ -272,6 +287,17 @@ void wifi_net_rx(struct pbuf *p, uint8_t vif_idx) {
             LOG_W("out of lwIP memory, %lu frames dropped", iface->stat.rx_dropped);
         }
         return;
+    }
+
+    // EAPOL goes to the supplicant, not to lwIP, and before the link check: the
+    // link only comes up after the handshake that this frame belongs to.
+    if (iface->type == VIF_STA && p->len == p->tot_len && p->len >= ETH_HDR_LEN + 4) {
+        const uint8_t *eth = (const uint8_t *)p->payload;
+        if (eth[12] == 0x88 && eth[13] == 0x8E) {
+            wpa2_eapol_rx(vif_idx, eth, p->len);
+            pbuf_free(p);
+            return;
+        }
     }
 
     if (!netif_is_link_up(&iface->netif)) {

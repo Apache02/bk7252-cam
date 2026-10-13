@@ -27,6 +27,13 @@ struct mac_rateset {
 
 static_assert(sizeof(struct mac_rateset) == 13, "me_task.o DWARF: mac_rateset is 13 bytes");
 
+// MAC_SEC_KEY_LEN = 32. The words are little-endian, so the key bytes can be copied in as they are.
+struct mac_sec_key {
+    uint8_t  length;
+    uint32_t array[8];
+};
+static_assert(sizeof(struct mac_sec_key) == 36, "mm_task.o DWARF: mac_sec_key is 36 bytes");
+
 // MAX_MCS_LEN = 16.
 struct mac_htcapability {
     uint16_t ht_capa_info;

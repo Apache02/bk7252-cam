@@ -5,6 +5,7 @@
 // kmsg task. Only the message dispatcher calls these; wifi/connect.h is what an
 // application uses.
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -19,6 +20,10 @@ void sm_connect_ind_handler(const void *param, uint16_t param_len);
 // SM_DISCONNECT_IND — the link is gone. Only updates the station status; nothing
 // is waiting on it.
 void sm_disconnect_ind_handler(const void *param, uint16_t param_len);
+
+// The supplicant's verdict on a WPA2 handshake. Resolves the connect session:
+// Associated when true, AuthFailed when false.
+void wpa2_result_handler(bool ok);
 
 #ifdef __cplusplus
 }

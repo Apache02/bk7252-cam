@@ -95,7 +95,9 @@ static inline void *ke_msg2param(struct ke_msg const *msg) {
 }
 
 // Returns the parameter block, already zeroed over param_len bytes — ke_msg.o
-// ends with memset(param, 0, param_len).
+// ends with memset(param, 0, param_len). In this build an allocation failure
+// hangs in the library's ASSERT and never returns NULL, but a build without
+// asserts could return it, so callers still check.
 void *ke_msg_alloc(ke_msg_id_t id, ke_task_id_t dest_id, ke_task_id_t src_id, uint16_t param_len);
 void  ke_msg_free(struct ke_msg *msg);
 void  ke_msg_send(void const *param_ptr);

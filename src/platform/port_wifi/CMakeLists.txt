@@ -23,6 +23,12 @@ target_sources(port_wifi INTERFACE
     api/ap_frames.c
     api/connect.cpp
     api/scan.cpp
+    api/wpa2_aes.c
+    api/wpa2_eapol.c
+    api/wpa2_kdf.c
+    api/wpa2_sha1.c
+    api/wpa2_sm.c
+    api/wpa2_sta.cpp
 
     # The message path to the LMAC and the tasks it runs on.
     core/bmsg.c
@@ -63,6 +69,7 @@ target_link_libraries(port_wifi INTERFACE
     utils_busy_wait
     hardware_sctrl
     hardware_intc
+    hardware_random # the handshake's SNonce
 )
 
 add_subdirectory(shell_commands)
