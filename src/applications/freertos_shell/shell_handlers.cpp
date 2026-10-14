@@ -6,6 +6,7 @@
 #include "shell/commands_freertos.h"
 #include "shell/commands_beken.h"
 #include "shell/commands_iram.h"
+#include "shell/commands_flash_kv.h"
 #include "shell/Shell.h"
 
 
@@ -38,6 +39,7 @@ const Shell::Handler shell_handlers[] = {
     {"memory_read", command_memory_read_binary, nullptr},
     {"speed", command_uart2_baudrate, nullptr},
     {"tlv", command_tlv, nullptr},
+    {"kv", command_flash_kv, nullptr},
     {"random_test", command_random_test, nullptr},
     {"timer_delay", command_time_delay, nullptr},
     {"uptime", command_uptime, nullptr},

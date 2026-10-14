@@ -20,11 +20,16 @@ static void format_size(char *buf, size_t buf_len, size_t size) {
     }
 }
 
+// clang-format off
 static const Table::ColumnDef table_def[] = {
-    {"name", 16, "%s", Table::Align::Left},          {"flash name", 16, "%s", Table::Align::Left},
-    {"start", 10, "0x%08lx", Table::Align::Right},   {"end", 10, "0x%08lx", Table::Align::Right},
-    {"size (hex)", 10, "0x%x", Table::Align::Right}, {"size (human)", 12, "%s", Table::Align::Right},
+    {"name", 16, "%s", Table::Align::Left},
+    {"flash name", 16, "%s", Table::Align::Left},
+    {"start", 10, "0x%08lx", Table::Align::Right},
+    {"end", 10, "0x%08lx", Table::Align::Right},
+    {"size (hex)", 10, "0x%x", Table::Align::Right},
+    {"size (human)", 12, "%s", Table::Align::Right},
 };
+// clang-format on
 
 int command_partitions(__unused int argc, __unused const char *argv[]) {
     const fal_partition_t *tbl = fal_partition_table();

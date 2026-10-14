@@ -27,7 +27,7 @@ Smoke-build the app targets and the IRAM test images in a throwaway directory:
 ./smoke_build.sh
 ```
 
-There is no unit-test framework — `smoke_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell freertos_wifi camera ram_loader bootloader bootloader_installer--iram` and the `test_<name>--iram` images (`probe random security gdma i2c1_scan uart_tx`). A new test or application has to be added to its `TESTS` / `TARGETS` lists by hand.
+There is no unit-test framework — `smoke_build.sh` only verifies clean compilation of `blink hello shell freertos_example freertos_shell freertos_wifi camera ram_loader bootloader bootloader_installer--iram` and the `test_<name>--iram` images (`probe random security gdma i2c1_scan uart_tx flash_kv`). A new test or application has to be added to its `TESTS` / `TARGETS` lists by hand.
 
 ## Flash / backup / monitor
 
