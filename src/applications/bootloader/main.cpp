@@ -149,6 +149,15 @@ int main() {
     print_reset_cause();
     print_registers();
     uart2_puts("\r\n");
+
+    // Entered in USR the mode switches in boot_reset.S had no effect, so everything runs
+    // unprivileged. Only a real reset restores SVC.
+    if ((boot_entry_state.cpsr & CPU_MODE_MASK) == CPU_MODE_USR) {
+        uart2_puts("Entered in USR mode, resetting\r\n");
+        uart2_drain();
+        wdt_reboot(100);
+    }
+
     uart2_drain();
 
     wdt_down();
