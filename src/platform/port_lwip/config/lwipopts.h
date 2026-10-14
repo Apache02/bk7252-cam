@@ -51,6 +51,8 @@
 #define LWIP_COMPAT_SOCKETS 1
 #define LWIP_SO_RCVTIMEO    1
 #define LWIP_SO_SNDTIMEO    1
+/* Lets a server notice a client that vanished without closing. */
+#define LWIP_TCP_KEEPALIVE 1
 /* SO_REUSEADDR: a server can bind again while its closed connections are in TIME_WAIT. */
 #define SO_REUSE 1
 

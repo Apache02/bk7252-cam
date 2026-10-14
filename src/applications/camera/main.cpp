@@ -12,6 +12,7 @@
 #include "wifi/core.h"
 #include "shell_handlers.h"
 #include "camera_web.h"
+#include "telnet_console.h"
 
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
@@ -79,6 +80,7 @@ static void vTaskInit(__unused void *pvParams) {
     wifi_core_start();
 
     camera_web_start();
+    telnet_console_start();
 
     vTaskDelete(nullptr);
 }

@@ -3,6 +3,7 @@ add_executable(
         main.cpp
         shell_handlers.cpp
         camera_web.cpp
+        telnet_console.cpp
 )
 
 target_include_directories(
@@ -16,6 +17,7 @@ target_link_libraries(
         platform_freertos
         platform_port_lwip
         platform_http_server
+        platform_telnet_server
         shell_main
         shell_commands_common
         shell_commands_platform

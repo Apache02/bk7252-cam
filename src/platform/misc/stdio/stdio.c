@@ -44,17 +44,65 @@ void platform_stdio_set_tx_buffer(struct ringbuf *ring) { UART_SET_TX_BUFFER(rin
 
 void platform_stdio_drain() { UART_DRAIN(); }
 
-int _write(int file, char *ptr, int len) {
+static const platform_stdio_tap_t *s_tap;
+
+bool platform_stdio_set_tap(const platform_stdio_tap_t *tap) {
+    if (tap == NULL) {
+        s_tap = tap;
+        return true;
+    }
+
+    if (tap->read && tap->write) {
+        s_tap = tap;
+        return true;
+    }
+
+    return false;
+}
+
+int _write(int file, char *ptr, const int len) {
     //    // stdout only
     //    if (file != 0) {
     //        return -1;
     //    }
 
+    const char *data = ptr;
+
 #ifdef UART_WRITE_BYTE
     for (int i = 0; i < len; i++) {
-        UART_WRITE_BYTE(*ptr++);
+        UART_WRITE_BYTE(*data++);
     }
 #endif
+
+    if (s_tap) s_tap->write(ptr, (size_t)len);
+
+    return len;
+}
+
+__unused static int read_uart(char *ptr, int len) {
+#ifdef UART_READ_BYTE
+    for (int i = 0; i < len; i++) {
+        const int c = UART_READ_BYTE();
+        if (c == -1) {
+            return i == 0 ? -1 : i;
+        }
+        if (ptr) *ptr++ = c;
+    }
+
+    return len;
+#else
+    return -1;
+#endif
+}
+
+static int read_tap(const platform_stdio_tap_t * tap, char *ptr, int len) {
+    for (int i = 0; i < len; i++) {
+        int c = tap->read();
+        if (c == -1) {
+            return i == 0 ? -1 : i;
+        }
+        *ptr++ = c;
+    }
 
     return len;
 }
@@ -66,16 +114,15 @@ int _read(int file, char *ptr, int len) {
         return -1;
     }
 
-#ifdef UART_READ_BYTE
-    for (int i = 0; i < len; i++) {
-        int c = UART_READ_BYTE();
-        if (c == -1) {
-            return i == 0 ? -1 : i;
-        }
-        *ptr++ = c;
+    const platform_stdio_tap_t *tap = s_tap;
+    if (tap) {
+        const int l = read_tap(tap, ptr, len);
+        read_uart(NULL, len);
+        return l;
     }
 
-    return len;
+#ifdef UART_READ_BYTE
+    return read_uart(ptr, len);
 #else
     return -1;
 #endif

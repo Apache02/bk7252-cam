@@ -6,6 +6,7 @@
 #include "shell/commands_freertos.h"
 #include "shell/commands_beken.h"
 #include "shell/commands_wifi.h"
+#include "shell/commands_telnet.h"
 #include "shell/Shell.h"
 
 
@@ -26,6 +27,7 @@ const Shell::Handler shell_handlers[] = {
     {"go", command_jump, nullptr},
     {"wifi", command_wifi, nullptr},
     {"ping", command_ping, nullptr},
+    {"exit", command_telnet_exit, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };
