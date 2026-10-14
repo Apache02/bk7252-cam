@@ -1,6 +1,7 @@
 add_executable(
         camera
         main.cpp
+        config.cpp
         shell_handlers.cpp
         camera_web.cpp
         telnet_console.cpp
@@ -31,6 +32,8 @@ target_link_libraries(
         hardware_i2c
         hardware_jpeg
         hardware_gdma
+        hardware_random
+        platform_flash_kv
         device_camera
         port_wifi
         shell_commands_wifi

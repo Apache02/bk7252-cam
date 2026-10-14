@@ -1,6 +1,7 @@
 #ifndef _PLATFORM_FLASH_KV_H
 #define _PLATFORM_FLASH_KV_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -47,10 +48,27 @@ flash_kv_state_t flash_kv_state(void);
 flash_kv_state_t flash_kv_foreach(flash_kv_visit_fn visit, void *ctx, uint32_t *used);
 
 // Copies the value of key into buf and returns its length. A NULL buf only returns the length.
-// Returns -ENOENT if the key is not set and -EMSGSIZE if the value does not fit in size.
-int flash_kv_get(uint16_t key, void *buf, size_t size);
+// A nonzero exact_size is the only length the stored value may have, so a number is never read from
+// a value of another size; 0 accepts any length, as for a string.
+// Returns -ENOENT if the key is not set, -EBADMSG if the length differs from exact_size and
+// -EMSGSIZE if the value does not fit in size. On any error buf is left untouched.
+int flash_kv_get(uint16_t key, void *buf, size_t size, size_t exact_size);
 
-// Stores a value of up to FLASH_KV_MAX_VALUE_LEN bytes. A zero len is the same as flash_kv_erase().
+// Typed reads. They return 0 (the string one returns the length) or the error of flash_kv_get(); on
+// an error the destination keeps what it had, so it can hold a default. A number is read only from a
+// value of its own size. The string is stored without its terminator and always comes back terminated.
+int flash_kv_get_u8(uint16_t key, uint8_t *dst);
+int flash_kv_get_bool(uint16_t key, bool *dst);
+int flash_kv_get_string(uint16_t key, char *dst, size_t size);
+
+// Typed writes, with the return values and the no-op for an unchanged value of flash_kv_set().
+// An empty string removes the key.
+int flash_kv_set_u8(uint16_t key, uint8_t value);
+int flash_kv_set_bool(uint16_t key, bool value);
+int flash_kv_set_string(uint16_t key, const char *src);
+
+// Stores a value of up to FLASH_KV_MAX_VALUE_LEN bytes. Storing the value that is already there writes nothing.
+// A zero len is the same as flash_kv_erase().
 // Returns 0, -EINVAL, -ENOSPC (the sector cannot hold all keys) or -EIO (read-back mismatch).
 int flash_kv_set(uint16_t key, const void *data, size_t len);
 

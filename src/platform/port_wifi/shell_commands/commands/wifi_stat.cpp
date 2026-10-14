@@ -111,7 +111,7 @@ static void print_iface_ip(const struct net_if *iface) {
     print_ipv4("ip", ip);
     print_ipv4("netmask", netif_ip4_netmask(&iface->netif));
     print_ipv4("gateway", netif_ip4_gw(&iface->netif));
-    printf(FIELD "%s\r\n", "from", dhcp_supplied_address(&iface->netif) ? "DHCP" : "set by hand");
+    printf(FIELD "%s\r\n", "from", dhcp_supplied_address(&iface->netif) ? "DHCP" : "static");
 }
 
 // ---- Commands --------------------------------------------------------------

@@ -1,0 +1,30 @@
+#pragma once
+
+#include <stdint.h>
+
+#define CONFIG_SSID_MAX     32
+#define CONFIG_PASSWORD_MAX 63
+
+struct Config {
+    uint8_t mac[6];
+    char    ap_ssid[CONFIG_SSID_MAX + 1];
+    uint8_t ap_channel;
+    char    sta_ssid[CONFIG_SSID_MAX + 1];
+    char    sta_password[CONFIG_PASSWORD_MAX + 1];
+    uint8_t sta_channel;
+    bool    led_enabled;
+    bool    telnet_enabled;
+};
+
+extern Config g_config;
+
+// Fills g_config from flash_kv. A field that is not stored keeps its default. A missing or invalid
+// mac is generated and stored.
+void config_load();
+
+// Writes every field to flash_kv. A field that has not changed is not written again. Returns 0 or
+// the first error.
+int config_save();
+
+// The AP interface cannot share the address of the station one.
+void config_ap_mac(uint8_t mac[6]);

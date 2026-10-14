@@ -7,6 +7,7 @@
 #include "shell/commands_beken.h"
 #include "shell/commands_wifi.h"
 #include "shell/commands_telnet.h"
+#include "shell/commands_flash_kv.h"
 #include "shell/Shell.h"
 
 
@@ -19,12 +20,14 @@ const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
     {"reboot", command_reboot, nullptr},
     {"dump32", command_dump32, nullptr},
+    {"flash_dump", command_flash_dump, nullptr},
     {"chip_id", command_chip_id, nullptr},
     {"partitions", command_partitions, nullptr},
     {"stack", command_stack, nullptr},
     {"tasks", command_tasks, nullptr},
     {"free", command_free, nullptr},
     {"go", command_jump, nullptr},
+    {"kv", command_flash_kv, nullptr},
     {"wifi", command_wifi, nullptr},
     {"ping", command_ping, nullptr},
     {"exit", command_telnet_exit, nullptr},

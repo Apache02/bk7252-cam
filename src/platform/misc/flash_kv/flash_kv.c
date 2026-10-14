@@ -149,36 +149,64 @@ flash_kv_state_t flash_kv_state(void) {
     return scan(&end);
 }
 
+// The newest record of a key: its length, or -ENOENT if the key is not set or was removed.
 struct lookup {
     uint16_t key;
-    uint8_t *buf;
-    size_t   size;
     int      len;
+    uint32_t off;
 };
 
 static void lookup_visit(void *ctx, uint16_t key, const uint8_t *value, uint16_t len, uint32_t off) {
     struct lookup *l = ctx;
-    (void)off;
+    (void)value;
 
     if (key != l->key) return;
-    if (len == 0) {
-        l->len = -ENOENT;
-        return;
-    }
-    l->len = len;
-    if (l->buf) memcpy(l->buf, value, len < l->size ? len : l->size);
+    l->len = len ? len : -ENOENT;
+    l->off = off;
 }
 
-int flash_kv_get(uint16_t key, void *buf, size_t size) {
+int flash_kv_get(uint16_t key, void *buf, size_t size, size_t exact_size) {
     if (key == FLASH_KV_KEY_NONE) return -EINVAL;
     if (header_state() != FLASH_KV_VALID) return -ENOENT;
 
-    struct lookup l = {.key = key, .buf = buf, .size = size, .len = -ENOENT};
+    struct lookup l = {.key = key, .len = -ENOENT};
     uint32_t      end;
     walk(lookup_visit, &l, &end);
 
-    if (l.len > 0 && buf && size < (size_t)l.len) return -EMSGSIZE;
+    if (l.len < 0) return l.len;
+    if (exact_size && (size_t)l.len != exact_size) return -EBADMSG;
+
+    if (buf) {
+        if (size < (size_t)l.len) return -EMSGSIZE;
+        flash_read(KV_BASE + l.off + RECORD_HEAD_SIZE, buf, l.len);
+    }
     return l.len;
+}
+
+int flash_kv_get_u8(uint16_t key, uint8_t *dst) {
+    uint8_t   value;
+    const int len = flash_kv_get(key, &value, sizeof(value), sizeof(value));
+
+    if (len < 0) return len;
+    *dst = value;
+    return 0;
+}
+
+int flash_kv_get_bool(uint16_t key, bool *dst) {
+    uint8_t   value;
+    const int err = flash_kv_get_u8(key, &value);
+
+    if (err) return err;
+    *dst = value != 0;
+    return 0;
+}
+
+int flash_kv_get_string(uint16_t key, char *dst, size_t size) {
+    if (size == 0) return -EINVAL;
+
+    const int len = flash_kv_get(key, dst, size - 1, 0);
+    if (len > 0) dst[len] = '\0';
+    return len;
 }
 
 // The image is a copy of the sector: the sector is erased before its records are written back.
@@ -269,15 +297,30 @@ static int append(uint16_t key, const uint8_t *value, uint16_t len) {
 int flash_kv_set(uint16_t key, const void *data, size_t len) {
     if (key == FLASH_KV_KEY_NONE || len > FLASH_KV_MAX_VALUE_LEN || (len && !data)) return -EINVAL;
     if (len == 0) return flash_kv_erase(key);
+
+    uint8_t *current = malloc(len);
+    if (!current) return -ENOMEM;
+
+    // A shorter buffer than the stored value gives -EMSGSIZE, which is a difference as well.
+    const bool same = flash_kv_get(key, current, len, 0) == (int)len && memcmp(current, data, len) == 0;
+    free(current);
+
+    if (same) return 0;
     return append(key, data, (uint16_t)len);
 }
 
 int flash_kv_erase(uint16_t key) {
-    const int len = flash_kv_get(key, NULL, 0);
+    const int len = flash_kv_get(key, NULL, 0, 0);
     if (len == -ENOENT) return 0;
     if (len < 0) return len;
     return append(key, NULL, 0);
 }
+
+int flash_kv_set_u8(uint16_t key, uint8_t value) { return flash_kv_set(key, &value, sizeof(value)); }
+
+int flash_kv_set_bool(uint16_t key, bool value) { return flash_kv_set_u8(key, value ? 1 : 0); }
+
+int flash_kv_set_string(uint16_t key, const char *src) { return flash_kv_set(key, src, strlen(src)); }
 
 // Offset of the newest record of each key, found in the first pass.
 struct latest {
