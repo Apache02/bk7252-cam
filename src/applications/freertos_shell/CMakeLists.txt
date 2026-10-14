@@ -48,7 +48,7 @@ target_link_libraries(
         hardware_i2c
         hardware_jpeg
         hardware_gdma
-        platform_rtc
+        device_soft_rtc
 )
 
 bk_firmware(freertos_shell)

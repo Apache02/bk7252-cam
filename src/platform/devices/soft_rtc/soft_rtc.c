@@ -1,4 +1,4 @@
-#include "platform/rtc.h"
+#include "device/soft_rtc.h"
 #include "hardware/timer.h"
 #include "platform/cpu.h"
 #include "platform/init.h"
