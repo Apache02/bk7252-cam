@@ -1,5 +1,5 @@
-#ifndef _PLATFORM_RTC_H
-#define _PLATFORM_RTC_H
+#ifndef _DEVICE_SOFT_RTC_H
+#define _DEVICE_SOFT_RTC_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -37,4 +37,4 @@ void rtc_get_datetime(struct rtc_datetime *out);
 }
 #endif
 
-#endif // _PLATFORM_RTC_H
+#endif // _DEVICE_SOFT_RTC_H

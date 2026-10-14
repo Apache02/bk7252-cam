@@ -37,7 +37,7 @@ target_link_libraries(
         hardware_icu
         hardware_i2c
         hardware_jpeg
-        platform_rtc
+        device_soft_rtc
 )
 
 bk_firmware(shell)

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "platform/rtc.h"
+#include "device/soft_rtc.h"
 
 int command_uptime(__unused int argc, __unused const char *argv[]) {
     uint32_t total = rtc_get_uptime();

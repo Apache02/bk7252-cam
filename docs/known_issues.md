@@ -89,7 +89,7 @@ after `go`.
 
 ### F12. Sustained JPEG→RAM DMA crashes the firmware when it runs from IRAM
 
-Files: `src/devices/camera/camera.c` (`camera_stream_*`), `src/linker/iram.lds`,
+Files: `src/platform/devices/camera/camera.c` (`camera_stream_*`), `src/linker/iram.lds`,
 `tools/bkloader` (`iram`).
 
 Status: cause not found. The failure is tied to the IRAM load path; the same code is stable

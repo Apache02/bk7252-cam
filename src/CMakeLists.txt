@@ -1,7 +1,6 @@
 # libs
 add_subdirectory(boards)
 add_subdirectory(platform)
-add_subdirectory(devices)
 add_subdirectory(utils)
 add_subdirectory(shell)
 

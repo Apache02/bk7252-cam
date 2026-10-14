@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "utils/busy_wait.h"
 #include "hardware/timer.h"
-#include "platform/rtc.h"
+#include "device/soft_rtc.h"
 
 #define TRACE(var)                   printf(#var " = 0x%lx\r\n", var)
 #define TRACE_CHANGE(var, new_value) printf(#var ": 0x%lx -> 0x%lx\r\n", var, new_value)
