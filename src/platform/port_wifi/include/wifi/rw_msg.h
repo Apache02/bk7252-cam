@@ -45,7 +45,7 @@ int rw_msg_set_channel(uint32_t channel, uint32_t band_width, void *cfm);
 // Asks for an association and waits only for SM_CONNECT_CFM, which says the
 // request was accepted — non-zero here means it was not, and no indication will
 // follow. The association itself lands later as SM_CONNECT_IND;
-// wifi/connect.h is the API that waits for that, and the one applications want.
+// wifi/sta.h is the API that waits for that, and the one applications want.
 //
 // bssid is six bytes and channel is 1..14; together they make the LMAC join that
 // BSS directly. FF:FF:FF:FF:FF:FF instead sends it to its own scan cache, and to

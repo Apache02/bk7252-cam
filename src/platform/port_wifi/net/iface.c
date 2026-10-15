@@ -198,7 +198,10 @@ struct net_if *wifi_net_ensure_iface(const char *name) {
         return NULL;
     }
 
-    if (iface->started) return iface;
+    if (iface->started) {
+        iface->up = true;
+        return iface;
+    }
 
     // Every step below waits for a confirmation only the core task delivers.
     if (!wifi_core_running()) {
@@ -211,6 +214,7 @@ struct net_if *wifi_net_ensure_iface(const char *name) {
     if (!netif_create(iface)) return NULL;
 
     iface->started = true;
+    iface->up      = true;
 
     __unused const uint8_t *mac = iface->netif.hwaddr;
     LOG_I("%s up on vif=%u, %02x:%02x:%02x:%02x:%02x:%02x", iface->name, iface->vif, mac[0], mac[1], mac[2], mac[3],
@@ -221,21 +225,19 @@ struct net_if *wifi_net_ensure_iface(const char *name) {
 
 // ---- Link and addresses ----------------------------------------------------
 
-void wifi_net_link_up(uint8_t vif_idx) {
+void wifi_net_sta_link_up(void) {
     struct net_if *iface = &wifi_ifaces[IFACE_STA];
     if (!iface->started) return;
-
-    iface->vif = vif_idx;
 
     netifapi_netif_set_link_up(&iface->netif);
     if (netifapi_dhcp_start(&iface->netif) != ERR_OK) {
         LOG_W("%s: DHCP could not be started", __func__);
         return;
     }
-    LOG_I("link up on vif=%u, asking for an address", vif_idx);
+    LOG_I("link up on vif=%u, asking for an address", iface->vif);
 }
 
-void wifi_net_link_down(void) {
+void wifi_net_sta_link_down(void) {
     struct net_if *iface = &wifi_ifaces[IFACE_STA];
     if (!iface->started) return;
 
@@ -244,7 +246,7 @@ void wifi_net_link_down(void) {
     LOG_I("link down");
 }
 
-bool wifi_net_get_address(uint32_t *addr, uint32_t *netmask, uint32_t *gateway) {
+bool wifi_net_sta_get_address(uint32_t *addr, uint32_t *netmask, uint32_t *gateway) {
     struct net_if *iface = &wifi_ifaces[IFACE_STA];
     if (!iface->started || ip4_addr_isany_val(*netif_ip4_addr(&iface->netif))) return false;
 

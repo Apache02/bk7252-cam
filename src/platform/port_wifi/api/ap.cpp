@@ -371,3 +371,5 @@ bool wifi_ap_stop(void) {
     }
     return true;
 }
+
+bool wifi_ap_is_up(void) { return s_running; }

@@ -1,7 +1,6 @@
 #include "subcommands.h"
 #include "shell/Table.h"
 
-#include "wifi/connect.h"
 #include "wifi/core.h"
 #include "wifi/net.h"
 #include "wifi/scan.h"

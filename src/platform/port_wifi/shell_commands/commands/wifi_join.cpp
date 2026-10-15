@@ -8,8 +8,7 @@
 
 #include "subcommands.h"
 
-#include "wifi/connect.h"
-#include "wifi/net.h"
+#include "wifi/sta.h"
 
 static void print_usage(const char *command, const char *name) {
     printf("usage: %s %s <ssid> [--password <pwd>] [--bssid xx:xx:xx:xx:xx:xx] [--channel N]\r\n", command, name);
@@ -22,9 +21,9 @@ static void print_usage(const char *command, const char *name) {
     printf("  The shell keeps a history, so the password stays in it until it is cleared.\r\n");
 }
 
-// wifi join — associates, then hands the interface to DHCP.
+// wifi join — associates; the link and DHCP follow on their own.
 int wifi_sub_join(const char *command, int argc, const char *argv[]) {
-    ConnectConfig config = {};
+    StaConfig config = {};
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0) {
@@ -72,16 +71,9 @@ int wifi_sub_join(const char *command, int argc, const char *argv[]) {
         return -1;
     }
 
-    // Parsing comes first, so a typo does not bring the LMAC up.
-    struct net_if *iface = wifi_net_ensure_iface(WIFI_IFACE_STA);
-    if (!iface) {
-        printf("[wifi] the station interface could not be brought up\r\n");
-        return -1;
-    }
-
     printf("[wifi] joining \"%s\"%s\r\n", config.ssid, config.passphrase ? ", WPA2" : "");
 
-    Shared<Promise<ConnectResult>> promise = wifi_connect_start(iface->vif, &config);
+    Shared<Promise<ConnectResult>> promise = wifi_sta_start(&config);
     if (promise.empty()) {
         printf("[wifi] association not started\r\n");
         return -1;
@@ -98,7 +90,6 @@ int wifi_sub_join(const char *command, int argc, const char *argv[]) {
         case Associated:
             printf("[wifi] associated with %02x:%02x:%02x:%02x:%02x:%02x\r\n", result->bssid[0], result->bssid[1],
                    result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5]);
-            wifi_net_link_up(result->vif_idx);
             printf("[wifi] asking for an address, see %s ip\r\n", command);
             return 0;
         case Refused:

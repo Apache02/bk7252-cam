@@ -15,7 +15,6 @@
 
 #include "hardware/random.h"
 #include "libip/vif.h"
-#include "wifi/connect.h"
 #include "wifi/handlers/connect_handler.h"
 #include "wifi/handlers/wpa2_handler.h"
 #include "wifi/net.h"
@@ -107,7 +106,7 @@ static void fail() {
     s_active  = false;
     s_pending = false;
     LOG_W("handshake failed");
-    wifi_disconnect(s_vif);
+    connect_leave(s_vif);
     wpa2_result_handler(false);
 }
 

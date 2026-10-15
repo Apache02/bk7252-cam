@@ -5,13 +5,12 @@
 
 #include "subcommands.h"
 
-#include "wifi/connect.h"
-#include "wifi/net.h"
+#include "wifi/sta.h"
 
 static void print_usage(const char *command, const char *name) {
     printf("usage: %s %s\r\n", command, name);
-    printf("\r\n  Drops the link and stops DHCP. The station interface stays up,\r\n");
-    printf("  so a later %s join needs no bring-up.\r\n", command);
+    printf("\r\n  Leaves the BSS, drops the link and stops DHCP. A later %s join\r\n", command);
+    printf("  brings the station interface up again.\r\n");
 }
 
 // wifi disconnect — deauthenticates and takes the link down.
@@ -22,15 +21,12 @@ int wifi_sub_disconnect(const char *command, int argc, const char *argv[]) {
         return strcmp(argv[1], "--help") == 0 ? 0 : -1;
     }
 
-    // Looked up rather than created: there is nothing to leave on an interface
-    // that was never brought up.
-    const struct net_if *iface = wifi_net_iface(WIFI_IFACE_STA);
-    if (!iface || !iface->started) {
+    if (!wifi_sta_is_up()) {
         printf("[wifi] the station interface is not up\r\n");
         return -1;
     }
 
-    if (!wifi_disconnect(iface->vif)) {
+    if (!wifi_sta_stop()) {
         printf("[wifi] the LMAC would not drop the link\r\n");
         return -1;
     }

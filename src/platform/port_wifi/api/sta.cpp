@@ -20,13 +20,13 @@
 
 #include "libip/phy.h"
 #include "libip/tasks/sm.h"
-#include "wifi/connect.h"
 #include "wifi/handlers/connect_handler.h"
 #include "wifi/handlers/wpa2_handler.h"
 #include "wifi/net.h"
 #include "wifi/platform_glue.h"
 #include "wifi/rw_msg.h"
 #include "wifi/scan.h"
+#include "wifi/sta.h"
 #include "wifi/station_status.h"
 
 #include "wpa2_eapol.h"
@@ -52,6 +52,7 @@ static Shared<Promise<ConnectResult>> s_promise;
 static ConnectResult                 *s_result;
 static bool                           s_secure;    // this attempt is WPA2: a passphrase was given
 static volatile bool                  s_handshake; // associated, the handshake is running
+static volatile bool                  s_link_up;   // the outcome was Associated and nothing has dropped the link since
 
 static void session_finish(ConnectStatus status);
 
@@ -99,6 +100,12 @@ static void session_finish(ConnectStatus status) {
 
     if (result) result->status = status;
 
+    // Before the caller wakes, so an address is already being asked for when it runs.
+    if (status == ConnectStatus::Associated) {
+        s_link_up = true;
+        wifi_net_sta_link_up();
+    }
+
     if (!promise->resolve(result)) delete result;
 }
 
@@ -126,9 +133,6 @@ void sm_connect_ind_handler(const void *param, uint16_t param_len) {
     if (s_result) {
         s_result->status_code = ind->status_code;
         memcpy(s_result->bssid, ind->bssid, sizeof(s_result->bssid));
-        s_result->vif_idx = ind->vif_idx;
-        s_result->ap_idx  = ind->ap_idx;
-        s_result->ch_idx  = ind->ch_idx;
     }
     xSemaphoreGive(s_lock);
 
@@ -155,7 +159,8 @@ void sm_disconnect_ind_handler(const void *param, uint16_t param_len) {
 
     LOG_W("SM_DISCONNECT_IND reason=%u", reason);
     mhdr_set_station_status(MSG_CONN_FAIL);
-    wifi_net_link_down();
+    s_link_up = false;
+    wifi_net_sta_link_down();
 
     // A pending attempt is left alone on purpose: the LMAC drops the old link
     // partway through an association and still sends SM_CONNECT_IND afterward,
@@ -222,7 +227,7 @@ static bool find_bss(const char *ssid, uint8_t bssid[6], uint8_t *channel, const
     return found;
 }
 
-// ---- wifi_connect_start ----------------------------------------------------
+// ---- wifi_sta_start --------------------------------------------------
 
 // Through a volatile pointer, so the compiler cannot drop it as a dead store.
 static void wipe(void *p, size_t n) {
@@ -230,9 +235,23 @@ static void wipe(void *p, size_t n) {
     while (n--) *b++ = 0;
 }
 
-Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const ConnectConfig *config) {
+Shared<Promise<ConnectResult>> wifi_sta_start(const StaConfig *config) {
+    // Checked before the interface is brought up, so a bad call does not start the LMAC.
     if (!config || !config->ssid || !*config->ssid) {
         LOG_W("%s(): empty SSID", __func__);
+        return {};
+    }
+
+    const struct net_if *iface = wifi_net_ensure_iface(WIFI_IFACE_STA);
+    if (!iface) {
+        LOG_W("%s(): sta not started", __func__);
+        return {};
+    }
+
+    const uint8_t vif_idx = iface->vif;
+
+    if (s_link_up) {
+        LOG_W("%s(): the link is already up, wifi_sta_stop() first", __func__);
         return {};
     }
     if (!session_init()) {
@@ -354,22 +373,46 @@ Shared<Promise<ConnectResult>> wifi_connect_start(uint8_t vif_idx, const Connect
     return promise;
 }
 
-// ---- wifi_disconnect -------------------------------------------------------
+// ---- wifi_sta_stop and the state reads -------------------------------------
 
-bool wifi_disconnect(uint8_t vif_idx) {
-    wpa2_sta_disarm();
-
+bool connect_leave(uint8_t vif_idx) {
     // Taken down first: DHCP stops and lwIP drops what it has queued before the
     // deauthentication goes out, rather than after the link is already gone.
-    wifi_net_link_down();
+    s_link_up = false;
+    wifi_net_sta_link_down();
 
     if (rw_msg_send_sm_disconnect_req(vif_idx, MAC_RS_SENDER_LEAVING) != 0) {
         LOG_W("%s(): the LMAC refused the request", __func__);
         return false;
     }
 
+    // Only once the LMAC accepted: a refused request leaves an association in
+    // flight, and that one still needs the supplicant to resolve.
+    wpa2_sta_disarm();
+
     // SM_DISCONNECT_IND sets this too, but it may never come — the archive sends
     // none when there was no link to lose.
     mhdr_set_station_status(MSG_IDLE);
     return true;
+}
+
+bool wifi_sta_stop(void) {
+    struct net_if *iface = wifi_net_iface(WIFI_IFACE_STA);
+    if (!iface || !iface->up) return false;
+
+    if (!connect_leave(iface->vif)) return false;
+
+    iface->up = false;
+    return true;
+}
+
+bool wifi_sta_is_up(void) {
+    const struct net_if *iface = wifi_net_iface(WIFI_IFACE_STA);
+    return iface && iface->up;
+}
+
+bool wifi_sta_is_link_up(void) { return s_link_up; }
+
+bool wifi_sta_get_address(uint32_t *addr, uint32_t *netmask, uint32_t *gateway) {
+    return wifi_net_sta_get_address(addr, netmask, gateway);
 }

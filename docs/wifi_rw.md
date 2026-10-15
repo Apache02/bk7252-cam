@@ -57,9 +57,9 @@ down, not a new concept:
 |       | 0  | MM    | Hardware/channel/vif (virtual interface — one WiFi interface instance) control — by far the biggest task, 97 messages |
 |       | 1  | SCAN  | LMAC's own channel-by-channel scan, driven by SCANU |
 | UMAC  |    |       |                   |
-|       | 2  | SCANU | Scan sessions and join — what `wifi_scan`/`wifi_connect` actually talk to |
+|       | 2  | SCANU | Scan sessions and join — what `wifi_scan`/`wifi_sta_start` actually talk to |
 |       | 3  | ME    | Per-station config, management-frame TX, rate control |
-|       | 4  | SM    | Station state machine — what `wifi_connect` drives for association |
+|       | 4  | SM    | Station state machine — what `wifi_sta_start` drives for association |
 |       | 5  | APM   | AP mode — compiled in, unused by this port (STA only) |
 |       | 6  | BAM   | Block Ack agreement tracking; also inspects every management frame for ADDBA/DELBA |
 |       | 7  | RXU   | Dispatches incoming management/null-data frames to whichever tasks care |

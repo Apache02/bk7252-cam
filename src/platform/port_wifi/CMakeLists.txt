@@ -21,8 +21,8 @@ target_sources(port_wifi INTERFACE
     api/ap.cpp
     api/ap_clients.c
     api/ap_frames.c
-    api/connect.cpp
     api/scan.cpp
+    api/sta.cpp
     api/wpa2_aes.c
     api/wpa2_eapol.c
     api/wpa2_kdf.c

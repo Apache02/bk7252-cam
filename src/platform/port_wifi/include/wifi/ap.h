@@ -27,3 +27,6 @@ bool wifi_ap_start(const ApConfig *config);
 // Removes the clients, stops beaconing and the DHCP server. False when no AP was
 // running or the LMAC refused.
 bool wifi_ap_stop(void);
+
+// True from a successful wifi_ap_start() until wifi_ap_stop().
+bool wifi_ap_is_up(void);

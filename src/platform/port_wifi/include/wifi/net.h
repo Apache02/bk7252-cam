@@ -1,17 +1,13 @@
 #pragma once
 
 // The network interface: what turns an association into something lwIP can send
-// and receive on.
+// and receive on. Port-internal. An application uses wifi/ap.h and wifi/sta.h;
+// only wifi_net_set_mac() and wifi_net_set_address() are meant to be called from
+// outside the port.
 //
-//     wifi_net_ensure_iface(WIFI_IFACE_STA);  // creates it the first time
-//     ...
-//     wifi_net_link_up(vif_idx);              // once associated
-//     ...
-//     wifi_net_link_down();                   // when the link is lost
-//
-// vif_idx comes out of a ConnectResult (wifi/connect.h). Between link-up and an
-// address arriving, DHCP is running; wifi_net_get_address() reports where that
-// got to.
+// The AP and STA APIs bring their interface up with wifi_net_ensure_iface() and
+// raise and drop the link themselves. Between link-up and an address arriving,
+// DHCP is running; wifi_net_sta_get_address() reports where that got to.
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -32,7 +28,8 @@ struct net_if {
     const char *name;    // what an application asks for the interface by
     uint8_t     type;    // enum vif_type
     uint8_t     vif;     // the LMAC's index for it, INVALID_VIF_IDX until then
-    bool        started; // the LMAC has a vif for it and lwIP has the interface
+    bool        started; // the LMAC has a vif for it and lwIP has the interface; for good, there is no remove_if
+    bool        up;      // wifi_net_ensure_iface() ran and wifi_sta_stop() has not run since; the AP keeps its own flag
     // Frame counts, for the question that follows an address never arriving:
     // which direction is silent. Nothing counts frames off the hardware — the
     // archive's transmit confirmation names no interface.
@@ -65,8 +62,8 @@ struct net_if *wifi_net_iface(const char *name);
 bool wifi_net_set_mac(const char *name, const uint8_t mac[NETIF_MAX_HWADDR_LEN]);
 
 // Brings one of the interfaces above up if it is not up already, and returns
-// it. Its vif field is what wifi/scan.h and wifi/connect.h take. Calling this
-// again costs nothing and hands back the same interface.
+// it, and marks it up. Calling this again costs nothing and hands back the same
+// interface.
 //
 // NULL when the name is not one of the two, when wifi_core_start() has not run,
 // or when a step of the bring-up failed.
@@ -75,15 +72,15 @@ struct net_if *wifi_net_ensure_iface(const char *name);
 // Marks the link up and starts DHCP. The peer an outgoing frame is addressed to
 // is not passed in: the archive keeps it in its own interface table and the
 // transmit path reads it from there.
-void wifi_net_link_up(uint8_t vif_idx);
+void wifi_net_sta_link_up(void);
 
 // Marks the link down and stops DHCP. Anything still queued is dropped.
-void wifi_net_link_down(void);
+void wifi_net_sta_link_down(void);
 
 // The current IPv4 address, netmask and gateway in host byte order. Returns
 // false while the interface has no address yet — which is also how "DHCP has
 // not finished" looks.
-bool wifi_net_get_address(uint32_t *addr, uint32_t *netmask, uint32_t *gateway);
+bool wifi_net_sta_get_address(uint32_t *addr, uint32_t *netmask, uint32_t *gateway);
 
 // Sets a fixed address, in host byte order, and stops DHCP. Passing 0 for addr
 // hands the interface back to DHCP instead.

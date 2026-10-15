@@ -1,7 +1,7 @@
 #pragma once
 
 // The supplicant's entry points, for the C parts of the port (the data path and
-// the connect session's result). Applications use wifi/connect.h instead.
+// the connect session's result). Applications use wifi/sta.h instead.
 
 #include <stdbool.h>
 #include <stdint.h>
