@@ -9,20 +9,22 @@ namespace key {
 constexpr uint16_t mac            = 1;
 constexpr uint16_t ap_ssid        = 2;
 constexpr uint16_t ap_channel     = 3;
-constexpr uint16_t sta_ssid       = 4;
-constexpr uint16_t sta_password   = 5;
-constexpr uint16_t sta_channel    = 6;
-constexpr uint16_t led_enabled    = 7;
-constexpr uint16_t telnet_enabled = 8;
+constexpr uint16_t ap_enabled     = 4;
+constexpr uint16_t sta_ssid       = 5;
+constexpr uint16_t sta_password   = 6;
+constexpr uint16_t sta_enabled    = 7;
+constexpr uint16_t led_enabled    = 8;
+constexpr uint16_t telnet_enabled = 9;
 } // namespace key
 
 Config g_config = {
     .mac            = {},
     .ap_ssid        = "Beken",
     .ap_channel     = 6,
+    .ap_enabled     = true,
     .sta_ssid       = "",
     .sta_password   = "",
-    .sta_channel    = 0,
+    .sta_enabled    = false,
     .led_enabled    = true,
     .telnet_enabled = true,
 };
@@ -57,9 +59,12 @@ void config_load() {
     // A field that is not stored keeps its default.
     flash_kv_get_string(key::ap_ssid, g_config.ap_ssid, sizeof(g_config.ap_ssid));
     flash_kv_get_u8(key::ap_channel, &g_config.ap_channel);
+    flash_kv_get_bool(key::ap_enabled, &g_config.ap_enabled);
+
     flash_kv_get_string(key::sta_ssid, g_config.sta_ssid, sizeof(g_config.sta_ssid));
     flash_kv_get_string(key::sta_password, g_config.sta_password, sizeof(g_config.sta_password));
-    flash_kv_get_u8(key::sta_channel, &g_config.sta_channel);
+    flash_kv_get_bool(key::sta_enabled, &g_config.sta_enabled);
+
     flash_kv_get_bool(key::telnet_enabled, &g_config.telnet_enabled);
     flash_kv_get_bool(key::led_enabled, &g_config.led_enabled);
 }
@@ -73,11 +78,15 @@ int config_save() {
     };
 
     keep(flash_kv_set(key::mac, g_config.mac, sizeof(g_config.mac)));
+
     keep(flash_kv_set_string(key::ap_ssid, g_config.ap_ssid));
     keep(flash_kv_set_u8(key::ap_channel, g_config.ap_channel));
+    keep(flash_kv_set_bool(key::ap_enabled, g_config.ap_enabled));
+
     keep(flash_kv_set_string(key::sta_ssid, g_config.sta_ssid));
     keep(flash_kv_set_string(key::sta_password, g_config.sta_password));
-    keep(flash_kv_set_u8(key::sta_channel, g_config.sta_channel));
+    keep(flash_kv_set_bool(key::sta_enabled, g_config.sta_enabled));
+
     keep(flash_kv_set_bool(key::telnet_enabled, g_config.telnet_enabled));
     keep(flash_kv_set_bool(key::led_enabled, g_config.led_enabled));
 

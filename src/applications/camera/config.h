@@ -7,11 +7,15 @@
 
 struct Config {
     uint8_t mac[6];
+    // access point config
     char    ap_ssid[CONFIG_SSID_MAX + 1];
     uint8_t ap_channel;
+    bool    ap_enabled;
+    // station config
     char    sta_ssid[CONFIG_SSID_MAX + 1];
     char    sta_password[CONFIG_PASSWORD_MAX + 1];
-    uint8_t sta_channel;
+    bool    sta_enabled;
+    // other
     bool    led_enabled;
     bool    telnet_enabled;
 };
