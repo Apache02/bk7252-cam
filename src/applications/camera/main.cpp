@@ -9,13 +9,8 @@
 #include "utils/busy_wait.h"
 #include "utils/ring_buffer.h"
 
-#include "net.h"
-#include "wifi/core.h"
-#include "wifi/net.h"
-#include "config.h"
+#include "main_task.h"
 #include "shell_handlers.h"
-#include "camera_web.h"
-#include "telnet_console.h"
 
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
@@ -43,9 +38,8 @@ static __dead2 void vTaskWdt(__unused void *pvParams) {
 /*-----------------------------------------------------------*/
 // Shell task
 
-static StaticTask_t  shellTaskTCB;
-static StackType_t   shellTaskStack[configMINIMAL_STACK_SIZE * 6];
-static volatile bool s_ready = false;
+static StaticTask_t shellTaskTCB;
+static StackType_t  shellTaskStack[configMINIMAL_STACK_SIZE * 6];
 
 static void print_welcome() {
     printf("\r\n");
@@ -53,13 +47,13 @@ static void print_welcome() {
     printf("\r\n\n");
 }
 
-static inline bool is_connected() { return s_ready; }
+static inline bool is_connected() { return true; }
 
 static __dead2 void vTaskShell(void *pvParams) {
     auto *shell = static_cast<Shell *>(pvParams);
 
-    for (int i=0; i<10 && !s_ready; i++) {
-        vTaskDelay(pdMS_TO_TICKS(100));
+    for (int i=0; i<5 && !main_task_ready(); i++) {
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
 
     for (;;) {
@@ -77,40 +71,6 @@ static __dead2 void vTaskShell(void *pvParams) {
             }
         }
     }
-}
-
-/*-----------------------------------------------------------*/
-
-static void print_mac(const char *name, uint8_t mac[6]) {
-    printf("%s MAC: %02x:%02x:%02x:%02x:%02x:%02x\r\n", name, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
-static void vTaskInit(__unused void *pvParams) {
-    // Starts the tcpip thread; it has to run before any interface is created.
-    net_init();
-
-    config_load();
-
-    sctrl_dpll_int_open();
-    sctrl_rf_init();
-    rwnxl_init();
-    wifi_core_start();
-
-    // The address goes to the radio when the interface comes up, so it has to be set before that.
-    uint8_t ap_mac[6];
-    config_ap_mac(ap_mac);
-    wifi_net_set_mac(WIFI_IFACE_STA, g_config.mac);
-    wifi_net_set_mac(WIFI_IFACE_AP, ap_mac);
-    print_mac("STA", g_config.mac);
-    print_mac("AP", ap_mac);
-
-    vTaskDelay(100);
-    camera_web_start();
-    if (g_config.telnet_enabled) telnet_console_start();
-
-    s_ready = true;
-
-    vTaskDelete(nullptr);
 }
 
 /*-----------------------------------------------------------*/
@@ -149,16 +109,7 @@ int main() {
     );
     // clang-format on
 
-    // clang-format off
-    xTaskCreate(
-        vTaskInit,
-        "init",
-        configMINIMAL_STACK_SIZE * 2,
-        nullptr,
-        configMAX_PRIORITIES - 1,
-        nullptr
-    );
-    // clang-format on
+    main_task_start();
 
     // clang-format off
     xTaskCreateStatic(
