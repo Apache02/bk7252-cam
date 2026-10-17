@@ -30,5 +30,8 @@ void config_load();
 // the first error.
 int config_save();
 
+// A station address has to be unicast and not all zeroes.
+bool config_mac_is_valid(const uint8_t mac[6]);
+
 // The AP interface cannot share the address of the station one.
 void config_ap_mac(uint8_t mac[6]);

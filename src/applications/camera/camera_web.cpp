@@ -10,6 +10,10 @@
 
 #include "device/camera.h"
 
+#include "config.h"
+#include "config_json.h"
+#include "main_task.h"
+
 #define HTTP_PORT    80
 #define HTTP_WORKERS 2
 #define POLL_MS      5
@@ -154,10 +158,94 @@ static void serve_stream(__unused const http_request_t *request, http_response_t
     release_stream(camera);
 }
 
+// The config as JSON, with room for every field written at its longest.
+#define CONFIG_JSON_MAX 1024
+
+static void respond_error(http_response_t *response, int status, const char *message) {
+    http_response_set_status(response, status);
+    http_response_set_content_type(response, "text/plain");
+    http_respond_string(response, message);
+}
+
+static void respond_config(http_response_t *response, char *buf) {
+    Config snapshot;
+    taskENTER_CRITICAL();
+    snapshot = g_config;
+    taskEXIT_CRITICAL();
+
+    const size_t length = config_to_json(snapshot, buf, CONFIG_JSON_MAX);
+    if (length == 0) {
+        respond_error(response, 500, "config does not fit");
+        return;
+    }
+
+    http_response_set_content_type(response, "application/json");
+    http_respond_binary(response, buf, static_cast<uint32_t>(length));
+}
+
+static void serve_config_get(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+    char *buf = static_cast<char *>(pvPortMalloc(CONFIG_JSON_MAX));
+    if (!buf) {
+        respond_error(response, 500, "out of memory");
+        return;
+    }
+
+    respond_config(response, buf);
+    vPortFree(buf);
+}
+
+// Replaces g_config with the body, stores it, and tells the main task.
+static void serve_config_post(const http_request_t *request, http_response_t *response, __unused void *user) {
+    const uint32_t length = request->content_length;
+    if (length == 0) {
+        respond_error(response, 400, "empty body");
+        return;
+    }
+    if (length >= CONFIG_JSON_MAX) {
+        respond_error(response, 413, "body too large");
+        return;
+    }
+
+    char *buf = static_cast<char *>(pvPortMalloc(CONFIG_JSON_MAX));
+    if (!buf) {
+        respond_error(response, 500, "out of memory");
+        return;
+    }
+
+    Config next;
+    taskENTER_CRITICAL();
+    next = g_config;
+    taskEXIT_CRITICAL();
+
+    if (http_request_read_body(request, buf, length) != static_cast<int>(length) ||
+        !config_from_json(buf, length, next)) {
+        respond_error(response, 400, "invalid config");
+        vPortFree(buf);
+        return;
+    }
+
+    taskENTER_CRITICAL();
+    g_config = next;
+    taskEXIT_CRITICAL();
+
+    main_task_config_changed();
+
+    const int error = config_save();
+    if (error) {
+        printf("http: config not stored: %d\r\n", error);
+        respond_error(response, 500, "config applied but not stored");
+    } else {
+        respond_config(response, buf);
+    }
+    vPortFree(buf);
+}
+
 void camera_web_start() {
     static constexpr http_route_t routes[] = {
         {"GET", "/", serve_page, &g_camera},
         {"GET", "/stream", serve_stream, &g_camera},
+        {"GET", "/config", serve_config_get, nullptr},
+        {"POST", "/config", serve_config_post, nullptr},
         {nullptr, nullptr, nullptr, nullptr},
     };
 

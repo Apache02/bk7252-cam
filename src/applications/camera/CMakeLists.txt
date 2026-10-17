@@ -2,6 +2,7 @@ add_executable(
         camera
         main.cpp
         config.cpp
+        config_json.cpp
         main_task.cpp
         shell_handlers.cpp
         camera_web.cpp

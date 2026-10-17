@@ -29,7 +29,7 @@ Config g_config = {
     .telnet_enabled = true,
 };
 
-static bool mac_is_valid(const uint8_t mac[6]) {
+bool config_mac_is_valid(const uint8_t mac[6]) {
     const uint8_t zero[6] = {};
     return !(mac[0] & 0x01) && memcmp(mac, zero, sizeof(zero)) != 0;
 }
@@ -48,7 +48,7 @@ static void generate_mac(uint8_t mac[6]) {
 void config_load() {
     uint8_t mac[6];
 
-    if (flash_kv_get(key::mac, mac, sizeof(mac), sizeof(mac)) == sizeof(mac) && mac_is_valid(mac)) {
+    if (flash_kv_get(key::mac, mac, sizeof(mac), sizeof(mac)) == sizeof(mac) && config_mac_is_valid(mac)) {
         memcpy(g_config.mac, mac, sizeof(mac));
     } else {
         generate_mac(g_config.mac);
