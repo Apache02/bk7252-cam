@@ -40,6 +40,8 @@ bool telnet_server_start(const telnet_server_config_t *config);
 // afterwards. Not for a callback to call: the task would wait for itself.
 void telnet_server_stop(void);
 
+bool telnet_server_is_up(void);
+
 // Drops the attached client once the output queued for it has gone out, and returns true.
 // Returns false when no client is attached. The drop itself happens on the server task, so
 // this is safe from any task, a callback excepted.

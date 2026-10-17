@@ -407,3 +407,7 @@ void telnet_server_stop(void) {
 
     destroy_server(server);
 }
+
+bool telnet_server_is_up(void) {
+    return s_server != NULL;
+}
