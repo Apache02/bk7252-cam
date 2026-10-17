@@ -4,8 +4,9 @@
 // listening socket, so at least two requests are handled at the same time.
 //
 // The server reads the request head and hands it to one handler; what to answer
-// is the handler's business. Request bodies are not read. Every connection is
-// closed after its response.
+// is the handler's business. A request body is read only when the handler asks
+// for it with http_request_read_body(). Every connection is closed after its
+// response.
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -20,9 +21,17 @@ typedef struct {
     const char *method; // "GET", "POST", ...
     const char *path;   // "/stream", without the query
     const char *query;  // what follows '?', or "" when there is none
+
+    uint32_t content_length; // the Content-Length header, 0 when there is none
 } http_request_t;
 
 typedef struct http_response http_response_t;
+
+// Reads the request body into buf until buf is full or the body, content_length
+// bytes, has ended, waiting for the client when the bytes have not arrived yet.
+// Returns the number of bytes read, which is 0 once the body is used up, or -1 when
+// the client is gone or too slow. Only for the request a handler was called with.
+int http_request_read_body(const http_request_t *request, void *buf, size_t size);
 
 // Runs on a worker's stack and holds that worker until it returns, so a handler
 // that streams occupies one worker for as long as the stream lasts. When it
