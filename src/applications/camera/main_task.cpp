@@ -37,8 +37,10 @@
 
 static StaticTask_t taskTCB;
 static StackType_t  taskStack[configMINIMAL_STACK_SIZE * 6];
+static TaskHandle_t s_task = nullptr;
 
 static volatile bool s_ready = false;
+static volatile bool s_config_changed = false;
 
 static void print_mac(const char *name, const uint8_t mac[6]) {
     printf("%s MAC: %02x:%02x:%02x:%02x:%02x:%02x\r\n", name, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -57,8 +59,6 @@ static void bring_up() {
 
     vTaskDelay(100);
     camera_web_start();
-
-    s_ready = true;
 }
 
 // Brings the access point to the requested state. Returns true when it is there.
@@ -71,7 +71,7 @@ static Service service_ap(const bool target, const ApConfig config, const int ma
             wifi_ap_start(&config);
 
             for (int i = 0; i < 10; i++) {
-                co_await yield_now();
+                co_await sleep_ms(1000);
                 if (wifi_ap_is_up()) {
                     printf("[wifi] AP \"%s\" started on channel %d\r\n", config.ssid, config.channel);
                     co_return true;
@@ -79,11 +79,11 @@ static Service service_ap(const bool target, const ApConfig config, const int ma
             }
 
             wifi_ap_stop();
-            co_await yield_now();
+            co_await sleep_ms(1000);
         } else {
             // Wi-Fi Access point -> DOWN
             wifi_ap_stop();
-            co_await yield_now();
+            co_await sleep_ms(1000);
             if (!wifi_ap_is_up()) {
                 printf("[wifi] AP stopped\r\n");
                 co_return true;
@@ -104,7 +104,7 @@ static Service service_sta(const bool target, const StaConfig config, const int 
             if (wifi_sta_is_up()) {
                 // did not have IP
                 wifi_sta_stop();
-                co_await yield_now();
+                co_await sleep_ms(1000);
                 continue;
             }
 
@@ -114,8 +114,7 @@ static Service service_sta(const bool target, const StaConfig config, const int 
                 co_return false;
             }
 
-            co_await yield_now();
-            co_await yield_now();
+            co_await sleep_ms(2000);
 
             Owned<ConnectResult> result = promise->await();
             if (result.empty()) {
@@ -130,7 +129,7 @@ static Service service_sta(const bool target, const StaConfig config, const int 
                     printf("[wifi] asking for an address\r\n");
 
                     for (int i = 0; i < 20; i++) {
-                        co_await yield_now();
+                        co_await sleep_ms(1000);
                         if (wifi_sta_get_address(nullptr, nullptr, nullptr)) {
                             printf("[wifi] STA got an address\r\n");
                             co_return true;
@@ -152,14 +151,14 @@ static Service service_sta(const bool target, const StaConfig config, const int 
         } else {
             // Wi-Fi Station -> Off
             wifi_sta_stop();
-            co_await yield_now();
+            co_await sleep_ms(1000);
             if (!wifi_sta_is_up()) {
                 co_return true;
             }
         }
 
         wifi_sta_stop();
-        co_await yield_now();
+        co_await sleep_ms(1000);
     }
 
     printf("[wifi] error: can't %s STA\r\n", target ? "start" : "stop");
@@ -175,7 +174,7 @@ static Service service_telnet(bool target, const int max_attempts = 10) {
         } else {
             telnet_server_stop();
         }
-        co_await yield_now();
+        co_await sleep_ms(1000);
         if (target == telnet_server_is_up()) co_return true;
     }
 
@@ -209,9 +208,25 @@ static __dead2 void main_task(__unused void *params) {
     configure_mac();
 
     vTaskPrioritySet(nullptr, PRIORITY_RUN);
+    s_ready = true;
 
-    Service ap  = service_ap(g_config.ap_enabled, {.ssid = g_config.ap_ssid, .channel = g_config.ap_channel}, 10);
-    Service sta = service_sta(g_config.sta_enabled,
+    Service ap     = {};
+    Service sta    = {};
+    Service telnet = {};
+
+    auto configure_required = true;
+    Service* services[] = {&ap, &sta, &telnet};
+
+    for (;;) {
+        if (s_config_changed) {
+            s_config_changed   = false;
+            configure_required = true;
+        }
+
+        if (configure_required) {
+            configure_required = false;
+            ap  = service_ap(g_config.ap_enabled, {.ssid = g_config.ap_ssid, .channel = g_config.ap_channel}, 10);
+            sta = service_sta(g_config.sta_enabled,
                               {
                                   .ssid       = g_config.sta_ssid,
                                   .passphrase = g_config.sta_password[0] ? g_config.sta_password : nullptr,
@@ -220,23 +235,26 @@ static __dead2 void main_task(__unused void *params) {
                               },
                               10);
 
-    Service telnet = service_telnet(g_config.telnet_enabled);
+            telnet = service_telnet(g_config.telnet_enabled);
+        }
 
-    for (;;) {
-        ap.poll();
-        if (ap.done()) ap.reset();
-        sta.poll();
-        if (sta.done()) sta.reset();
-        telnet.poll();
-        if (telnet.done()) telnet.reset();
+        bool busy = false;
+        for (const auto service: services) {
+            if (!service->empty()) {
+                busy = true;
+                service->poll();
+                if (service->done()) service->reset();
+            }
+        }
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        // main_task_config_changed() wakes it earlier. With no running services it sleeps until then.
+        ulTaskNotifyTake(pdTRUE, busy ? pdMS_TO_TICKS(500) : portMAX_DELAY);
     }
 }
 
 void main_task_start() {
     // clang-format off
-    xTaskCreateStatic(
+    s_task = xTaskCreateStatic(
         main_task,
         "main_service",
         count_of(taskStack),
@@ -249,3 +267,8 @@ void main_task_start() {
 }
 
 bool main_task_ready() { return s_ready; }
+
+void main_task_config_changed() {
+    s_config_changed = true;
+    if (s_task) xTaskNotifyGive(s_task);
+}

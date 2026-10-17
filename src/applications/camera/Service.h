@@ -7,11 +7,17 @@
 //     while (!ap.done()) { ap.poll(); vTaskDelay(1000); }
 
 #include <coroutine>
+#include <stdint.h>
+
+#include <FreeRTOS.h>
+#include <task.h>
 
 class Service {
-public:
+  public:
     struct promise_type {
-        bool result = false;
+        bool       result   = false;
+        bool       sleeping = false;
+        TickType_t wake_at  = 0;
 
         Service get_return_object() { return Service(std::coroutine_handle<promise_type>::from_promise(*this)); }
 
@@ -42,9 +48,17 @@ public:
     // The value of co_return. Valid once done() is true.
     bool result() const { return m_handle.promise().result; }
 
-    // Runs the body until the next co_await. Does nothing for an empty or finished service.
-    void poll() {
-        if (m_handle && !m_handle.done()) m_handle.resume();
+    // Runs the body until the next co_await. Does nothing for an empty or finished service, or while
+    // it sleeps in sleep_ms().
+    void poll() const {
+        if (!m_handle || m_handle.done()) return;
+
+        promise_type &promise = m_handle.promise();
+        if (promise.sleeping) {
+            if (static_cast<int32_t>(xTaskGetTickCount() - promise.wake_at) < 0) return;
+            promise.sleeping = false;
+        }
+        m_handle.resume();
     }
 
     // Destroys the coroutine frame and leaves the service empty.
@@ -53,7 +67,9 @@ public:
         m_handle = nullptr;
     }
 
-private:
+    bool empty() const { return m_handle == nullptr; }
+
+  private:
     explicit Service(std::coroutine_handle<promise_type> handle) : m_handle(handle) {}
 
     std::coroutine_handle<promise_type> m_handle;
@@ -61,3 +77,19 @@ private:
 
 // `co_await yield_now()` hands control back to the owner. The body goes on at the next poll().
 inline std::suspend_always yield_now() { return {}; }
+
+// `co_await sleep_ms(n)` hands control back like yield_now(), and poll() skips the service until at
+// least n milliseconds of ticks have passed.
+struct SleepAwaiter {
+    uint32_t ms;
+
+    bool await_ready() const noexcept { return false; }
+    void await_suspend(std::coroutine_handle<Service::promise_type> handle) const noexcept {
+        Service::promise_type &promise = handle.promise();
+        promise.wake_at                = xTaskGetTickCount() + pdMS_TO_TICKS(ms);
+        promise.sleeping               = true;
+    }
+    void await_resume() const noexcept {}
+};
+
+inline SleepAwaiter sleep_ms(const uint32_t ms) { return {ms}; }
