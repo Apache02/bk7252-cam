@@ -39,29 +39,6 @@ int http_request_read_body(const http_request_t *request, void *buf, size_t size
 typedef void (*http_handler_t)(const http_request_t *request, http_response_t *response, void *user);
 
 typedef struct {
-    const char    *method;  // "GET", "POST", ...
-    const char    *path;    // "/stream"
-    http_handler_t handler; // NULL ends the table
-    void          *user;    // passed to handler instead of the server's user
-} http_route_t;
-
-// A handler that looks the request up in a route table. Its user is an array of
-// http_route_t that ends with an entry whose handler is NULL:
-//
-//     static const http_route_t routes[] = {
-//         { "GET", "/",       serve_page,   NULL },
-//         { "GET", "/stream", serve_stream, &camera },
-//         { NULL,  NULL,      NULL,         NULL },
-//     };
-//     config.handler = http_default_handler;
-//     config.user    = (void *)routes;
-//
-// Method and path must match exactly, and the query is ignored. An unknown path
-// gets 404, a known path with another method gets 405. The table is read on every
-// request and has to outlive the server.
-void http_default_handler(const http_request_t *request, http_response_t *response, void *user);
-
-typedef struct {
     uint16_t       port;        // usually 80
     uint8_t        workers;     // requests handled at once, at least 2
     uint16_t       stack_words; // stack of one worker; 0 for the default
@@ -123,6 +100,8 @@ bool http_respond_string(http_response_t *response, const char *body);
 
 // body may be NULL when length is 0.
 bool http_respond_binary(http_response_t *response, const void *body, uint32_t length);
+
+const char *http_get_status_label(const int status);
 
 #ifdef __cplusplus
 }

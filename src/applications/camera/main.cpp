@@ -9,7 +9,7 @@
 #include "utils/busy_wait.h"
 #include "utils/ring_buffer.h"
 
-#include "main_task.h"
+#include "app/main_task.h"
 #include "shell_handlers.h"
 
 

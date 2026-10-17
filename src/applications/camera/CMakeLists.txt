@@ -2,16 +2,30 @@ add_executable(
         camera
         main.cpp
         config.cpp
-        config_json.cpp
         main_task.cpp
         shell_handlers.cpp
-        camera_web.cpp
         telnet_console.cpp
+        web/camera_web.cpp
+        web/config_json.cpp
 )
+
+set(PAGE_HOME_HTML ${CMAKE_CURRENT_LIST_DIR}/frontend/dist/index.html)
+set(PAGE_HOME_C ${CMAKE_CURRENT_BINARY_DIR}/page_home.c)
+
+add_custom_command(
+        OUTPUT ${PAGE_HOME_C}
+        COMMAND ${CMAKE_COMMAND}
+        -DINPUT=${PAGE_HOME_HTML} -DOUTPUT=${PAGE_HOME_C} -DSYMBOL=page_home
+        -P ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
+        DEPENDS ${PAGE_HOME_HTML} ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
+        COMMENT "Embedding ${PAGE_HOME_HTML}"
+)
+
+target_sources(camera PRIVATE ${PAGE_HOME_C})
 
 target_include_directories(
         camera PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}/config
+        ${CMAKE_CURRENT_LIST_DIR}/include
 )
 
 target_link_libraries(

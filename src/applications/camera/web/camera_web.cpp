@@ -1,4 +1,4 @@
-#include "camera_web.h"
+#include "app/camera_web.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -7,12 +7,13 @@
 #include "task.h"
 
 #include "platform/http_server.h"
+#include "platform/http_server_defaults.h"
 
 #include "device/camera.h"
 
-#include "config.h"
-#include "config_json.h"
-#include "main_task.h"
+#include "app/config.h"
+#include "app/config_json.h"
+#include "app/main_task.h"
 
 #define HTTP_PORT    80
 #define HTTP_WORKERS 2
@@ -25,9 +26,13 @@
 
 #define BOUNDARY "frame"
 
-static constexpr char PAGE[] = "<html><body style=\"background:white; display:flex; justify-content:center; align-items:center;\">"
-                           "<img src=\"/stream\" style=\"width:640px; height:480px; margin:1em;\">"
-                           "</body></html>";
+static constexpr char PAGE_CAMERA[] =
+    "<html><body style=\"background:white; display:flex; justify-content:center; align-items:center;\">"
+    "<img src=\"/stream\" style=\"width:640px; height:480px; margin:1em;\">"
+    "</body></html>";
+
+// The built frontend, NUL-terminated, generated from frontend/dist/index.html.
+extern "C" const char page_home[];
 
 struct Camera {
     // The encoder only needs this while a frame is being built; the stream uses slots instead.
@@ -87,11 +92,6 @@ static bool take_latest(camera_frame_t *frame) {
         *frame = newer;
     }
     return true;
-}
-
-static void serve_page(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
-    http_response_set_content_type(response, "text/html");
-    http_respond_string(response, PAGE);
 }
 
 static void stream_frames(http_response_t *response) {
@@ -183,7 +183,7 @@ static void respond_config(http_response_t *response, char *buf) {
     http_respond_binary(response, buf, static_cast<uint32_t>(length));
 }
 
-static void serve_config_get(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+static void serve_settings_get(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
     char *buf = static_cast<char *>(pvPortMalloc(CONFIG_JSON_MAX));
     if (!buf) {
         respond_error(response, 500, "out of memory");
@@ -195,7 +195,7 @@ static void serve_config_get(__unused const http_request_t *request, http_respon
 }
 
 // Replaces g_config with the body, stores it, and tells the main task.
-static void serve_config_post(const http_request_t *request, http_response_t *response, __unused void *user) {
+static void serve_settings_post(const http_request_t *request, http_response_t *response, __unused void *user) {
     const uint32_t length = request->content_length;
     if (length == 0) {
         respond_error(response, 400, "empty body");
@@ -242,10 +242,12 @@ static void serve_config_post(const http_request_t *request, http_response_t *re
 
 void camera_web_start() {
     static constexpr http_route_t routes[] = {
-        {"GET", "/", serve_page, &g_camera},
+        {"GET", "/", http_default_static_page, const_cast<char *>(page_home)},
+        {"GET", "/camera", http_default_static_page, const_cast<char *>(PAGE_CAMERA)},
+        {"GET", "/favicon.ico", http_default_404, nullptr},
         {"GET", "/stream", serve_stream, &g_camera},
-        {"GET", "/config", serve_config_get, nullptr},
-        {"POST", "/config", serve_config_post, nullptr},
+        {"GET", "/settings.json", serve_settings_get, nullptr},
+        {"POST", "/settings", serve_settings_post, nullptr},
         {nullptr, nullptr, nullptr, nullptr},
     };
 

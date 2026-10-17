@@ -1,4 +1,4 @@
-#include "main_task.h"
+#include "app/main_task.h"
 
 #include <stdio.h>
 
@@ -7,11 +7,11 @@
 
 #include "hardware/sctrl.h"
 
-#include "camera_web.h"
-#include "config.h"
+#include "app/camera_web.h"
+#include "app/config.h"
 #include "Service.h"
 #include "net.h"
-#include "telnet_console.h"
+#include "app/telnet_console.h"
 #include "platform/telnet_server.h"
 #include "wifi/core.h"
 #include "wifi/net.h"

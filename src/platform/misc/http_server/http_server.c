@@ -88,7 +88,8 @@ struct http_response {
 
 // ---- Response --------------------------------------------------------------
 
-static const char *reason(int status) {
+// clang-format off
+static const char *reason(const int status) {
     switch (status) {
         case 200: return "OK";
         case 204: return "No Content";
@@ -103,6 +104,7 @@ static const char *reason(int status) {
         default: return "Status";
     }
 }
+// clang-format on
 
 __attribute__((format(printf, 4, 5))) static bool append(char *buf, size_t size, size_t *used, const char *fmt, ...) {
     va_list ap;
@@ -418,6 +420,8 @@ static void destroy_server(struct http_server *server) {
     if (server->exited) vSemaphoreDelete(server->exited);
     vPortFree(server);
 }
+
+const char *http_get_status_label(const int status) { return reason(status); }
 
 bool http_server_start(const http_server_config_t *config) {
     if (!config || !config->handler || config->workers < MIN_WORKERS || s_server) return false;
