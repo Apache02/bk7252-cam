@@ -23,12 +23,16 @@ struct Config {
 extern Config g_config;
 
 // Fills g_config from flash_kv. A field that is not stored keeps its default. A missing or invalid
-// mac is generated and stored.
+// mac is generated and stored. The default ap_ssid is "Beken-" plus the last three mac bytes.
 void config_load();
 
 // Writes every field to flash_kv. A field that has not changed is not written again. Returns 0 or
 // the first error.
 int config_save();
+
+// Puts every field back to its default and erases the stored values. The mac stays the same and is
+// stored again. Returns 0 or the first error.
+int config_reset();
 
 // A station address has to be unicast and not all zeroes.
 bool config_mac_is_valid(const uint8_t mac[6]);

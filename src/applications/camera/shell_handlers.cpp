@@ -9,6 +9,8 @@
 #include "shell/commands_telnet.h"
 #include "shell/commands_flash_kv.h"
 #include "shell/Shell.h"
+#include "app/config.h"
+#include "app/main_task.h"
 
 
 static int help(__unused int intc, __unused const char *argv[]) {
@@ -16,8 +18,21 @@ static int help(__unused int intc, __unused const char *argv[]) {
     return 0;
 }
 
+static int command_config_reset(__unused int argc, __unused const char *argv[]) {
+    const int err = config_reset();
+    if (err) {
+        printf("config reset failed: %d\r\n", err);
+        return 1;
+    }
+    main_task_config_changed();
+    const uint8_t *mac = g_config.mac;
+    printf("config reset, MAC: %02x:%02x:%02x:%02x:%02x:%02x\r\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return 0;
+}
+
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
+    {"config_reset", command_config_reset, nullptr},
     {"reboot", command_reboot, nullptr},
     {"dump32", command_dump32, nullptr},
     {"flash_dump", command_flash_dump, nullptr},

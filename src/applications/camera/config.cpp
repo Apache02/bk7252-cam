@@ -17,9 +17,9 @@ constexpr uint16_t led_enabled    = 8;
 constexpr uint16_t telnet_enabled = 9;
 } // namespace key
 
-Config g_config = {
-    .mac            = {},
-    .ap_ssid        = "Beken",
+static constexpr Config k_defaults = {
+    .mac            = {}, // generated
+    .ap_ssid        = "", // generated from the mac
     .ap_channel     = 6,
     .ap_enabled     = true,
     .sta_ssid       = "",
@@ -28,6 +28,8 @@ Config g_config = {
     .led_enabled    = true,
     .telnet_enabled = true,
 };
+
+Config g_config = k_defaults;
 
 bool config_mac_is_valid(const uint8_t mac[6]) {
     const uint8_t zero[6] = {};
@@ -45,6 +47,11 @@ static void generate_mac(uint8_t mac[6]) {
     mac[5] &= 0xFE;
 }
 
+// The default AP name carries the board's own part of the address, so boards stay apart.
+static void apply_generated_defaults(const uint8_t mac[6]) {
+    snprintf(g_config.ap_ssid, sizeof(g_config.ap_ssid), "Beken-%02x%02x%02x", mac[3], mac[4], mac[5]);
+}
+
 void config_load() {
     uint8_t mac[6];
 
@@ -55,6 +62,8 @@ void config_load() {
         const int err = flash_kv_set(key::mac, g_config.mac, sizeof(g_config.mac));
         if (err) printf("[config] the new mac is not stored: %d\r\n", err);
     }
+
+    apply_generated_defaults(g_config.mac);
 
     // A field that is not stored keeps its default.
     flash_kv_get_string(key::ap_ssid, g_config.ap_ssid, sizeof(g_config.ap_ssid));
@@ -91,6 +100,20 @@ int config_save() {
     keep(flash_kv_set_bool(key::led_enabled, g_config.led_enabled));
 
     return first_error;
+}
+
+int config_reset() {
+    uint8_t mac[6];
+    memcpy(mac, g_config.mac, sizeof(mac));
+
+    g_config = k_defaults;
+    memcpy(g_config.mac, mac, sizeof(mac));
+    apply_generated_defaults(g_config.mac);
+
+    const int err = flash_kv_erase();
+    if (err) return err;
+
+    return flash_kv_set(key::mac, g_config.mac, sizeof(g_config.mac));
 }
 
 void config_ap_mac(uint8_t mac[6]) {
