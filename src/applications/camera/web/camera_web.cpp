@@ -26,11 +26,6 @@
 
 #define BOUNDARY "frame"
 
-static constexpr char PAGE_CAMERA[] =
-    "<html><body style=\"background:white; display:flex; justify-content:center; align-items:center;\">"
-    "<img src=\"/stream\" style=\"width:640px; height:480px; margin:1em;\">"
-    "</body></html>";
-
 // The built frontend, NUL-terminated, generated from frontend/dist/index.html.
 extern "C" const char page_app[];
 
@@ -243,7 +238,7 @@ static void serve_settings_post(const http_request_t *request, http_response_t *
 void camera_web_start() {
     static constexpr http_route_t routes[] = {
         {"GET", "/", http_default_static_page, const_cast<char *>(page_app)},
-        {"GET", "/camera", http_default_static_page, const_cast<char *>(PAGE_CAMERA)},
+        {"GET", "/camera", http_default_static_page, const_cast<char *>(page_app)},
         {"GET", "/favicon.ico", http_default_404, nullptr},
         {"GET", "/stream", serve_stream, &g_camera},
         {"GET", "/settings.json", serve_settings_get, nullptr},

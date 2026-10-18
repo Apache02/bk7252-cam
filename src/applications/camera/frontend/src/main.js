@@ -1,8 +1,8 @@
 import './app.css'
 import {mount} from 'svelte';
-import Settings from "./Settings.svelte";
+import Page from "./Page.svelte";
 
-const app = new mount(Settings, {
+const app = new mount(Page, {
     target: document.getElementById('app'),
 })
 

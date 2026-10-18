@@ -49,9 +49,6 @@
 </script>
 
 <main>
-    <h1>BK7252 Camera</h1>
-
-    <div class="navbar"></div>
     {#if data == null}
         {#if loading}
             loading...
@@ -144,12 +141,6 @@
         padding: 1em;
         color: #111;
     }
-
-    h1 {
-        font-size: 2em;
-        line-height: 1.1;
-    }
-
 
     label {
         display: block;
