@@ -14,24 +14,26 @@ struct summary {
     uint32_t live;
 };
 
+// clang-format off
 static const char *state_name(flash_kv_state_t state) {
     switch (state) {
-    case FLASH_KV_BLANK: return "blank";
-    case FLASH_KV_FOREIGN: return "foreign";
-    case FLASH_KV_VALID: return "valid";
-    case FLASH_KV_TORN: return "torn";
+        case FLASH_KV_BLANK: return "blank";
+        case FLASH_KV_FOREIGN: return "foreign";
+        case FLASH_KV_VALID: return "valid";
+        case FLASH_KV_TORN: return "torn";
     }
     return "unknown";
 }
 
 static const char *status_name(flash_kv_record_status_t status) {
     switch (status) {
-    case FLASH_KV_RECORD_LIVE: return "live";
-    case FLASH_KV_RECORD_OLD: return "old";
-    case FLASH_KV_RECORD_DELETED: return "deleted";
+        case FLASH_KV_RECORD_LIVE: return "ACTIVE";
+        case FLASH_KV_RECORD_OLD: return "inactive";
+        case FLASH_KV_RECORD_DELETED: return "deleted";
     }
     return "unknown";
 }
+// clang-format on
 
 // The first bytes in hex, then in quotes if they are all printable.
 static void print_value(const uint8_t *value, uint16_t len) {
