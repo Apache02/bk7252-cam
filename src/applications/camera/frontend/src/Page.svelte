@@ -1,24 +1,28 @@
 <script>
     import Settings from "./pages/Settings.svelte";
     import Camera from "./pages/Camera.svelte";
+    import System from "./pages/System.svelte";
 
     const links = [
         {href: '/', title: 'Settings', component: Settings},
         {href: '/camera', title: 'Camera', component: Camera},
+        {href: '/system', title: 'System', component: System},
     ];
 
     const current = links.find((link) => link.href === location.pathname) ?? links[0];
 </script>
 
-<h1>BK7252 Camera</h1>
+<main>
+    <h1>BK7252 Camera</h1>
 
-<nav>
-    {#each links as link}
-        <a href={link.href} class:active={link === current}>{link.title}</a>
-    {/each}
-</nav>
+    <nav>
+        {#each links as link}
+            <a href={link.href} class:active={link === current}>{link.title}</a>
+        {/each}
+    </nav>
 
-<svelte:component this={current.component}/>
+    <svelte:component this={current.component}/>
+</main>
 
 <style>
     h1 {
@@ -38,5 +42,10 @@
         color: var(--fg-1);
         font-weight: bold;
         text-decoration: none;
+    }
+
+    main {
+        padding: 1em;
+        color: #111;
     }
 </style>

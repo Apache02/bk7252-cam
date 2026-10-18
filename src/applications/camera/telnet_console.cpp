@@ -5,30 +5,25 @@
 #include "platform/stdio.h"
 #include "platform/telnet_server.h"
 
-#define TELNET_PORT 23
 
 static constexpr platform_stdio_tap_t TAP = {
     .write = telnet_server_write,
     .read  = telnet_server_read,
 };
 
-static void on_connect(__unused void *user) { platform_stdio_set_tap(&TAP); }
-
-static void on_disconnect(__unused void *user) { platform_stdio_set_tap(nullptr); }
-
-void telnet_console_start() {
+bool telnet_console_start(const uint16_t port) {
     const telnet_server_config_t config = {
-        .port          = TELNET_PORT,
+        .port          = port,
         .stack_words   = 0,
         .greeting      = "Shell is ready\r\n\r\n> ",
-        .on_connect    = on_connect,
-        .on_disconnect = on_disconnect,
+        .on_connect    = [](__unused void *user) {
+            platform_stdio_set_tap(&TAP);
+        },
+        .on_disconnect = [](__unused void *user) {
+            platform_stdio_set_tap(nullptr);
+        },
         .user          = nullptr,
     };
 
-    if (telnet_server_start(&config)) {
-        printf("telnet: listening on port %u\r\n", TELNET_PORT);
-    } else {
-        printf("telnet: could not start\r\n");
-    }
+    return telnet_server_start(&config);
 }

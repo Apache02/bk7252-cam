@@ -1,6 +1,7 @@
 #ifndef _HARDWARE_WDT_H
 #define _HARDWARE_WDT_H
 
+#include <sys/cdefs.h>
 #include "stdint.h"
 
 #ifdef __cplusplus
@@ -17,7 +18,7 @@ void wdt_down(void);
 
 int wdt_is_active(void);
 
-void wdt_reboot(uint16_t delay);
+__dead2 void wdt_reboot(uint16_t delay);
 
 #ifdef __cplusplus
 }

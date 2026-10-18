@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { viteSingleFile } from "vite-plugin-singlefile"
+import {defineConfig} from 'vite'
+import {svelte} from '@sveltejs/vite-plugin-svelte'
+import {viteSingleFile} from "vite-plugin-singlefile"
 
 const settings = {
     mac: "02:00:00:00:00:01",
@@ -32,6 +32,16 @@ const mockDevice = () => ({
         server.middlewares.use("/settings.json", (req, res) => {
             res.setHeader("Content-Type", "application/json")
             res.end(JSON.stringify(settings))
+        })
+
+        server.middlewares.use("/reboot", (req, res) => {
+            res.setHeader("Content-Type", "application/json")
+            res.end(JSON.stringify({success: Math.random() > 0.5}))
+        })
+
+        server.middlewares.use("/reset", (req, res) => {
+            res.setHeader("Content-Type", "application/json")
+            res.end(JSON.stringify({success: Math.random() > 0.5}))
         })
     },
 })

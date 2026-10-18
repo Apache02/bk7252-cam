@@ -31,6 +31,8 @@
 #define PRIORITY_INIT (configMAX_PRIORITIES - 1)
 #define PRIORITY_RUN  (configMAX_PRIORITIES - 3)
 
+#define TELNET_PORT 23
+
 // enum class Request : uint8_t { None, Ap, Sta };
 //
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
@@ -39,7 +41,7 @@ static StaticTask_t taskTCB;
 static StackType_t  taskStack[configMINIMAL_STACK_SIZE * 6];
 static TaskHandle_t s_task = nullptr;
 
-static volatile bool s_ready = false;
+static volatile bool s_ready          = false;
 static volatile bool s_config_changed = false;
 
 static void print_mac(const char *name, const uint8_t mac[6]) {
@@ -97,6 +99,8 @@ static Service service_ap(const bool target, const ApConfig config, const int ma
 
 static Service service_sta(const bool target, const StaConfig config, const int max_attempts = 10) {
     if (target ? (wifi_sta_is_up() && wifi_sta_is_link_up()) : !wifi_sta_is_up()) co_return true;
+
+    printf("[wifi] connecting to: %s %s\r\n", config.ssid, config.passphrase ? "(with password)" : "(open)");
 
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
         if (target) {
@@ -170,12 +174,19 @@ static Service service_telnet(bool target, const int max_attempts = 10) {
 
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
         if (target) {
-            telnet_console_start();
+            telnet_console_start(TELNET_PORT);
         } else {
             telnet_server_stop();
         }
         co_await sleep_ms(1000);
-        if (target == telnet_server_is_up()) co_return true;
+        if (target == telnet_server_is_up()) {
+            if (target) {
+                printf("[telnet] listening on *:%u\r\n", TELNET_PORT);
+            } else {
+                printf("[telnet] server stopped\r\n");
+            }
+            co_return true;
+        }
     }
 
     printf("[telnet] error: can't %s\r\n", target ? "start" : "stop");
@@ -214,15 +225,10 @@ static __dead2 void main_task(__unused void *params) {
     Service sta    = {};
     Service telnet = {};
 
-    auto configure_required = true;
-    Service* services[] = {&ap, &sta, &telnet};
+    auto     configure_required = true;
+    Service *services[]         = {&ap, &sta, &telnet};
 
     for (;;) {
-        if (s_config_changed) {
-            s_config_changed   = false;
-            configure_required = true;
-        }
-
         if (configure_required) {
             configure_required = false;
             ap  = service_ap(g_config.ap_enabled, {.ssid = g_config.ap_ssid, .channel = g_config.ap_channel}, 10);
@@ -239,7 +245,7 @@ static __dead2 void main_task(__unused void *params) {
         }
 
         bool busy = false;
-        for (const auto service: services) {
+        for (const auto service : services) {
             if (!service->empty()) {
                 busy = true;
                 service->poll();
@@ -248,7 +254,26 @@ static __dead2 void main_task(__unused void *params) {
         }
 
         // main_task_config_changed() wakes it earlier. With no running services it sleeps until then.
-        ulTaskNotifyTake(pdTRUE, busy ? pdMS_TO_TICKS(500) : portMAX_DELAY);
+        ulTaskNotifyTake(pdTRUE, busy ? pdMS_TO_TICKS(500) : pdMS_TO_TICKS(60000));
+
+        if (s_config_changed) {
+            s_config_changed   = false;
+            configure_required = true;
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            continue;
+        }
+
+        if (!busy && g_config.sta_enabled && g_config.sta_ssid[0] != '\0' && !wifi_sta_is_link_up()) {
+            printf("[wifi] STA link lost, reconnecting\r\n");
+            sta = service_sta(g_config.sta_enabled,
+                              {
+                                  .ssid       = g_config.sta_ssid,
+                                  .passphrase = g_config.sta_password[0] ? g_config.sta_password : nullptr,
+                                  .bssid      = {0},
+                                  .channel    = 0,
+                              },
+                              1);
+        }
     }
 }
 

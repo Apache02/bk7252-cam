@@ -48,100 +48,93 @@
     };
 </script>
 
-<main>
-    {#if data == null}
-        {#if loading}
-            loading...
-        {:else if error}
-            {error}
-        {/if}
-    {:else}
-        <form class="form" onsubmit={preventDefault(handleSubmit)}>
-            <div class="group">
-                <div class="input">
-                    <label>
-                        MAC<br>
-                        <input bind:value={data.mac}/>
-                    </label>
-                </div>
-            </div>
-
-            <div class="group">
-                <div class="input">
-                    <label class="checkbox">
-                        <input type="checkbox" bind:checked={data.ap_enabled}/>
-                        AP Enabled
-                    </label>
-                </div>
-
-                {#if data.ap_enabled}
-                    <div class="input" transition:slide>
-                        <label>
-                            AP ssid<br>
-                            <input bind:value={data.ap_ssid}/>
-                        </label>
-                    </div>
-                {/if}
-            </div>
-
-            <div class="group">
-                <div class="input">
-                    <label class="checkbox">
-                        <input type="checkbox" bind:checked={data.sta_enabled}/>
-                        STA Enabled
-                    </label>
-                </div>
-
-                {#if data.sta_enabled}
-                    <div class="input" transition:slide>
-                        <label>
-                            STA ssid<br>
-                            <input bind:value={data.sta_ssid}/>
-                        </label>
-                    </div>
-                    <div class="input" transition:slide>
-                        <label>
-                            STA password<br>
-                            <input bind:value={data.sta_password}/>
-                        </label>
-                    </div>
-                {/if}
-            </div>
-
-            <div class="group">
-                <div class="input">
-                    <label class="checkbox">
-                        <input type="checkbox" bind:checked={data.telnet_enabled}/>
-                        Telnet Enabled
-                    </label>
-                </div>
-            </div>
-
-            <div class="group">
-                <div class="input">
-                    <label class="checkbox">
-                        <input type="checkbox" bind:checked={data.led_enabled}/>
-                        Led Enabled
-                    </label>
-                </div>
-            </div>
-
-            <div class="controls">
-                <button type="submit" disabled={saving}>Save</button>
-                {#if saveMessage}
-                    <span>{saveMessage}</span>
-                {/if}
-            </div>
-        </form>
+{#if data == null}
+    {#if loading}
+        loading...
+    {:else if error}
+        {error}
     {/if}
-</main>
+{:else}
+    <form class="form" onsubmit={preventDefault(handleSubmit)}>
+        <div class="group">
+            <div class="input">
+                <label>
+                    MAC<br>
+                    <input bind:value={data.mac} disabled={true}/>
+                </label>
+            </div>
+        </div>
+
+        <div class="group">
+            <div class="input">
+                <label class="checkbox">
+                    <input type="checkbox" bind:checked={data.ap_enabled}/>
+                    AP Enabled
+                </label>
+            </div>
+
+            {#if data.ap_enabled}
+                <div class="input" transition:slide>
+                    <label>
+                        AP ssid<br>
+                        <input bind:value={data.ap_ssid}/>
+                    </label>
+                </div>
+            {/if}
+        </div>
+
+        <div class="group">
+            <div class="input">
+                <label class="checkbox">
+                    <input type="checkbox" bind:checked={data.sta_enabled}/>
+                    STA Enabled
+                </label>
+            </div>
+
+            {#if data.sta_enabled}
+                <div class="input" transition:slide>
+                    <label>
+                        STA ssid<br>
+                        <input bind:value={data.sta_ssid}/>
+                    </label>
+                </div>
+                <div class="input" transition:slide>
+                    <label>
+                        STA password<br>
+                        <input bind:value={data.sta_password}/>
+                    </label>
+                </div>
+            {/if}
+        </div>
+
+        <div class="group">
+            <div class="input">
+                <label class="checkbox">
+                    <input type="checkbox" bind:checked={data.telnet_enabled}/>
+                    Telnet Enabled
+                </label>
+            </div>
+        </div>
+
+        <div class="group">
+            <div class="input">
+                <label class="checkbox">
+                    <input type="checkbox" bind:checked={data.led_enabled}/>
+                    Led Enabled
+                </label>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button type="submit" disabled={saving}>Save</button>
+            {#if saveMessage}
+                <span>{saveMessage}</span>
+            {/if}
+        </div>
+    </form>
+{/if}
 
 <style>
-    main {
-        padding: 1em;
-        color: #111;
-    }
-
     label {
         display: block;
         font-size: 1em;

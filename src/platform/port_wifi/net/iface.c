@@ -164,7 +164,7 @@ static void status_changed(struct netif *nif) {
     }
 
     mhdr_set_station_status(MSG_GOT_IP);
-    printf("got address %u.%u.%u.%u\r\n", ip4_addr1(ip), ip4_addr2(ip), ip4_addr3(ip), ip4_addr4(ip));
+    printf("[wifi] got address %u.%u.%u.%u\r\n", ip4_addr1(ip), ip4_addr2(ip), ip4_addr3(ip), ip4_addr4(ip));
 }
 
 static bool netif_create(struct net_if *iface) {

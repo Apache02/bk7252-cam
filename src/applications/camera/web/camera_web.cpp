@@ -14,6 +14,7 @@
 #include "app/config.h"
 #include "app/config_json.h"
 #include "app/main_task.h"
+#include "hardware/wdt.h"
 
 #define HTTP_PORT    80
 #define HTTP_WORKERS 2
@@ -242,14 +243,46 @@ static void serve_settings_post(const http_request_t *request, http_response_t *
     vPortFree(buf);
 }
 
+static void serve_system_reboot(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+    http_response_set_status(response, 200);
+    http_response_set_content_type(response, "application/json");
+    http_respond_string(response, "{\"success\": true}");
+
+    printf("\r\nreboot system\r\n");
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    taskENTER_CRITICAL();
+    wdt_reboot(1000);
+    taskEXIT_CRITICAL();
+}
+
+static void serve_system_reset(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+    const auto success = config_reset() == 0;
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    http_response_set_status(response, 200);
+    http_response_set_content_type(response, "application/json");
+    http_respond_string(response, success ? "{\"success\": true}" : "{\"success\": false}");
+
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    main_task_config_changed();
+}
+
 void camera_web_start() {
     static constexpr http_route_t routes[] = {
+        {"GET", "/favicon.ico", http_default_404, nullptr},
+        // pages
         {"GET", "/", serve_app, nullptr},
         {"GET", "/camera", serve_app, nullptr},
-        {"GET", "/favicon.ico", http_default_404, nullptr},
-        {"GET", "/stream", serve_stream, &g_camera},
+        {"GET", "/system", serve_app, nullptr},
+        // api
         {"GET", "/settings.json", serve_settings_get, nullptr},
         {"POST", "/settings", serve_settings_post, nullptr},
+        {"POST", "/reboot", serve_system_reboot, nullptr},
+        {"POST", "/reset", serve_system_reset, nullptr},
+        // camera stream
+        {"GET", "/stream", serve_stream, &g_camera},
         {nullptr, nullptr, nullptr, nullptr},
     };
 
