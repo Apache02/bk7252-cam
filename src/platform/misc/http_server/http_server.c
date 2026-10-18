@@ -78,6 +78,7 @@ struct http_response {
     int                       fd;
     int                       status;
     const char               *content_type;
+    const char               *content_encoding;
     length_mode_t             length_mode;
     uint32_t                  length;    // what Content-Length says
     uint32_t                  remaining; // what the handler may still send
@@ -135,6 +136,7 @@ static bool send_headers(struct http_response *r, bool more) {
 
     bool ok = append(buf, sizeof(buf), &used, "HTTP/1.1 %d %s\r\n", r->status, reason(r->status));
     if (ok && r->content_type) ok = append(buf, sizeof(buf), &used, "Content-Type: %s\r\n", r->content_type);
+    if (ok && r->content_encoding) ok = append(buf, sizeof(buf), &used, "Content-Encoding: %s\r\n", r->content_encoding);
     if (ok && (r->length_mode == LENGTH_AUTO || r->length_mode == LENGTH_FIXED)) {
         ok = append(buf, sizeof(buf), &used, "Content-Length: %lu\r\n", (unsigned long)r->length);
     }
@@ -157,6 +159,12 @@ bool http_response_set_status(http_response_t *r, int status) {
 bool http_response_set_content_type(http_response_t *r, const char *content_type) {
     if (r->headers_sent) return false;
     r->content_type = content_type;
+    return true;
+}
+
+bool http_response_set_content_encoding(http_response_t *r, const char *content_encoding) {
+    if (r->headers_sent) return false;
+    r->content_encoding = content_encoding;
     return true;
 }
 
@@ -202,10 +210,11 @@ bool http_respond_string(http_response_t *r, const char *body) {
 static void reject(struct http_response *r, int status) {
     if (r->headers_sent) return;
 
-    r->status       = status;
-    r->content_type = NULL;
-    r->length_mode  = LENGTH_AUTO;
-    r->more         = false;
+    r->status           = status;
+    r->content_type     = NULL;
+    r->content_encoding = NULL;
+    r->length_mode      = LENGTH_AUTO;
+    r->more             = false;
     http_respond_binary(r, NULL, 0);
 }
 

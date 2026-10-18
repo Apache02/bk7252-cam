@@ -26,8 +26,15 @@
 
 #define BOUNDARY "frame"
 
-// The built frontend, NUL-terminated, generated from frontend/dist/index.html.
-extern "C" const char page_app[];
+// The built frontend, gzipped, generated from frontend/dist/index.html.gz.
+extern "C" const unsigned char page_app[];
+extern "C" const unsigned      page_app_size;
+
+static void serve_app(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+    http_response_set_content_type(response, "text/html");
+    http_response_set_content_encoding(response, "gzip");
+    http_respond_binary(response, page_app, page_app_size);
+}
 
 struct Camera {
     // The encoder only needs this while a frame is being built; the stream uses slots instead.
@@ -237,8 +244,8 @@ static void serve_settings_post(const http_request_t *request, http_response_t *
 
 void camera_web_start() {
     static constexpr http_route_t routes[] = {
-        {"GET", "/", http_default_static_page, const_cast<char *>(page_app)},
-        {"GET", "/camera", http_default_static_page, const_cast<char *>(page_app)},
+        {"GET", "/", serve_app, nullptr},
+        {"GET", "/camera", serve_app, nullptr},
         {"GET", "/favicon.ico", http_default_404, nullptr},
         {"GET", "/stream", serve_stream, &g_camera},
         {"GET", "/settings.json", serve_settings_get, nullptr},

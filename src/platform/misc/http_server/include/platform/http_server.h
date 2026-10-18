@@ -65,7 +65,7 @@ void http_server_stop(void);
 // headers, which are only remembered. The first http_respond_* call sends them
 // together with the body, and after that every setter returns false.
 //
-// Only the status, Content-Type and Content-Length are supported. Connection:
+// Only the status, Content-Type, Content-Encoding and Content-Length are supported. Connection:
 // close is always sent. Defaults: status 200, no Content-Type, Content-Length
 // taken from the body.
 
@@ -73,6 +73,10 @@ bool http_response_set_status(http_response_t *response, int status);
 
 // The string is not copied and has to outlive the handler, as a literal does.
 bool http_response_set_content_type(http_response_t *response, const char *content_type);
+
+// The string is not copied and has to outlive the handler. For a body that is already
+// compressed, e.g. "gzip"; the server does not compress anything itself.
+bool http_response_set_content_encoding(http_response_t *response, const char *content_encoding);
 
 // Declares the body length. The body may then be sent in several calls, up to
 // that many bytes in total.

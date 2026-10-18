@@ -10,28 +10,29 @@ add_executable(
 )
 
 set(FRONTEND_DIR ${CMAKE_CURRENT_LIST_DIR}/frontend)
-set(APP_HTML ${FRONTEND_DIR}/dist/index.html)
+set(APP_GZ ${FRONTEND_DIR}/dist/index.html.gz)
 set(APP_C ${CMAKE_CURRENT_BINARY_DIR}/page_app.c)
 
 file(GLOB_RECURSE FRONTEND_SOURCES CONFIGURE_DEPENDS ${FRONTEND_DIR}/src/*)
 
 add_custom_command(
-        OUTPUT ${APP_HTML}
+        OUTPUT ${APP_GZ}
         COMMAND npm run build
         WORKING_DIRECTORY ${FRONTEND_DIR}
         DEPENDS
         ${FRONTEND_SOURCES}
         ${FRONTEND_DIR}/index.html
+        ${FRONTEND_DIR}/scripts/gzip.js
         COMMENT "Building the frontend"
 )
 
 add_custom_command(
         OUTPUT ${APP_C}
         COMMAND ${CMAKE_COMMAND}
-        -DINPUT=${APP_HTML} -DOUTPUT=${APP_C} -DSYMBOL=page_app
-        -P ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
-        DEPENDS ${APP_HTML} ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
-        COMMENT "Embedding ${APP_HTML}"
+        -DINPUT=${APP_GZ} -DOUTPUT=${APP_C} -DSYMBOL=page_app
+        -P ${PROJECT_SOURCE_DIR}/cmake/embed_file.cmake
+        DEPENDS ${APP_GZ} ${PROJECT_SOURCE_DIR}/cmake/embed_file.cmake
+        COMMENT "Embedding ${APP_GZ}"
 )
 
 target_sources(camera PRIVATE ${APP_C})
