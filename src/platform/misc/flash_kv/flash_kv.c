@@ -296,7 +296,7 @@ static int append(uint16_t key, const uint8_t *value, uint16_t len) {
 
 int flash_kv_set(uint16_t key, const void *data, size_t len) {
     if (key == FLASH_KV_KEY_NONE || len > FLASH_KV_MAX_VALUE_LEN || (len && !data)) return -EINVAL;
-    if (len == 0) return flash_kv_erase(key);
+    if (len == 0) return flash_kv_erase_key(key);
 
     uint8_t *current = malloc(len);
     if (!current) return -ENOMEM;
@@ -309,11 +309,25 @@ int flash_kv_set(uint16_t key, const void *data, size_t len) {
     return append(key, data, (uint16_t)len);
 }
 
-int flash_kv_erase(uint16_t key) {
+int flash_kv_erase_key(uint16_t key) {
     const int len = flash_kv_get(key, NULL, 0, 0);
     if (len == -ENOENT) return 0;
     if (len < 0) return len;
     return append(key, NULL, 0);
+}
+
+int flash_kv_erase(void) {
+    uint8_t block[FLASH_READ_BLOCK_SIZE];
+
+    flash_erase_sector(KV_BASE);
+
+    for (uint32_t off = 0; off < KV_SECTOR_SIZE; off += sizeof(block)) {
+        flash_read(KV_BASE + off, block, sizeof(block));
+        for (uint32_t i = 0; i < sizeof(block); i++) {
+            if (block[i] != 0xFF) return -EIO;
+        }
+    }
+    return 0;
 }
 
 int flash_kv_set_u8(uint16_t key, uint8_t value) { return flash_kv_set(key, &value, sizeof(value)); }

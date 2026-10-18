@@ -60,12 +60,12 @@ static void test_basic() {
     CHECK(memcmp(out, "bye", 3) == 0);
 
     CHECK(flash_kv_set(2, "two", 3) == 0);
-    CHECK(flash_kv_erase(2) == 0);
+    CHECK(flash_kv_erase_key(2) == 0);
     CHECK(flash_kv_get(2, out, sizeof(out), 0) == -ENOENT);
     CHECK(flash_kv_get(1, out, sizeof(out), 0) == 3);
 
     CHECK(flash_kv_get(1, out, 2, 0) == -EMSGSIZE);
-    CHECK(flash_kv_erase(99) == 0);
+    CHECK(flash_kv_erase_key(99) == 0);
     CHECK(flash_kv_get(99, out, sizeof(out), 0) == -ENOENT);
 }
 
@@ -157,7 +157,7 @@ static void test_foreign() {
     flash_write(KV_BASE, other, sizeof(other));
     CHECK(flash_kv_state() == FLASH_KV_FOREIGN);
     CHECK(flash_kv_get(1, out, sizeof(out), 0) == -ENOENT);
-    CHECK(flash_kv_erase(1) == 0);
+    CHECK(flash_kv_erase_key(1) == 0);
     CHECK(flash_kv_state() == FLASH_KV_FOREIGN);
 
     CHECK(flash_kv_set(1, "mine", 4) == 0);
@@ -195,7 +195,7 @@ static void test_same_value() {
     CHECK(flash_kv_get(30, out, sizeof(out), 0) == 3);
 
     const uint32_t erased = used_bytes();
-    CHECK(flash_kv_erase(31) == 0);
+    CHECK(flash_kv_erase_key(31) == 0);
     CHECK(used_bytes() == erased);
 }
 

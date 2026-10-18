@@ -100,22 +100,8 @@ static void list_records(void) {
     }
 }
 
-static bool sector_is_blank(void) {
-    uint8_t block[FLASH_READ_BLOCK_SIZE];
-
-    for (uint32_t off = 0; off < FLASH_KV_SIZE; off += sizeof(block)) {
-        flash_read(FLASH_KV_ADDR + off, block, sizeof(block));
-        for (uint32_t i = 0; i < sizeof(block); i++) {
-            if (block[i] != 0xFF) return false;
-        }
-    }
-    return true;
-}
-
 static int erase_sector(void) {
-    flash_erase_sector(FLASH_KV_ADDR);
-
-    if (!sector_is_blank()) {
+    if (flash_kv_erase() != 0) {
         printf("the sector is not blank after the erase, is the flash protected?\r\n");
         return 1;
     }

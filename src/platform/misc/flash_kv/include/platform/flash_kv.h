@@ -68,12 +68,16 @@ int flash_kv_set_bool(uint16_t key, bool value);
 int flash_kv_set_string(uint16_t key, const char *src);
 
 // Stores a value of up to FLASH_KV_MAX_VALUE_LEN bytes. Storing the value that is already there writes nothing.
-// A zero len is the same as flash_kv_erase().
+// A zero len is the same as flash_kv_erase_key().
 // Returns 0, -EINVAL, -ENOSPC (the sector cannot hold all keys) or -EIO (read-back mismatch).
 int flash_kv_set(uint16_t key, const void *data, size_t len);
 
 // Removes a key. Removing a key that is not set does nothing.
-int flash_kv_erase(uint16_t key);
+int flash_kv_erase_key(uint16_t key);
+
+// Erases the whole sector, so every key is gone. Returns 0 or -EIO if the sector is not blank
+// afterward, for example when the flash is protected.
+int flash_kv_erase(void);
 
 #ifdef __cplusplus
 }
