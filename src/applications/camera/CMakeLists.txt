@@ -9,19 +9,32 @@ add_executable(
         web/config_json.cpp
 )
 
-set(PAGE_HOME_HTML ${CMAKE_CURRENT_LIST_DIR}/frontend/dist/index.html)
-set(PAGE_HOME_C ${CMAKE_CURRENT_BINARY_DIR}/page_home.c)
+set(FRONTEND_DIR ${CMAKE_CURRENT_LIST_DIR}/frontend)
+set(APP_HTML ${FRONTEND_DIR}/dist/index.html)
+set(APP_C ${CMAKE_CURRENT_BINARY_DIR}/page_app.c)
+
+file(GLOB_RECURSE FRONTEND_SOURCES CONFIGURE_DEPENDS ${FRONTEND_DIR}/src/*)
 
 add_custom_command(
-        OUTPUT ${PAGE_HOME_C}
-        COMMAND ${CMAKE_COMMAND}
-        -DINPUT=${PAGE_HOME_HTML} -DOUTPUT=${PAGE_HOME_C} -DSYMBOL=page_home
-        -P ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
-        DEPENDS ${PAGE_HOME_HTML} ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
-        COMMENT "Embedding ${PAGE_HOME_HTML}"
+        OUTPUT ${APP_HTML}
+        COMMAND npm run build
+        WORKING_DIRECTORY ${FRONTEND_DIR}
+        DEPENDS
+        ${FRONTEND_SOURCES}
+        ${FRONTEND_DIR}/index.html
+        COMMENT "Building the frontend"
 )
 
-target_sources(camera PRIVATE ${PAGE_HOME_C})
+add_custom_command(
+        OUTPUT ${APP_C}
+        COMMAND ${CMAKE_COMMAND}
+        -DINPUT=${APP_HTML} -DOUTPUT=${APP_C} -DSYMBOL=page_app
+        -P ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
+        DEPENDS ${APP_HTML} ${PROJECT_SOURCE_DIR}/cmake/embed_text.cmake
+        COMMENT "Embedding ${APP_HTML}"
+)
+
+target_sources(camera PRIVATE ${APP_C})
 
 target_include_directories(
         camera PRIVATE

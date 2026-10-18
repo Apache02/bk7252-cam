@@ -32,7 +32,7 @@ static constexpr char PAGE_CAMERA[] =
     "</body></html>";
 
 // The built frontend, NUL-terminated, generated from frontend/dist/index.html.
-extern "C" const char page_home[];
+extern "C" const char page_app[];
 
 struct Camera {
     // The encoder only needs this while a frame is being built; the stream uses slots instead.
@@ -242,7 +242,7 @@ static void serve_settings_post(const http_request_t *request, http_response_t *
 
 void camera_web_start() {
     static constexpr http_route_t routes[] = {
-        {"GET", "/", http_default_static_page, const_cast<char *>(page_home)},
+        {"GET", "/", http_default_static_page, const_cast<char *>(page_app)},
         {"GET", "/camera", http_default_static_page, const_cast<char *>(PAGE_CAMERA)},
         {"GET", "/favicon.ico", http_default_404, nullptr},
         {"GET", "/stream", serve_stream, &g_camera},
