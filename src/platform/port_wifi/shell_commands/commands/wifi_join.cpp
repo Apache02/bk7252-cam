@@ -1,4 +1,4 @@
-// Associating, from the shell: open networks, and WPA2-Personal with --password.
+// Associating, from the shell: open networks, and WPA2-Personal with a password.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,27 +10,15 @@
 
 #include "wifi/sta.h"
 
-static void print_usage(const char *command, const char *name) {
-    printf("usage: %s %s <ssid> [--password <pwd>] [--bssid xx:xx:xx:xx:xx:xx] [--channel N]\r\n", command, name);
-    printf("  --password WPA2-Personal passphrase, 8 to 63 characters. Without it the join is open.\r\n");
-    printf("  --bssid    the AP to join, when it is already known\r\n");
-    printf("  --channel  1..14, the channel that AP is on\r\n");
-    printf("\r\n  Given both bssid and channel, the join goes straight out. Given neither, a full\r\n");
-    printf("  sweep runs first to find them, so this blocks for about a second longer.\r\n");
-    printf("\r\n  WPA2 adds about half a second for the key and up to ten for the handshake.\r\n");
-    printf("  The shell keeps a history, so the password stays in it until it is cleared.\r\n");
-}
-
-// wifi join — associates; the link and DHCP follow on their own.
-int wifi_sub_join(const char *command, int argc, const char *argv[]) {
+// wifi join — associates; the link and DHCP follow on their own. The password is
+// a WPA2-Personal passphrase of 8 to 63 characters; without it the join is open.
+// Given both bssid and channel the join goes straight out, otherwise a full sweep
+// runs first, which takes about a second longer. WPA2 adds about half a second
+// for the key and up to ten for the handshake.
+int wifi_sub_join(int argc, const char *argv[]) {
     StaConfig config = {};
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0) {
-            print_usage(command, argv[0]);
-            return 0;
-        }
-
         if (strcmp(argv[i], "--bssid") == 0) {
             if (++i >= argc) {
                 printf("[wifi] --bssid wants six hex pairs, like c8:47:8c:42:88:48\r\n");
@@ -51,23 +39,18 @@ int wifi_sub_join(const char *command, int argc, const char *argv[]) {
                 return -1;
             }
             config.channel = (uint8_t)channel;
-        } else if (strcmp(argv[i], "--password") == 0) {
-            if (++i >= argc) {
-                printf("[wifi] --password wants the passphrase\r\n");
-                return -1;
-            }
-            config.passphrase = argv[i];
         } else if (!config.ssid) {
             config.ssid = argv[i];
+        } else if (!config.passphrase) {
+            config.passphrase = argv[i];
         } else {
             printf("[wifi] unknown option: %s\r\n", argv[i]);
-            print_usage(command, argv[0]);
             return -1;
         }
     }
 
     if (!config.ssid) {
-        print_usage(command, argv[0]);
+        printf("[wifi] join wants an SSID\r\n");
         return -1;
     }
 
@@ -90,7 +73,7 @@ int wifi_sub_join(const char *command, int argc, const char *argv[]) {
         case Associated:
             printf("[wifi] associated with %02x:%02x:%02x:%02x:%02x:%02x\r\n", result->bssid[0], result->bssid[1],
                    result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5]);
-            printf("[wifi] asking for an address, see %s ip\r\n", command);
+            printf("[wifi] asking for an address, see wifi info\r\n");
             return 0;
         case Refused:
             printf("[wifi] the AP refused, 802.11 status %u\r\n", result->status_code);

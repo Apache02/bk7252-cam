@@ -4,38 +4,46 @@
 
 #include "subcommands.h"
 
-// wifi scan [iface]
-// wifi join <ssid> [--bssid value] [--channel N]
-// wifi disconnect [iface]
-// wifi ap <ssid> [--channel N]
-// wifi ap down
-// wifi stat [iface]
-// wifi ip [iface]
-
-// Its own table rather than Shell::Handler's: a subcommand takes the parent's
-// name as well, so the two signatures differ.
+// Its own table rather than Shell::Handler's: a subcommand is picked by the
+// word after the command's name and gets argv starting at that word.
 static const struct {
     const char *name;
-    int (*handler)(const char *command, int argc, const char *argv[]);
-    const char *description;
+    int (*handler)(int argc, const char *argv[]);
 } s_subcommands[] = {
-    {"help", nullptr, "this help"},
-    {"scan", wifi_sub_scan, "sweep the band and list what answered"},
-    {"join", wifi_sub_join, "associate with one open network"},
-    {"connect", wifi_sub_join, "alias to join"},
-    {"disconnect", wifi_sub_disconnect, "drop the link, keep the station interface"},
-    {"sta", wifi_sub_sta, "station interface: sta down"},
-    {"ap", wifi_sub_ap, "access point: ap <ssid>, ap down"},
-    {"stat", wifi_sub_stat, "where the link is, and what has moved"},
-    {"ip", wifi_sub_ip, "addresses, per interface"},
+    {"scan", wifi_sub_scan},
+    {"join", wifi_sub_join},
+    {"sta", wifi_sub_sta},
+    {"ap", wifi_sub_ap},
+    {"info", wifi_sub_info},
 };
+
+// One line per way of calling a subcommand, so `ap` and `sta` appear twice.
+static const struct {
+    const char *usage;
+    const char *description;
+} s_help[] = {
+    {"help", "show this help"},
+    {"scan [--long] [--survey]", "list the networks in range"},
+    {"ap down", "stop the access point"},
+    {"ap <ssid> [--channel N]", "start an open access point"},
+    {"sta down", "leave the network, stop the station"},
+    {"join <ssid> [password] [--bssid bssid] [--channel N]", "join a network, open or WPA2"},
+    {"info [ap|sta]", "link, address and counters"},
+};
+
+#define DESCRIPTION_COLUMN 36
 
 static void usage(const char *command) {
     printf("usage: %s <command> [...]\r\n", command);
-    for (const auto &sub : s_subcommands) {
-        printf("  %-11s %s\r\n", sub.name, sub.description);
+    printf("commands:\r\n");
+    for (const auto &line : s_help) {
+        int width = printf("  %s %s", command, line.usage);
+        if (width >= DESCRIPTION_COLUMN) {
+            printf("\r\n");
+            width = 0;
+        }
+        printf("%*s%s\r\n", DESCRIPTION_COLUMN - width, "", line.description);
     }
-    printf("\r\nAny command brings the LMAC up first, so there is no start step.\r\n");
 }
 
 int command_wifi(int argc, const char *argv[]) {
@@ -50,11 +58,7 @@ int command_wifi(int argc, const char *argv[]) {
     }
 
     for (const auto &sub : s_subcommands) {
-        if (!sub.handler) continue;
-
-        // The subcommand is handed its own name as argv[0], so its usage lines
-        // read the same whichever way it was reached.
-        if (strcmp(sub.name, argv[1]) == 0) return sub.handler(argv[0], argc - 1, argv + 1);
+        if (strcmp(sub.name, argv[1]) == 0) return sub.handler(argc - 1, argv + 1);
     }
 
     printf("unknown command: %s\r\n", argv[1]);

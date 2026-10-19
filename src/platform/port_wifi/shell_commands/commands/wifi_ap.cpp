@@ -11,25 +11,14 @@
 #define DEFAULT_CHANNEL 6
 #define MAX_SSID_LEN    32
 
-static void print_usage(const char *command, const char *name) {
-    printf("usage: %s %s <ssid> [--channel N]\r\n", command, name);
-    printf("       %s %s down\r\n", command, name);
-    printf("  --channel  1..14, default %d\r\n", DEFAULT_CHANNEL);
-    printf("\r\n  The AP is open: there is no password. It answers 192.168.4.1/24 and\r\n");
-    printf("  gives its clients 192.168.4.2 to 192.168.4.5.\r\n");
-    printf("  \"down\" stops a running AP, so it cannot be used as an SSID here.\r\n");
-}
-
-// Wi-Fi ap — starts an access point, or stops the running one.
-int wifi_sub_ap(const char *command, int argc, const char *argv[]) {
+// wifi ap — starts an access point, or stops the running one. The AP is open, with
+// no password. It answers 192.168.4.1/24 and gives its clients 192.168.4.2 to
+// 192.168.4.5. The channel defaults to DEFAULT_CHANNEL. "down" stops a running AP,
+// so it cannot be used as an SSID here.
+int wifi_sub_ap(int argc, const char *argv[]) {
     ApConfig config = {.ssid = nullptr, .channel = DEFAULT_CHANNEL};
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0) {
-            print_usage(command, argv[0]);
-            return 0;
-        }
-
         if (strcmp(argv[i], "--channel") == 0) {
             char         *end     = nullptr;
             unsigned long channel = (++i < argc) ? strtoul(argv[i], &end, 10) : 0;
@@ -42,13 +31,12 @@ int wifi_sub_ap(const char *command, int argc, const char *argv[]) {
             config.ssid = argv[i];
         } else {
             printf("[wifi] unknown option: %s\r\n", argv[i]);
-            print_usage(command, argv[0]);
             return -1;
         }
     }
 
     if (!config.ssid) {
-        print_usage(command, argv[0]);
+        printf("[wifi] ap wants an SSID, or down\r\n");
         return -1;
     }
 

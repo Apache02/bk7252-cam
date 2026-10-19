@@ -132,33 +132,20 @@ static void print_channels(const ChannelSurvey *survey) {
     delete table;
 }
 
-static void print_usage(const char *command, const char *name) {
-    printf("usage: %s %s [--long] [--survey]\r\n", command, name);
-    printf("  --long    stay 110 ms on each channel instead of 90 ms — beacons\r\n");
-    printf("            come about every 100 ms, so this finds networks the\r\n");
-    printf("            shorter sweep can miss\r\n");
-    printf("  --survey  also collect and show per-channel noise and busy time\r\n");
-    printf("\r\n  The radio leaves its current channel for the whole sweep, so a\r\n");
-    printf("  live link can miss beacons while this runs.\r\n");
-}
-
-// wifi scan — starts a sweep, waits for it, prints what came back.
-int wifi_sub_scan(const char *command, int argc, const char *argv[]) {
+// wifi scan — starts a sweep, waits for it, prints what came back. --long stays
+// 110 ms on each channel instead of 90 ms, since beacons come about every 100 ms;
+// --survey adds per-channel noise and busy time. The radio leaves its channel for
+// the whole sweep, so a live link can miss beacons meanwhile.
+int wifi_sub_scan(int argc, const char *argv[]) {
     ScanConfig config = {};
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0) {
-            print_usage(command, argv[0]);
-            return 0;
-        }
-
         if (strcmp(argv[i], "--long") == 0) {
             config.longer_channel_time = true;
         } else if (strcmp(argv[i], "--survey") == 0) {
             config.collect_survey = true;
         } else {
             printf("[wifi] unknown option: %s\r\n", argv[i]);
-            print_usage(command, argv[0]);
             return -1;
         }
     }
