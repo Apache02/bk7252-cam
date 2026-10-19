@@ -3,6 +3,8 @@
 .cache
 
 build
+build-release
+dist
 backups
 cmake-build-default
 cmake-build-debug
