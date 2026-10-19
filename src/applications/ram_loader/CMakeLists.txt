@@ -4,16 +4,6 @@ add_executable(
         shell_handlers.cpp
 )
 
-file(
-        GLOB COMMANDS
-        ${CMAKE_CURRENT_LIST_DIR}/commands/*.cpp
-)
-
-target_sources(
-        ram_loader PRIVATE
-        ${COMMANDS}
-)
-
 target_include_directories(
         ram_loader INTERFACE
         ${CMAKE_CURRENT_LIST_DIR}/
