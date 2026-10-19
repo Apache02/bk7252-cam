@@ -21,7 +21,7 @@
 // Watchdog task
 
 static StaticTask_t wdtTaskTCB;
-static StackType_t  wdtTaskStack[40];
+static StackType_t  wdtTaskStack[48];
 
 static __dead2 void vTaskWdt(__unused void *pvParams) {
     wdt_down();
