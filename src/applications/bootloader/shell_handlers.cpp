@@ -17,7 +17,7 @@ static int version(__unused int argc, __unused const char *argv[]) {
 
 const Shell::Handler shell_handlers[] = {
     {"help", help, "print this help"},
-    {"version", version, "print bootloader version and build time"},
+    {"version", version, "print bootloader version"},
     {"reboot", command_reboot, "perform reboot"},
     {"crc32", command_crc32, "CRC32 of memory: <addr> <size>"},
     {"speed", command_uart2_baudrate, "set UART2 baud rate: <baud>"},

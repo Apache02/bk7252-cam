@@ -14,6 +14,7 @@ set(SRC_ROOT_DIR ${CMAKE_SOURCE_DIR}/src)
 set(LINKER_DIR ${SRC_ROOT_DIR}/linker)
 
 # Init toolchain
+include(cmake/version.cmake)
 include(cmake/toolchain.cmake)
 include(cmake/linker_script.cmake)
 include(cmake/firmware.cmake)

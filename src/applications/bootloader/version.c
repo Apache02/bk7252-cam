@@ -1,11 +1,7 @@
+#include "version.h"
+
 #include <stdio.h>
 
-#ifndef BOOTLOADER_VERSION
-#define BOOTLOADER_VERSION "unknown"
-#endif
+const char *get_version() { return BK_VERSION; }
 
-void print_version() {
-    printf("Bootloader by Apache02 "
-           "(built on " BOOTLOADER_VERSION " at " __DATE__ " " __TIME__ ")"
-           "\r\n\r\n");
-}
+void print_version() { printf("Bootloader %s by Apache02\r\n\r\n", get_version()); }

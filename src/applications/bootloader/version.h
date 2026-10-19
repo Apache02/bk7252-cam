@@ -1,6 +1,13 @@
 #pragma once
 
 #ifdef __cplusplus
-extern "C"
+extern "C" {
 #endif
-    void print_version();
+
+const char *get_version();
+
+void print_version();
+
+#ifdef __cplusplus
+}
+#endif

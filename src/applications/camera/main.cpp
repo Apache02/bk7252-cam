@@ -11,12 +11,11 @@
 
 #include "app/main_task.h"
 #include "shell_handlers.h"
+#include "app/version.h"
 
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
 
-
-void print_version() { printf("bk7252-cam by Apache02\r\n\r\n"); }
 
 /*-----------------------------------------------------------*/
 // Watchdog task

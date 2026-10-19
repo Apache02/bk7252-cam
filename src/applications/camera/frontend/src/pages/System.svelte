@@ -1,6 +1,18 @@
 <script>
+    import {onMount} from "svelte";
+
+    let version = null;
     let rebootMessage = null;
     let resetMessage = null;
+
+    onMount(async () => {
+        try {
+            const response = await fetch("/system.json");
+            ({version} = await response.json());
+        } catch (err) {
+            console.error(err.message);
+        }
+    });
 
     const handleReboot = async () => {
         if (!confirm("Reboot?")) return;
@@ -46,6 +58,10 @@
         }
     };
 </script>
+
+{#if version}
+    <div class="group">Version: {version}</div>
+{/if}
 
 <div class="group">
     <button on:click={handleReboot}>Reboot</button>

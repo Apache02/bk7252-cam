@@ -14,6 +14,7 @@
 #include "app/config.h"
 #include "app/config_json.h"
 #include "app/main_task.h"
+#include "app/version.h"
 #include "hardware/wdt.h"
 
 #define HTTP_PORT    80
@@ -243,6 +244,14 @@ static void serve_settings_post(const http_request_t *request, http_response_t *
     vPortFree(buf);
 }
 
+static void serve_system_info(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+    char buf[96];
+    snprintf(buf, sizeof(buf), "{\"version\": \"%s\"}", get_version());
+
+    http_response_set_content_type(response, "application/json");
+    http_respond_string(response, buf);
+}
+
 static void serve_system_reboot(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
     http_response_set_status(response, 200);
     http_response_set_content_type(response, "application/json");
@@ -279,6 +288,7 @@ void camera_web_start() {
         // api
         {"GET", "/settings.json", serve_settings_get, nullptr},
         {"POST", "/settings", serve_settings_post, nullptr},
+        {"GET", "/system.json", serve_system_info, nullptr},
         {"POST", "/reboot", serve_system_reboot, nullptr},
         {"POST", "/reset", serve_system_reset, nullptr},
         // camera stream

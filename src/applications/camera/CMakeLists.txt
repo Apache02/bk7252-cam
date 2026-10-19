@@ -1,6 +1,7 @@
 add_executable(
         camera
         main.cpp
+        version.c
         config.cpp
         main_task.cpp
         shell_handlers.cpp
@@ -36,6 +37,8 @@ add_custom_command(
 )
 
 target_sources(camera PRIVATE ${APP_C})
+
+set_source_files_properties(version.c PROPERTIES COMPILE_DEFINITIONS BK_VERSION="${BK_VERSION}")
 
 target_include_directories(
         camera PRIVATE

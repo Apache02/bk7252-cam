@@ -25,21 +25,12 @@ target_link_libraries(
         platform_fal
 )
 
-execute_process(
-        COMMAND git -C ${CMAKE_CURRENT_LIST_DIR} describe --always --dirty
-        OUTPUT_VARIABLE BOOTLOADER_VERSION
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-)
-if (NOT BOOTLOADER_VERSION)
-    set(BOOTLOADER_VERSION "unknown")
-endif ()
-
 target_compile_definitions(
         bootloader PRIVATE
         ENTRY_BACKUP_REGISTERS
-        BOOTLOADER_VERSION="${BOOTLOADER_VERSION}"
 )
+
+set_source_files_properties(version.c PROPERTIES COMPILE_DEFINITIONS BK_VERSION="${BK_VERSION}")
 
 bk_bootloader(bootloader)
 bk_firmware_iram(bootloader)
