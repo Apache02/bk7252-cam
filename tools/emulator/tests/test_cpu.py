@@ -1,0 +1,135 @@
+import struct
+import unittest
+
+from unicorn import UC_HOOK_MEM_READ_UNMAPPED, UcError
+
+from core.cpu import Cpu, RunResult
+
+RAM = 0x00400000
+MODE_ABT = 0x17
+MODE_SVC = 0x13
+I_BIT = 0x80
+
+
+def program(*words):
+    return struct.pack("<%dI" % len(words), *words)
+
+
+MOV_R0_5 = 0xE3A00005
+ADD_R0_7 = 0xE2800007
+B_SELF = 0xEAFFFFFE
+WFI = 0xEE070F90
+
+
+def make_cpu(*words, at=RAM):
+    cpu = Cpu()
+    cpu.map_ram(RAM, 0x1000)
+    cpu.mem_write(at, program(*words))
+    cpu.reset(at)
+    return cpu
+
+
+class CpuTest(unittest.TestCase):
+    def test_runs_arm_program(self):
+        cpu = make_cpu(MOV_R0_5, ADD_R0_7, B_SELF)
+        self.assertEqual(cpu.run(3), (RunResult.BUDGET, 3))
+        self.assertEqual(cpu.reg("r0"), 12)
+
+    def test_wfi_returns_idle(self):
+        cpu = make_cpu(WFI, B_SELF)
+        result, _ = cpu.run(10)
+        self.assertEqual(result, RunResult.IDLE)
+
+    def test_data_abort_entry(self):
+        cpu = make_cpu(B_SELF)
+        old_cpsr = cpu.reg("cpsr")
+        cpu.enter_exception("dabt", 0x00400010)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, MODE_ABT)
+        self.assertTrue(cpu.reg("cpsr") & I_BIT)
+        self.assertEqual(cpu.reg("lr"), 0x00400018)
+        self.assertEqual(cpu.reg("pc"), 0x00000010)
+        self.assertEqual(cpu.reg("spsr"), old_cpsr)
+
+    def test_prefetch_abort_lr_plus_4(self):
+        cpu = make_cpu(B_SELF)
+        cpu.enter_exception("pabt", 0x00400010)
+        self.assertEqual(cpu.reg("lr"), 0x00400014)
+        self.assertEqual(cpu.reg("pc"), 0x0000000C)
+
+    def test_irq_taken_when_enabled(self):
+        cpu = make_cpu(B_SELF)
+        cpu.map_ram(0, 0x1000)
+        cpu.mem_write(0x18, program(B_SELF))
+        cpu.set_reg("cpsr", MODE_SVC)  # I bit clear
+        cpu.raise_irq(True)
+        cpu.run(1)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x12)
+        self.assertEqual(cpu.reg("pc") & ~3, 0x18)
+
+    def test_posted_fault_from_hook_enters_data_abort(self):
+        cpu = make_cpu(0xE59F10F8, 0xE5910000, B_SELF)  # ldr r1,[lit]; ldr r0,[r1]
+        cpu.mem_write(RAM + 0x100, struct.pack("<I", 0x01000000))
+        cpu.map_ram(0, 0x1000)
+
+        def unmapped(uc, access, addr, size, value, _):
+            cpu.post_fault("dabt")
+            return False
+
+        cpu.unicorn.hook_add(UC_HOOK_MEM_READ_UNMAPPED, unmapped)
+        cpu.run(3)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, MODE_ABT)
+        self.assertEqual(cpu.reg("lr"), RAM + 4 + 8)
+        self.assertEqual(cpu.reg("pc"), 0x10)
+
+    def test_swi_enters_svc_vector_with_lr_after_the_instruction(self):
+        cpu = make_cpu(0xEF000000, B_SELF)  # swi 0
+        cpu.map_ram(0, 0x1000)
+        cpu.mem_write(0x08, program(B_SELF))
+        cpu.set_reg("cpsr", MODE_SVC | 0x10)  # make the old CPSR recognisable
+        old = cpu.reg("cpsr")
+        cpu.run(1)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, MODE_SVC)
+        self.assertTrue(cpu.reg("cpsr") & I_BIT)
+        self.assertEqual(cpu.reg("lr"), RAM + 4)
+        self.assertEqual(cpu.reg("pc"), 0x08)
+        self.assertEqual(cpu.reg("spsr"), old)
+
+    def test_undefined_instruction_enters_und_vector(self):
+        cpu = make_cpu(0xE7F000F0, B_SELF)  # permanently undefined
+        cpu.map_ram(0, 0x1000)
+        cpu.mem_write(0x04, program(B_SELF))
+        cpu.run(1)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x1B)
+        self.assertEqual(cpu.reg("lr"), RAM + 4)
+        self.assertEqual(cpu.reg("pc"), 0x04)
+
+    def test_thumb_swi_returns_to_next_halfword_and_enters_arm_state(self):
+        cpu = Cpu()
+        cpu.map_ram(RAM, 0x1000)
+        cpu.map_ram(0, 0x1000)
+        cpu.mem_write(RAM, struct.pack("<HH", 0xDF00, 0xE7FE))  # svc 0 ; b .
+        cpu.mem_write(0x08, program(B_SELF))
+        cpu.reset(RAM)
+        cpu.set_reg("cpsr", MODE_SVC | 0x20)
+        cpu.run(1)
+        self.assertEqual(cpu.reg("lr"), RAM + 2)
+        self.assertFalse(cpu.reg("cpsr") & 0x20)
+        self.assertEqual(cpu.reg("pc"), 0x08)
+
+    def test_unposted_unicorn_error_propagates(self):
+        cpu = make_cpu(0xE59F10F8, 0xE5910000, B_SELF)
+        cpu.mem_write(RAM + 0x100, struct.pack("<I", 0x01000000))
+        with self.assertRaises(UcError):
+            cpu.run(3)
+
+    def test_irq_ignored_when_masked(self):
+        cpu = make_cpu(B_SELF)
+        cpu.set_reg("cpsr", MODE_SVC | I_BIT)
+        cpu.raise_irq(True)
+        cpu.run(1)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, MODE_SVC)
+        self.assertEqual(cpu.reg("pc"), RAM)
+
+
+if __name__ == "__main__":
+    unittest.main()

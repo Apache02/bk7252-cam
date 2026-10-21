@@ -42,7 +42,7 @@ tio -b 115200 /dev/ttyUSB0
 
 Installing the own bootloader on a vendor-bootloader board (see `docs/custom-bootloader.md`): flash `ram_loader` into the app partition with `uartprogram`, then run `bootloader_installer--iram` via `tools/bkloader iram` (it embeds the `bootloader` build and writes it to flash `0x000000`), then restore the vendor app — it works with the own bootloader.
 
-`tools/flasher/` holds Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/bkloader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`.
+`tools/flasher/` holds Python scripts using `tools/flasher/bkutils/`. Other Python helpers: `tools/crc` (wraps a flat `.bin` with the BK CRC layout — invoked automatically by `bk_firmware()`), `tools/uncrc`, `tools/bkloader`, `tools/console_dump/dump.py`, `tools/symbol_table.py`, `tools/emulator/run` (Python + Unicorn chip emulator, see `docs/emulator.md`).
 
 ## Architecture
 

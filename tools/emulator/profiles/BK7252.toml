@@ -1,0 +1,87 @@
+# BK7252 (ARM968E-S). Addresses: docs/memory_map.md.
+
+name = "BK7252"
+
+# Instructions executed per microsecond of device time.
+insns_per_us = 100
+
+# [base, size]: accesses no module claims are logged and read as 0.
+peripheral_window = [0x00800000, 0x00100000]
+
+[[memory]]
+name = "RAM1"
+base = 0x00400000
+size = 0x40000
+
+[[memory]]
+name = "RAM2"
+base = 0x00900000
+size = 0x40000
+
+# Names usable in --load. A plain number is a bus address; a table points
+# into a module (flash offsets are raw physical, CRC bytes included).
+[alias]
+RAM = 0x00400000
+IRAM = 0x00900000
+
+[alias.bootloader]
+module = "FLASH"
+offset = 0x00000000
+
+[alias.app]
+module = "FLASH"
+offset = 0x00011000
+
+[[module]]
+type = "flash"
+name = "FLASH"
+[module.bases]
+xip = 0x00000000
+ctrl = 0x00803000
+[module.params]
+size = 0x200000
+
+# "irq" is a bit number of the ICU's irq_enable register (soc/icu.h).
+[[module]]
+type = "intc"
+name = "ICU"
+[module.bases]
+regs = 0x00802000
+
+[[module]]
+type = "timer"
+name = "TIMER0"
+[module.bases]
+regs = 0x00802A00
+[module.params]
+intc = "ICU"
+irq = 8
+hz = 26000000
+
+[[module]]
+type = "timer"
+name = "TIMER1"
+[module.bases]
+regs = 0x00802A40
+[module.params]
+intc = "ICU"
+irq = 8
+hz = 32000
+
+[[module]]
+type = "uart"
+name = "UART1"
+[module.bases]
+regs = 0x00802100
+[module.params]
+intc = "ICU"
+irq = 0
+
+[[module]]
+type = "uart"
+name = "UART2"
+[module.bases]
+regs = 0x00802200
+[module.params]
+intc = "ICU"
+irq = 1
