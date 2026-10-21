@@ -25,7 +25,8 @@
     let saving = false;
     let saveMessage = null;
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (event) => {
+        event.preventDefault();
         saving = true;
         saveMessage = null;
         try {
@@ -55,7 +56,12 @@
         {error}
     {/if}
 {:else}
-    <form class="form" onsubmit={preventDefault(handleSubmit)}>
+    <form class="form" onsubmit={handleSubmit}>
+        {#if data.ap_enabled && !data.sta_enabled}
+            <div class="group">
+                <a href="/join">Connect to Wi-Fi</a>
+            </div>
+        {/if}
         <div class="group">
             <div class="input">
                 <label>

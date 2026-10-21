@@ -16,6 +16,8 @@
 #include "app/main_task.h"
 #include "app/version.h"
 #include "hardware/wdt.h"
+#include "wifi/scan.h"
+#include "wifi/sta.h"
 
 #define HTTP_PORT    80
 #define HTTP_WORKERS 2
@@ -244,12 +246,171 @@ static void serve_settings_post(const http_request_t *request, http_response_t *
     vPortFree(buf);
 }
 
+struct IpText {
+    char text[16];
+};
+
+// An address in host byte order as dotted decimal.
+static IpText format_ip(const uint32_t address) {
+    IpText out;
+    snprintf(out.text, sizeof(out.text), "%u.%u.%u.%u", static_cast<unsigned>(address >> 24),
+             static_cast<unsigned>((address >> 16) & 0xff), static_cast<unsigned>((address >> 8) & 0xff),
+             static_cast<unsigned>(address & 0xff));
+    return out;
+}
+
+// The station address as a JSON object, or "null" while it has none.
+#define NETWORK_JSON_MAX 96
+
+static void format_network(char *out, const size_t size) {
+    uint32_t ip, mask, gw;
+    if (wifi_sta_get_address(&ip, &mask, &gw)) {
+        snprintf(out, size, "{\"ip\": \"%s\", \"mask\": \"%s\", \"gw\": \"%s\"}", format_ip(ip).text,
+                 format_ip(mask).text, format_ip(gw).text);
+    } else {
+        snprintf(out, size, "null");
+    }
+}
+
 static void serve_system_info(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
-    char buf[96];
-    snprintf(buf, sizeof(buf), "{\"version\": \"%s\"}", get_version());
+    char network[NETWORK_JSON_MAX];
+    format_network(network, sizeof(network));
+
+    char buf[192];
+    snprintf(buf, sizeof(buf), "{\"version\": \"%s\", \"network\": %s}", get_version(), network);
 
     http_response_set_content_type(response, "application/json");
     http_respond_string(response, buf);
+}
+
+static void set_config(const Config &config) {
+    taskENTER_CRITICAL();
+    g_config = config;
+    taskEXIT_CRITICAL();
+}
+
+// How long a new network gets to hand out an address.
+#define SETUP_CONNECT_SECONDS 30
+
+// Joins the network named in the body ({"sta_ssid", "sta_password"}) while the access point stays up.
+// On success it stores the station config, answers with the new address, and only then takes the
+// access point down. On failure the old config comes back and nothing is stored.
+static void serve_setup(const http_request_t *request, http_response_t *response, __unused void *user) {
+    const uint32_t length = request->content_length;
+    if (length == 0) {
+        respond_error(response, 400, "empty body");
+        return;
+    }
+    if (length >= CONFIG_JSON_MAX) {
+        respond_error(response, 413, "body too large");
+        return;
+    }
+
+    char *buf = static_cast<char *>(pvPortMalloc(CONFIG_JSON_MAX));
+    if (!buf) {
+        respond_error(response, 500, "out of memory");
+        return;
+    }
+
+    Config backup;
+    taskENTER_CRITICAL();
+    backup = g_config;
+    taskEXIT_CRITICAL();
+
+    Config trial = backup;
+    const bool ok = http_request_read_body(request, buf, length) == static_cast<int>(length) &&
+                    config_from_json(buf, length, trial) && trial.sta_ssid[0] != '\0';
+    vPortFree(buf);
+    if (!ok) {
+        respond_error(response, 400, "invalid ssid or password");
+        return;
+    }
+    trial.sta_enabled = true;
+
+    if (backup.sta_enabled) {
+        // A station that is already up on another network has to be taken down first.
+        Config off       = backup;
+        off.sta_enabled = false;
+        set_config(off);
+        main_task_config_changed();
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        wifi_sta_stop();
+    }
+
+    set_config(trial);
+    main_task_config_changed();
+
+    for (int i = 0; i < SETUP_CONNECT_SECONDS; i++) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        if (!wifi_sta_get_address(nullptr, nullptr, nullptr)) continue;
+
+        trial.ap_enabled = false;
+        set_config(trial);
+        const int error = config_save();
+        if (error) {
+            printf("[http] setup not stored: %d\r\n", error);
+            trial.ap_enabled = true;
+            set_config(trial);
+            respond_error(response, 500, "connected but not stored");
+            return;
+        }
+
+        char network[NETWORK_JSON_MAX];
+        format_network(network, sizeof(network));
+        char body[NETWORK_JSON_MAX + 40];
+        snprintf(body, sizeof(body), "{\"success\": true, \"network\": %s}", network);
+
+        http_response_set_content_type(response, "application/json");
+        http_respond_string(response, body);
+
+        // Gives the answer time to reach the client before the access point goes down.
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        main_task_config_changed();
+        return;
+    }
+
+    wifi_sta_stop();
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    set_config(backup);
+    main_task_config_changed();
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    respond_error(response, 504, "could not connect");
+}
+
+// The scan JSON with room for 24 networks at their longest.
+#define SCAN_JSON_MAX 4096
+
+// Sweeps every channel and answers with the networks found. Blocks this worker for the whole sweep.
+static void serve_scan(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+    char *buf = static_cast<char *>(pvPortMalloc(SCAN_JSON_MAX));
+    if (!buf) {
+        respond_error(response, 500, "out of memory");
+        return;
+    }
+
+    Shared<Promise<ScanResult>> promise = wifi_scan(nullptr);
+    if (promise.empty()) {
+        respond_error(response, 503, "scan not started");
+        vPortFree(buf);
+        return;
+    }
+
+    Owned<ScanResult> result = promise->await();
+    if (result.empty()) {
+        respond_error(response, 500, "scan produced no result");
+        vPortFree(buf);
+        return;
+    }
+
+    const size_t length = scan_to_json(*result, buf, SCAN_JSON_MAX);
+    if (length == 0) {
+        respond_error(response, 500, "scan does not fit");
+    } else {
+        http_response_set_content_type(response, "application/json");
+        http_respond_binary(response, buf, static_cast<uint32_t>(length));
+    }
+    vPortFree(buf);
 }
 
 static void serve_system_reboot(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
@@ -285,10 +446,13 @@ void camera_web_start() {
         {"GET", "/", serve_app, nullptr},
         {"GET", "/camera", serve_app, nullptr},
         {"GET", "/system", serve_app, nullptr},
+        {"GET", "/join", serve_app, nullptr},
         // api
         {"GET", "/settings.json", serve_settings_get, nullptr},
         {"POST", "/settings", serve_settings_post, nullptr},
         {"GET", "/system.json", serve_system_info, nullptr},
+        {"GET", "/scan.json", serve_scan, nullptr},
+        {"POST", "/setup", serve_setup, nullptr},
         {"POST", "/reboot", serve_system_reboot, nullptr},
         {"POST", "/reset", serve_system_reset, nullptr},
         // camera stream

@@ -2,13 +2,14 @@
     import {onMount} from "svelte";
 
     let version = null;
+    let network = null;
     let rebootMessage = null;
     let resetMessage = null;
 
     onMount(async () => {
         try {
             const response = await fetch("/system.json");
-            ({version} = await response.json());
+            ({version, network} = await response.json());
         } catch (err) {
             console.error(err.message);
         }
@@ -60,8 +61,19 @@
 </script>
 
 {#if version}
-    <div class="group">Version: {version}</div>
+    <div class="group">
+        <div>Version: {version}</div>
+    </div>
 {/if}
+
+<div class="group">
+    <h4>Network</h4>
+    <div class="mono">IP: {(network && network.ip) ?? "not connected"}</div>
+    {#if network}
+        <div class="mono">Mask: {network.mask ?? "undefined"}</div>
+        <div class="mono">Gateway: {network.gw ?? "undefined"}</div>
+    {/if}
+</div>
 
 <div class="group">
     <button on:click={handleReboot}>Reboot</button>
@@ -78,9 +90,17 @@
 </div>
 
 <style>
+    h4 {
+        margin: 0 0 .5em 0;
+        font-size: 1em;
+        font-weight: normal;
+    }
     .group {
         padding: .5em;
         margin: 1em 0;
         background: #eee;
+    }
+    .mono {
+        font-family: monospace;
     }
 </style>

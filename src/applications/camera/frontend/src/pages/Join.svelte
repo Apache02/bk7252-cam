@@ -46,12 +46,12 @@
             const text = await response.text();
             if (!response.ok) {
                 saveMessage = text || `Response status: ${response.status}`;
-                return;
+            } else {
+                const {success, network} = JSON.parse(text);
+                saveMessage = success
+                    ? "Saved, new IP: " + network.ip
+                    : "Fail";
             }
-            const {success, network} = JSON.parse(text);
-            saveMessage = success
-                ? "Saved, new IP: " + network.ip
-                : "Fail";
         } catch (err) {
             console.error(err.message);
             saveMessage = `Not saved: ${err.message}`;

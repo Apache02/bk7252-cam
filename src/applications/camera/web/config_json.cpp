@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "wifi/scan.h"
+
 namespace {
 
 // ---- Writing ---------------------------------------------------------------
@@ -11,8 +13,8 @@ namespace {
 struct Writer {
     char  *buf;
     size_t size;
-    size_t used = 0;
-    bool   ok   = true;
+    size_t used  = 0;
+    bool   ok    = true;
     bool   first = true;
 
     void put(char c) {
@@ -114,6 +116,7 @@ bool read_string(Reader &r, char *out, size_t size) {
         if (c == '\\') {
             if (r.p >= r.end) return false;
             c = *r.p++;
+            // clang-format off
             switch (c) {
                 case '"':
                 case '\\':
@@ -138,6 +141,7 @@ bool read_string(Reader &r, char *out, size_t size) {
                 }
                 default: return false;
             }
+            // clang-format on
         }
 
         if (out) {
@@ -261,6 +265,96 @@ size_t config_to_json(const Config &config, char *buf, size_t size) {
     w.field("sta_enabled", config.sta_enabled);
     w.field("led_enabled", config.led_enabled);
     w.field("telnet_enabled", config.telnet_enabled);
+    w.put('}');
+
+    if (!w.ok) return 0;
+    buf[w.used] = '\0';
+    return w.used;
+}
+
+namespace {
+
+// clang-format off
+const char *scan_status_name(const ScanStatus status) {
+    switch (status) {
+        case Ok: return "ok";
+        case Partial: return "partial";
+        case Timeout: return "timeout";
+    }
+    return "unknown";
+}
+
+const char *security_name(const StationSecurity security) {
+    switch (security) {
+        case Open: return "open";
+        case Wep: return "WEP";
+        case Wpa: return "WPA";
+        case Wpa2: return "WPA2";
+        case Wpa3: return "WPA3";
+    }
+    return "unknown";
+}
+// clang-format on
+
+constexpr size_t SCAN_NETWORKS_MAX = 24;
+
+// The worst case for one network: an SSID of 32 bytes all escaped as \u00XX, plus the fixed text.
+constexpr size_t SCAN_ENTRY_MAX = SCAN_SSID_MAX * 6 + 80;
+
+bool same_ssid(const ScanStation &a, const ScanStation &b) {
+    return a.ssid_len == b.ssid_len && memcmp(a.ssid, b.ssid, a.ssid_len) == 0;
+}
+
+} // namespace
+
+size_t scan_to_json(const ScanResult &scan, char *buf, size_t size) {
+    Writer w = {.buf = buf, .size = size};
+
+    w.put('{');
+    w.field("status", scan_status_name(scan.status));
+    w.key("networks");
+    w.put('[');
+
+    const ScanStation *taken[SCAN_NETWORKS_MAX];
+    size_t             count = 0;
+
+    // Strongest first, so a repeated SSID found later is always the weaker one and is skipped.
+    while (count < SCAN_NETWORKS_MAX && w.ok && size - w.used > SCAN_ENTRY_MAX) {
+        const ScanStation *best = nullptr;
+        for (const ScanStation *s = scan.stations; s; s = s->next) {
+            if (s->ssid_len == 0) continue;
+
+            bool seen = false;
+            for (size_t i = 0; i < count; i++) {
+                if (same_ssid(*s, *taken[i])) {
+                    seen = true;
+                    break;
+                }
+            }
+            if (!seen && (!best || s->rssi > best->rssi)) best = s;
+        }
+        if (!best) break;
+
+        char ssid[SCAN_SSID_MAX + 1];
+        memcpy(ssid, best->ssid, best->ssid_len);
+        ssid[best->ssid_len] = '\0';
+
+        if (count) w.put(',');
+        w.first = true;
+        w.put('{');
+        w.field("ssid", ssid);
+        w.key("rssi");
+        char rssi[6];
+        snprintf(rssi, sizeof(rssi), "%d", best->rssi);
+        w.text(rssi);
+        w.field("channel", static_cast<uint32_t>(best->channel));
+        w.field("security", security_name(best->security));
+        w.put('}');
+
+        taken[count++] = best;
+    }
+
+    w.put(']');
     w.put('}');
 
     if (!w.ok) return 0;

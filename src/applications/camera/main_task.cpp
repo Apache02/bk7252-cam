@@ -81,7 +81,7 @@ static Service service_ap(const bool target, const ApConfig config, const int ma
             }
 
             wifi_ap_stop();
-            co_await sleep_ms(1000);
+            co_await sleep_ms(1000 * attempt);
         } else {
             // Wi-Fi Access point -> DOWN
             wifi_ap_stop();
@@ -162,7 +162,7 @@ static Service service_sta(const bool target, const StaConfig config, const int 
         }
 
         wifi_sta_stop();
-        co_await sleep_ms(1000);
+        co_await sleep_ms(1000 * attempt);
     }
 
     printf("[wifi] error: can't %s STA\r\n", target ? "start" : "stop");
