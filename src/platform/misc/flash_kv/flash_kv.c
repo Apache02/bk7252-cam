@@ -319,6 +319,7 @@ int flash_kv_erase_key(uint16_t key) {
 int flash_kv_erase(void) {
     uint8_t block[FLASH_READ_BLOCK_SIZE];
 
+    flash_unprotect();
     flash_erase_sector(KV_BASE);
 
     for (uint32_t off = 0; off < KV_SECTOR_SIZE; off += sizeof(block)) {

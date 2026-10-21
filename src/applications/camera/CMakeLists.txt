@@ -66,6 +66,7 @@ target_link_libraries(
         hardware_jpeg
         hardware_gdma
         hardware_random
+        hardware_flash
         platform_flash_kv
         device_camera
         port_wifi
@@ -74,3 +75,8 @@ target_link_libraries(
 )
 
 bk_firmware(camera)
+add_custom_command(
+        TARGET camera
+        POST_BUILD
+        COMMAND echo "Version: " ${BK_VERSION}
+)

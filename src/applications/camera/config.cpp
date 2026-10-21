@@ -1,6 +1,9 @@
 #include "app/config.h"
+
 #include <stdio.h>
 #include <string.h>
+
+#include "hardware/flash.h"
 #include "hardware/random.h"
 #include "platform/flash_kv.h"
 
@@ -86,6 +89,7 @@ int config_save() {
         if (err && !first_error) first_error = err;
     };
 
+    flash_unprotect();
     keep(flash_kv_set(key::mac, g_config.mac, sizeof(g_config.mac)));
 
     keep(flash_kv_set_string(key::ap_ssid, g_config.ap_ssid));
