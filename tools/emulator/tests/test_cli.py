@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 import cli
+from host.net.forward import ForwardError
 
 
 class FakeEndpoint:
@@ -29,7 +30,33 @@ class FakeEndpoint:
         self.closed = True
 
 
-def run_cli(*argv):
+class FakeNetwork:
+    def __init__(self, publishes):
+        self.publishes = publishes
+        self.addresses = [(p.host_ip, p.host_port) for p in publishes]
+        self.deliver = None
+        self.closed = False
+
+    def attach(self, deliver):
+        self.deliver = deliver
+
+    def transmit(self, frame):
+        pass
+
+    def tick(self, now_ns):
+        pass
+
+    def next_event_ns(self):
+        return None
+
+    def reset(self):
+        pass
+
+    def close(self):
+        self.closed = True
+
+
+def run_cli(*argv, networks=None, make_network=None):
     out, err = io.StringIO(), io.StringIO()
     made = []
 
@@ -38,8 +65,14 @@ def run_cli(*argv):
         made.append(endpoint)
         return endpoint
 
+    def network_factory(publishes):
+        network = FakeNetwork(publishes)
+        if networks is not None:
+            networks.append(network)
+        return network
+
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        code = cli.main(list(argv), make_endpoint=factory)
+        code = cli.main(list(argv), make_endpoint=factory, make_network=make_network or network_factory)
     return code, out.getvalue(), err.getvalue(), made
 
 
@@ -107,6 +140,45 @@ class CliTest(unittest.TestCase):
         run_cli("BK7252", "--load", "iram:" + tmp_image(), "-d", "gdma,wifi", "-d", "flash")
         for name in names:
             self.assertEqual(logging.getLogger("emulator." + name).level, logging.DEBUG, name)
+
+    def interrupt_soon(self):
+        timer = threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGINT))
+        timer.start()
+        self.addCleanup(timer.cancel)
+
+    def test_publish_builds_the_network_and_attaches_it_to_the_mac(self):
+        self.interrupt_soon()
+        networks = []
+        code, out, _, _ = run_cli(
+            "BK7252", "--load", "iram:" + tmp_image(), "-p", "8080:80", "--publish", "5000:5000/udp", networks=networks
+        )
+        self.assertEqual(code, 0)
+        (network,) = networks
+        self.assertEqual([(p.host_port, p.guest_port, p.protocol) for p in network.publishes], [(8080, 80, "tcp"), (5000, 5000, "udp")])
+        self.assertIsNotNone(network.deliver)  # the MAC took it as its air
+        self.assertTrue(network.closed)
+        self.assertIn("tcp 127.0.0.1:8080 -> guest port 80", out)
+        self.assertIn("udp 127.0.0.1:5000 -> guest port 5000", out)
+
+    def test_without_publish_there_is_no_network(self):
+        self.interrupt_soon()
+        networks = []
+        run_cli("BK7252", "--load", "iram:" + tmp_image(), networks=networks)
+        self.assertEqual(networks, [])
+
+    def test_a_bad_publish_is_an_error(self):
+        code, _, err, _ = run_cli("BK7252", "--load", "iram:" + tmp_image(), "-p", "80")
+        self.assertEqual(code, 2)
+        self.assertIn("--publish", err)
+
+    def test_a_port_that_cannot_be_opened_is_an_error(self):
+        def failing(publishes):
+            raise ForwardError("cannot publish 127.0.0.1:8080: in use")
+
+        code, _, err, made = run_cli("BK7252", "--load", "iram:" + tmp_image(), "-p", "8080:80", make_network=failing)
+        self.assertEqual(code, 2)
+        self.assertIn("in use", err)
+        self.assertEqual(made, [])  # no UART endpoint was created before the failure
 
     def test_uart_options_default_to_pty(self):
         timer = threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGINT))

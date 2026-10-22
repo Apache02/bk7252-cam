@@ -15,13 +15,16 @@ drives (reg_mac_core.h, reg_mac_pl.h):
 - Key storage RAM: read, write and search commands complete at once.
 - Time-on-air calculator: a duration from length and rate.
 
-Frame transmit and receive are not modelled.
+- Frames: queue kicks and the receive chain go through mac_frames.py. The far end of the
+  air is an object given to `attach()`: it gets every transmitted frame and delivers
+  received ones through the callback it is given.
 """
 
 import struct
 
 from core.module import Module
 from modules.wifi.mac_core import MacCore
+from modules.wifi.mac_frames import FrameEngine
 from modules.wifi.mac_pl import MacPl
 
 # core registers
@@ -40,7 +43,16 @@ _TXRX_STATUS, _TXRX_ACK, _TXRX_ENABLE = 0x078, 0x07C, 0x080
 _EVENT_SET, _EVENT_CLEAR, _UNMASK = 0x084, 0x088, 0x08C
 _TSF_LO, _TSF_HI = 0x0A4, 0x0A8
 _TOA_PARAM_1, _TOA_PARAM_2, _TOA_VALUE = 0x160, 0x164, 0x168
-_DMA_STATUS_1 = 0x188
+_DMA_CNTRL_SET, _DMA_CNTRL_CLEAR, _DMA_STATUS_1 = 0x180, 0x184, 0x188
+_TX_HEAD = {4: 0x198, 0: 0x19C, 1: 0x1A0, 2: 0x1A4, 3: 0x1A8}  # queue -> head pointer register
+_RX_HEADER_HEAD, _RX_PAYLOAD_HEAD = 0x1B8, 0x1BC
+_ENCR_RAM_CONFIG = 0x0D8  # station key range: start [7:0], end [15:8]
+# DMA_CNTRL_SET bits
+_RX_PAYLOAD_NEW_HEAD, _RX_HEADER_NEW_HEAD = 1 << 27, 1 << 26
+_TX_NEW_HEAD = {4: 1 << 8, 0: 1 << 9, 1: 1 << 10, 2: 1 << 11, 3: 1 << 12}
+_TX_NEW_TAIL = {4: 1 << 0, 0: 1 << 1, 1: 1 << 2, 2: 1 << 3, 3: 1 << 4}
+_STATION_KEYS = (24, 63)  # used when the firmware has not programmed the range
+_RSSI = -45
 
 _VERSION_VALUE = 0x00001C03  # no BFMER, no MU-MIMO
 _IDLE, _DOZE, _ACTIVE = 0, 2, 3
@@ -70,6 +82,7 @@ _CORE_WORDS |= {_ABS_TIMER + 4 * i for i in range(_ABS_TIMERS)}
 _PL_WORDS = {
     _DOZE_CNTRL_2, _GEN_STATUS, _GEN_ACK, _GEN_ENABLE, _TXRX_STATUS, _TXRX_ACK, _TXRX_ENABLE,
     _EVENT_SET, _EVENT_CLEAR, _UNMASK, _TSF_LO, _TSF_HI, _TOA_VALUE, _DMA_STATUS_1,
+    _DMA_CNTRL_SET, _DMA_CNTRL_CLEAR,
 }
 
 
@@ -112,17 +125,51 @@ class Mac(Module):
     """`irq` maps the line names prot_trigger, tx_trigger, rx_trigger, tx_rx_timer,
     tx_rx_misc and general to ICU lines."""
 
-    def __init__(self, name, clock=None, mac_powered=None, irq=None, **params):
+    def __init__(self, name, clock=None, mac_powered=None, irq=None, memory=None, **params):
         super().__init__(name, **params)
         self._clock = clock
         self._irq = irq or {}
+        self._air = None
         self._core = _CoreBank("MAC_CORE", clock=clock, mac_powered=mac_powered).attach(self)
         self._pl = _PlBank("MAC_PL").attach(self)
+        self._frames = FrameEngine(memory, self._transmitted, self._raise_txrx)
         self.reset()
 
+    def attach(self, air):
+        """The far end of the air: `transmit(frame)`, `tick(now_ns)`, `next_event_ns()`,
+        `reset()` and `attach(deliver)`, which gets the function that hands it a received frame."""
+        self._air = air
+        air.attach(self.receive)
+
+    def receive(self, frame):
+        """A frame arrives from the air. Only an ACTIVE MAC is listening."""
+        if self._state != _ACTIVE:
+            return
+        us = self._core.microseconds() or 0
+        self._frames.receive(frame, self._tsf(us), _RSSI, self._station_key(bytes(frame[10:16])))
+
+    def _transmitted(self, frame):
+        if self._air is not None:
+            self._air.transmit(frame)
+
+    def _raise_txrx(self, bits):
+        self._txrx |= bits
+        self._drive_lines()
+
+    def _station_key(self, address):
+        """Index of the station key entry for `address`, as the hardware reports it."""
+        config = self._core.peek(_ENCR_RAM_CONFIG)
+        low, high = (config & 0xFF, config >> 8 & 0xFF) if config else _STATION_KEYS
+        if high < low:
+            low, high = _STATION_KEYS
+        return next((i for i, entry in self._keys.items() if low <= i <= high and entry[0] == address), None)
+
     def reset(self):
+        if self._air is not None:
+            self._air.reset()
         self._core.reset()
         self._pl.reset()
+        self._frames.reset()
         self._state = self._next_state = _IDLE
         self._general = self._txrx = 0
         self._events = 0
@@ -149,6 +196,9 @@ class Mac(Module):
     def tick(self, now_ns):
         self._core.tick(now_ns)
         self._pl.tick(now_ns)
+        self._frames.complete(now_ns)
+        if self._air is not None:
+            self._air.tick(now_ns)
         us = self._core.microseconds()
         if us is None:
             return
@@ -175,15 +225,17 @@ class Mac(Module):
         self._drive_lines()
 
     def next_event_ns(self):
+        events = [self._frames.next_event_ns(), self._air.next_event_ns() if self._air else None]
         us = self._core.microseconds()
-        if us is None:
-            return None
-        waits = [(self._targets[i] - us) & _MASK_32 for i in range(_ABS_TIMERS) if self._armed[i]]
-        period = self._beacon_period_us()
-        if period and self._state in (_ACTIVE, _DOZE):
-            tsf = self._tsf(us)
-            waits.append((tsf // period + 1) * period - tsf)
-        return self._clock.now_ns() + min(waits) * 1000 if waits else None
+        if us is not None:
+            waits = [(self._targets[i] - us) & _MASK_32 for i in range(_ABS_TIMERS) if self._armed[i]]
+            period = self._beacon_period_us()
+            if period and self._state in (_ACTIVE, _DOZE):
+                tsf = self._tsf(us)
+                waits.append((tsf // period + 1) * period - tsf)
+            if waits:
+                events.append(self._clock.now_ns() + min(waits) * 1000)
+        return min((e for e in events if e is not None), default=None)
 
     def _beacon_period_us(self):
         return (self._core.peek(_BCN_CNTRL_1) & 0xFFFF) * _TU_US
@@ -230,8 +282,8 @@ class Mac(Module):
             return self._tsf(us or 0) & _MASK_32
         if word == _TSF_HI:
             return self._tsf(us or 0) >> 32
-        if word == _DMA_STATUS_1:
-            return 0  # every DMA state machine idle
+        if word in (_DMA_STATUS_1, _DMA_CNTRL_SET, _DMA_CNTRL_CLEAR):
+            return 0  # every DMA state machine idle; the control registers are commands
         return None
 
     def written(self, bank, word, value):
@@ -288,7 +340,22 @@ class Mac(Module):
         elif word == _TOA_VALUE:
             if value & _COMPUTE_DURATION:
                 return self._time_on_air()
+        elif word == _DMA_CNTRL_SET:
+            self._dma_command(value)
         return value
+
+    def _dma_command(self, value):
+        peek = self._pl.peek
+        self._frames.set_rx_heads(
+            header=peek(_RX_HEADER_HEAD) if value & _RX_HEADER_NEW_HEAD else None,
+            payload=peek(_RX_PAYLOAD_HEAD) if value & _RX_PAYLOAD_NEW_HEAD else None,
+        )
+        now = self._clock.now_ns()
+        for queue, register in _TX_HEAD.items():
+            if value & _TX_NEW_HEAD[queue]:
+                self._frames.transmit(queue, peek(register), now)
+            elif value & _TX_NEW_TAIL[queue]:
+                self._frames.transmit(queue, 0, now)
 
     def settled(self):
         """After a behaviour register was stored: the interrupt lines may have changed."""

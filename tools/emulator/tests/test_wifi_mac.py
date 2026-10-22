@@ -269,6 +269,150 @@ class TimeOnAirTest(unittest.TestCase):
         self.assertEqual(value & 0xFFFF, 20 + 100 * 8 // 6)
 
 
+class Air:
+    def __init__(self):
+        self.sent = []
+        self.ticks = []
+        self.wake = None
+        self.deliver = None
+
+    def attach(self, deliver):
+        self.deliver = deliver
+
+    def transmit(self, frame):
+        self.sent.append(frame)
+
+    def tick(self, now_ns):
+        self.ticks.append(now_ns)
+
+    def next_event_ns(self):
+        return self.wake
+
+    def reset(self):
+        self.resets = getattr(self, "resets", 0) + 1
+
+
+DMA_SET = 0x180
+TX_HEAD = {4: 0x198, 0: 0x19C}
+TX_NEW_HEAD = {4: 1 << 8, 0: 1 << 9}
+RX_HEADER_HEAD, RX_PAYLOAD_HEAD = 0x1B8, 0x1BC
+RX_NEW_HEADER, RX_NEW_PAYLOAD = 1 << 26, 1 << 27
+TX_ENABLE_BCN = 1 << 10
+ENCR_RAM_CONFIG = 0x0D8
+
+
+def make_with_air(on=True, attach=True):
+    from tests.test_wifi_frames import BASE, Memory, Rig
+
+    memory, air = Memory(), Air()
+    clock, power = Clock(), Power(on)
+    lines = {n: Line() for n in ("general", "tx_trigger", "rx_trigger", "prot_trigger", "tx_rx_timer", "tx_rx_misc")}
+    mac = Mac("MAC", clock=clock, mac_powered=power, irq=lines, memory=memory)
+    if attach:
+        mac.attach(air)
+    mac.tick(0)
+    rig = Rig()
+    rig.memory = memory
+    return mac, clock, air, lines, rig, BASE
+
+
+class AirTest(unittest.TestCase):
+    def test_a_queue_kick_hands_the_frame_to_the_air(self):
+        from tests.test_wifi_frames import FRAME
+
+        mac, _, air, _, rig, base = make_with_air()
+        rig.put_tx(base, base + 0x100)
+        core_pl = lambda offset, value: mac.write("pl", offset, 4, value)
+        core_pl(TX_HEAD[4], base)
+        core_pl(DMA_SET, TX_NEW_HEAD[4])
+        self.assertEqual(air.sent, [FRAME])
+
+    def test_the_trigger_line_rises_when_the_transmission_completes(self):
+        mac, clock, air, lines, rig, base = make_with_air()
+        pl(mac, TXRX_ENABLE, MASTER | TX_ENABLE_BCN)
+        rig.put_tx(base, base + 0x100)
+        pl(mac, TX_HEAD[4], base)
+        pl(mac, DMA_SET, TX_NEW_HEAD[4])
+        self.assertFalse(lines["tx_trigger"].level)
+        self.assertEqual(mac.next_event_ns(), 150_000)
+        advance(mac, clock, 150)
+        self.assertTrue(lines["tx_trigger"].level)
+        self.assertEqual(pl(mac, TXRX_STATUS), TX_ENABLE_BCN)
+        pl(mac, TXRX_ACK, TX_ENABLE_BCN)
+        self.assertFalse(lines["tx_trigger"].level)
+
+    def test_dma_command_registers_read_zero(self):
+        mac, *_ = make_with_air()
+        pl(mac, DMA_SET, 0)
+        self.assertEqual((pl(mac, DMA_SET), pl(mac, 0x184)), (0, 0))
+
+    def set_up_rx(self, mac, rig, base):
+        buf = rig.put_rx(base + 0x400, base + 0x500)
+        pl(mac, RX_HEADER_HEAD, base + 0x400)
+        pl(mac, RX_PAYLOAD_HEAD, base + 0x500)
+        pl(mac, DMA_SET, RX_NEW_HEADER | RX_NEW_PAYLOAD)
+        return buf
+
+    def test_a_received_frame_lands_in_the_buffers_when_the_mac_is_active(self):
+        from tests.test_wifi_frames import FRAME
+
+        mac, _, air, lines, rig, base = make_with_air()
+        pl(mac, TXRX_ENABLE, MASTER | 1 << 16)
+        buf = self.set_up_rx(mac, rig, base)
+        core(mac, STATE_CNTRL, 3 << 4)
+        air.deliver(FRAME)
+        self.assertEqual(rig.memory.read(buf, len(FRAME)), FRAME)
+        self.assertTrue(lines["rx_trigger"].level)
+
+    def test_a_frame_for_an_idle_mac_is_lost(self):
+        from tests.test_wifi_frames import FRAME
+
+        mac, _, air, lines, rig, base = make_with_air()
+        pl(mac, TXRX_ENABLE, MASTER | 1 << 16)
+        buf = self.set_up_rx(mac, rig, base)
+        air.deliver(FRAME)
+        self.assertEqual(rig.memory.read(buf, 4), bytes(4))
+        self.assertFalse(lines["rx_trigger"].level)
+
+    def test_the_header_descriptor_carries_the_tsf_and_the_sender_key_index(self):
+        from tests.test_wifi_frames import FRAME
+
+        mac, clock, air, _, rig, base = make_with_air()
+        self.set_up_rx(mac, rig, base)
+        core(mac, STATE_CNTRL, 3 << 4)
+        sender = FRAME[10:16]
+        core(mac, ENCR_ADDR_LO, int.from_bytes(sender[:4], "little"))
+        core(mac, ENCR_ADDR_HI, int.from_bytes(sender[4:], "little"))
+        core(mac, ENCR_CNTRL, 1 << 30 | 30 << 16)  # key entry 30 in the station range
+        advance(mac, clock, 500)
+        air.deliver(FRAME)
+        rhd = base + 0x400
+        self.assertEqual(rig.memory.word(rhd + 32), 500)
+        status = rig.memory.word(rhd + 64)
+        self.assertTrue(status & 0x02000000)
+        self.assertEqual(status >> 15 & 0x3FF, 30)
+
+    def test_the_air_is_ticked_and_its_wake_up_time_counts(self):
+        mac, clock, air, *_ = make_with_air()
+        air.wake = 5000
+        advance(mac, clock, 10)
+        self.assertEqual(air.ticks[-1], 10 * US)
+        self.assertEqual(mac.next_event_ns(), 5000)
+
+    def test_a_chip_reset_resets_the_air(self):
+        mac, _, air, *_ = make_with_air()
+        mac.reset()
+        self.assertEqual(air.resets, 1)
+
+    def test_without_an_air_a_transmission_still_completes(self):
+        mac, clock, _, _, rig, base = make_with_air(attach=False)
+        rig.put_tx(base, base + 0x100)
+        pl(mac, TX_HEAD[4], base)
+        pl(mac, DMA_SET, TX_NEW_HEAD[4])
+        advance(mac, clock, 150)
+        self.assertTrue(rig.memory.word(base + 60) & (1 << 31))
+
+
 class ResetTest(unittest.TestCase):
     def test_reset_clears_state_and_interrupts(self):
         mac, _, _, lines = make()

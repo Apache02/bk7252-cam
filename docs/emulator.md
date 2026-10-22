@@ -36,7 +36,8 @@ Options:
 | ------ | ------- |
 | `PROFILE` | Profile name, upper case: `profiles/PROFILE.toml`. |
 | `--load TARGET:FILE` | Copy FILE byte for byte to TARGET. Repeatable, at least one is required. |
-| `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wdt`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. |
+| `-p`, `--publish [HOST_IP:]HOST_PORT:GUEST_PORT[/tcp\|/udp]` | Forward a host port to a port of the firmware, written like Docker's `-p`. Repeatable. See [Network](#network). |
+| `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wdt`, `net`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. |
 | `--uart1 SPEC`, `--uart2 SPEC` | Host end of the UART: `pty` (default), `stdio`, or a serial device path. |
 
 Log lines go to stderr. When stderr is a terminal, warnings are yellow and errors red; `NO_COLOR=1`
@@ -54,6 +55,34 @@ flash load must start on a 34-byte block boundary and be a multiple of 34 bytes.
 addresses are accepted only inside RAM; loading into a module's range or outside memory is an
 error reported before the emulator starts.
 
+## Network
+
+With `-p` the emulator puts a virtual wifi station next to the firmware's access point. It
+joins the open network, takes an address from the firmware's DHCP server, and forwards the
+published host ports to the firmware:
+
+```sh
+tools/emulator/run BK7252 --load ... -p 8080:80 -p 2323:23 -p 5000:5000/udp
+curl http://127.0.0.1:8080/        # the firmware's HTTP server
+telnet 127.0.0.1 2323              # its shell
+```
+
+| Form | Meaning |
+| ---- | ------- |
+| `-p 8080:80` | TCP, host `127.0.0.1:8080` to firmware port 80 |
+| `-p 5000:5000/udp` | UDP; add `/tcp` to be explicit |
+| `-p 0.0.0.0:8080:80` | Listen on all host interfaces (the default is `127.0.0.1`, unlike Docker, because the firmware's telnet has no password) |
+
+Every TCP client gets its own connection to the firmware. A client that connects before the
+firmware has an address waits for it (up to 30 s of device time). Each UDP client address
+gets its own firmware-side port, forgotten after 60 s of device time without traffic; the
+replies go back to that client. `-d net` logs the join, the lease and every connection.
+
+Only the case of the firmware as an access point is covered: the station joins an open
+network, there is one station, the firmware cannot reach the host's network, and a chip reset
+(`reboot`, watchdog) drops all connections and joins again. Frames cross the air in the
+clear; encryption is not modelled.
+
 ## What is emulated
 
 | Block | Notes |
@@ -63,7 +92,7 @@ error reported before the emulator starts.
 | Flash | 2 MiB raw store and the CRC-decoded XIP window. A block with a bad CRC logs an `ALERT` line and raises a Data Abort while `conf.crc_en` is set. Controller commands: read ID, read and write status registers, write enable/disable, 32-byte read, 32-byte page program (clears bits only), sector, 32 KB and 64 KB block erase, chip erase. The write rules follow `docs/hardware/flash.md`: a command needs `WP#` released and a set write-enable latch (consumed by it); block-protection bits in the status register stop programs and erases (a rejected command logs a warning). Changes show up in the XIP window at once. So `tools/bkloader flash` and a reboot into the written app work. The contents live in memory only and are lost when the emulator exits. `--debug flash` prints every erase, program, status-register write and write-enable change, decoded (reads are not logged). |
 | SCTRL | `chip_id` and `device_id` (read-only, set in the profile); every other register reads back what was written, starting from the profile's `reset_words` (`warm_reset_words` after a chip reset). No analog or clock behaviour. A profile hack (`read_adjust`) makes the MCLK divider (`control[7:4]`) read one higher than written, so busy-wait loops, which count iterations from it, run shorter in emulated time (the emulator is several times slower than the chip). A firmware read-modify-write of that register stores the biased value back, so the divider drifts up to its maximum; `cpu_speed` and `mclk` show the biased frequency. |
 | GDMA | Six channels, memory to memory, with the byte-accumulator model of `docs/hardware/dma.md` (widths, +4 address steps, zero-padded tail) and its transfer times. The copy lands when the modelled time has passed; `enable` clears, the finish and half-finish flags and the interrupt follow. Channels with a peripheral request line stall and repeat mode runs once, both with a warning. A bus error aborts the channel with an error line. `--debug gdma` prints every configuration, start, completion and acknowledge decoded. |
-| WiFi blocks | The register banks of `src/platform/soc/include/rwnx`, one module each in `modules/wifi/`: MAC (core and PL blocks together), MAC PTA, modem config and status, AGC, AGC microcode RAM (`0x0100A000`, 2 KiB), RC, NX interrupt controller, NX DMA, LA. Most are plain memory (what is written reads back, bytes and halfwords included) with no behaviour, so status bits that hardware would clear stay as written. The MAC has behaviour, modelled after the RivieraWaves interface the firmware drives: the state register (`state_cntrl`; leaving a state for IDLE raises the IDLE interrupt, which the firmware waits for before it starts an AP), the general and TX/RX interrupt registers and their six ICU FIQ lines (17-22), the ten ABS timers, the TSF, the TBTT interrupt, the key storage RAM and the time-on-air calculator. The monotonic counters (`monotonic_counter_1` at 40 MHz, `monotonic_counter_2_lo/_hi` in microseconds) run while the MAC is powered (the SCTRL power register holds the wake key) and read 0 otherwise. The MAC PL soft-reset bit (`mac_cntrl_2`, +0x50) clears itself at the next tick. Frames are not sent or received: TX queue kicks and RX buffers do nothing yet. `--debug wifi` logs every read and write of every WiFi block; `--debug wifi.mac_core` picks one block. |
+| WiFi blocks | The register banks of `src/platform/soc/include/rwnx`, one module each in `modules/wifi/`: MAC (core and PL blocks together), MAC PTA, modem config and status, AGC, AGC microcode RAM (`0x0100A000`, 2 KiB), RC, NX interrupt controller, NX DMA, LA. Most are plain memory (what is written reads back, bytes and halfwords included) with no behaviour, so status bits that hardware would clear stay as written. The MAC has behaviour, modelled after the RivieraWaves interface the firmware drives: the state register (`state_cntrl`; leaving a state for IDLE raises the IDLE interrupt, which the firmware waits for before it starts an AP), the general and TX/RX interrupt registers and their six ICU FIQ lines (17-22), the ten ABS timers, the TSF, the TBTT interrupt, the key storage RAM and the time-on-air calculator. The monotonic counters (`monotonic_counter_1` at 40 MHz, `monotonic_counter_2_lo/_hi` in microseconds) run while the MAC is powered (the SCTRL power register holds the wake key) and read 0 otherwise. The MAC PL soft-reset bit (`mac_cntrl_2`, +0x50) clears itself at the next tick. Frames: a TX queue kick walks the descriptor chain and hands each frame to the air, and a little later marks it done and raises the queue's trigger; the receive chain takes frames from the air, with the TSF and the sender's key index, while the MAC is ACTIVE. The air is the virtual station of [Network](#network); without `-p` nobody answers. `--debug wifi` logs every read and write of every WiFi block; `--debug wifi.mac_core` picks one block. |
 | GPIO | 40 pins in two banks. A pin drives its pad while its output driver is on; otherwise the pad follows the level forced from the host side, then the pull resistor, then reads 0. Interrupts: level low/high, rising/falling edge. Peripheral functions of a pin are not modelled. |
 | TRNG | Not random, so runs are repeatable: `data` returns a read counter (0, 1, 2, ...) and `ctrl.enable` is 1 from the start and after a chip reset. While disabled, `data` is a plain latch, as in `docs/hardware/random.md`. |
 | ICU | Interrupt enable, status, global IRQ/FIQ enables. |
@@ -115,7 +144,7 @@ Booting a real image is a manual check.
 
 ## Limits
 
-One chip. Flash is not saved between runs. The WiFi MAC sends and receives no frames, the other
-WiFi blocks are plain memory, and there are no JPEG or camera sensor modules, so DMA from the JPEG request line
+One chip. Flash is not saved between runs. The WiFi blocks other than the MAC are plain
+memory, the network covers only the firmware as an open access point, and there are no JPEG or camera sensor modules, so DMA from the JPEG request line
 stalls. The GPIO module has a Python interface (`set_input`, `pad_level`, `watch`) for
 tests and scripts, but the command line does not expose it; firmware that needs them runs into the log lines above.
