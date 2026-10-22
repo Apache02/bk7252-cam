@@ -127,6 +127,12 @@ name = "AGC"
 regs = 0x01002000
 
 [[module]]
+type = "wifi_agc_ram"
+name = "AGC_RAM"
+[module.bases]
+regs = 0x0100A000
+
+[[module]]
 type = "wifi_rc"
 name = "RC"
 [module.bases]

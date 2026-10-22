@@ -175,13 +175,13 @@ class Bk7252ProfileTest(unittest.TestCase):
 
     def test_it_builds_with_every_wifi_block(self):
         machine = self.machine()
-        for name in ("MAC_CORE", "MAC_PL", "MAC_PTA", "MDM_CFG", "MDM_STAT", "AGC", "RC", "NX_INTC", "NX_DMA", "LA"):
+        for name in ("MAC_CORE", "MAC_PL", "MAC_PTA", "MDM_CFG", "MDM_STAT", "AGC", "AGC_RAM", "RC", "NX_INTC", "NX_DMA", "LA"):
             self.assertIn(name, machine.modules)
 
     def test_guest_reaches_the_wifi_blocks_without_a_bus_error(self):
         machine = self.machine()
         cpu = machine.cpu
-        for address in (0x01000000, 0x01000800, 0x01002000, 0x01050000, 0x10910000,
+        for address in (0x01000000, 0x01000800, 0x01002000, 0x0100A000, 0x01050000, 0x10910000,
                         0x10A00000, 0x10E00000, 0xC0000000, 0xC0008000, 0xC0010000):
             cpu.mem_write(0x00900100, struct.pack("<I", address))
             cpu.mem_write(0x00900000, struct.pack("<2I", 0xE59F10F8, 0xE5910000))

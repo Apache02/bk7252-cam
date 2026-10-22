@@ -1,11 +1,13 @@
 import unittest
 
 from modules.wifi import (
-    Agc, La, MacCore, MacPl, MacPta, MdmCfg, MdmStat, NxDma, NxIntc, Rc,
+    Agc, AgcRam, La, MacCore, MacPl, MacPta, MdmCfg, MdmStat, NxDma, NxIntc, Rc,
 )
 
 # block, size in bytes: sizeof(hw_*_t) from src/platform/soc/include/rwnx/*.h
+# (AgcRam: the 512-word microcode image the radio code writes at 0x0100A000)
 BLOCKS = [
+    (AgcRam, 512 * 4),
     (MacCore, 1376 * 4), (MacPl, 351 * 4), (MacPta, 10 * 4), (MdmCfg, 38 * 4),
     (MdmStat, 27 * 4), (Agc, 44 * 4), (Rc, 480), (NxIntc, 17 * 4), (NxDma, 49 * 4), (La, 16 * 4),
 ]
