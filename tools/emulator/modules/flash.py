@@ -101,7 +101,7 @@ class FlashModule(Module):
                 "flash load of %d bytes at 0x%X must start on a %d-byte block boundary"
                 % (size, offset, BLOCK)
             )
-        if offset + size > self._blocks * BLOCK:
+        if offset + size > self._size:
             raise ValueError(
                 "flash load of %d bytes at 0x%X does not fit the %d byte flash"
                 % (size, offset, self._size)

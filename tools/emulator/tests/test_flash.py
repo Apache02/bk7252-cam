@@ -128,6 +128,10 @@ class FlashTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "34"):
             self.flash.load(1, b"\x00" * 34)
 
+    def test_a_full_2_mib_dump_can_be_loaded_at_offset_0(self):
+        self.flash.load(0, b"\x5A" * 0x200000)
+        self.assertEqual(bytes(self.flash._raw[-32:]), b"\x5A" * 32)
+
     def test_load_past_flash_end_rejected(self):
         with self.assertRaisesRegex(ValueError, "flash"):
             self.flash.load(0x200000 - 34, b"\x00" * 68)

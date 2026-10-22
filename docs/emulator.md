@@ -53,7 +53,8 @@ turns the colour off and `FORCE_COLOR=1` turns it on for a pipe or a file.
 
 Flash aliases point at **raw physical** flash, so a `*_crc.bin` file is loaded as it is. A
 flash load must start on a 34-byte block boundary; it can be any length, and the rest of the
-flash stays erased (`0xFF`). Numeric
+flash stays erased (`0xFF`). A full 2 MiB dump loads at offset 0, so use
+`--load bootloader:full_dump.bin`; a numeric address `0x0` is the XIP window and is refused. Numeric
 addresses are accepted only inside RAM; loading into a module's range or outside memory is an
 error reported before the emulator starts.
 
