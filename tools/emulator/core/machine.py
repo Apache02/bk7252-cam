@@ -48,7 +48,12 @@ class Machine:
             params["endpoint"] = endpoints[spec.name]
         if "intc" in params:
             controller = self._earlier(spec, params.pop("intc"))
-            params["irq"] = controller.line(params["irq"])
+            irq = params["irq"]
+            params["irq"] = (
+                {name: controller.line(bit) for name, bit in irq.items()}
+                if isinstance(irq, dict)
+                else controller.line(irq)
+            )
         for key in [k for k in params if k.endswith("_signal")]:
             owner, _, signal = params.pop(key).partition(".")
             params[key[: -len("_signal")]] = self._earlier(spec, owner).signal(signal)

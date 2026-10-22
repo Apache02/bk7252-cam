@@ -36,6 +36,14 @@ class RegisterBank(Module):
             self._log.debug("%s write +0x%04X (%d bytes) = 0x%0*X", self.name, offset, size, size * 2, value)
         self.store(offset, size, value)
 
+    def peek(self, offset):
+        """The stored word at `offset`, unlogged."""
+        return int.from_bytes(self._memory[offset:offset + 4], "little")
+
+    def poke(self, offset, value):
+        """Set the stored word at `offset`, unlogged."""
+        self._memory[offset:offset + 4] = (value & 0xFFFFFFFF).to_bytes(4, "little")
+
     def load(self, offset, size):
         """What a read returns; blocks with live registers override this."""
         return int.from_bytes(self._memory[offset:offset + size], "little")

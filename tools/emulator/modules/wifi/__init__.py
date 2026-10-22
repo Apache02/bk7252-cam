@@ -6,6 +6,7 @@ Profile type names are the keys of WIFI_MODULES.
 from modules.wifi.agc import Agc
 from modules.wifi.agc_ram import AgcRam
 from modules.wifi.la import La
+from modules.wifi.mac import Mac
 from modules.wifi.mac_core import MacCore
 from modules.wifi.mac_pl import MacPl
 from modules.wifi.mac_pta import MacPta
@@ -19,8 +20,7 @@ WIFI_MODULES = {
     "wifi_agc": Agc,
     "wifi_agc_ram": AgcRam,
     "wifi_la": La,
-    "wifi_mac_core": MacCore,
-    "wifi_mac_pl": MacPl,
+    "wifi_mac": Mac,
     "wifi_mac_pta": MacPta,
     "wifi_mdm_cfg": MdmCfg,
     "wifi_mdm_stat": MdmStat,

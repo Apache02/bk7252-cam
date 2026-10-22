@@ -36,6 +36,11 @@ class MacCore(RegisterBank):
     def tick(self, now_ns):
         self._elapsed_ns()
 
+    def microseconds(self):
+        """The 48-bit microsecond counter, or None while the MAC is powered down."""
+        elapsed = self._elapsed_ns()
+        return None if elapsed is None else (elapsed // 1000 + self._offset_us) & _MASK_48
+
     def load(self, offset, size):
         word = offset & ~3
         if word not in (_COUNTER_1, _COUNTER_2_LO, _COUNTER_2_HI):

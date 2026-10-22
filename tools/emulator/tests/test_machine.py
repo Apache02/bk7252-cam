@@ -175,7 +175,7 @@ class Bk7252ProfileTest(unittest.TestCase):
 
     def test_it_builds_with_every_wifi_block(self):
         machine = self.machine()
-        for name in ("MAC_CORE", "MAC_PL", "MAC_PTA", "MDM_CFG", "MDM_STAT", "AGC", "AGC_RAM", "RC", "NX_INTC", "NX_DMA", "LA"):
+        for name in ("MAC", "MAC_PTA", "MDM_CFG", "MDM_STAT", "AGC", "AGC_RAM", "RC", "NX_INTC", "NX_DMA", "LA"):
             self.assertIn(name, machine.modules)
 
     def test_guest_reaches_the_wifi_blocks_without_a_bus_error(self):
@@ -192,7 +192,7 @@ class Bk7252ProfileTest(unittest.TestCase):
 
     def test_mac_counters_run_once_the_mac_is_powered(self):
         machine = self.machine()
-        counter_lo = lambda: machine.modules["MAC_CORE"].read("regs", 0x120, 4)
+        counter_lo = lambda: machine.modules["MAC"].read("core", 0x120, 4)
         machine.cpu.mem_write(0x00900000, struct.pack("<I", 0xEAFFFFFE))  # b .
         machine.cpu.reset(0x00900000)
         machine.scheduler.step()
