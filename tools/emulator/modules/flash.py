@@ -248,7 +248,7 @@ class FlashModule(Module):
                 "flash PP at 0x%06X suppressed: block protection is set in the status register", addr
             )
             return
-        if not self._wel:
+        if not self._wel and op not in (_OP_WRSR, _OP_WRSR2):  # the controller sends the WREN for these
             log.warning("flash %s at 0x%06X ignored: write enable latch not set", name, addr)
             return
         self._wel = False

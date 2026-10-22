@@ -200,8 +200,10 @@ succeed:
 1. **Flash SR Write Enable Latch (WEL).** The flash chip requires a WREN
    command before every PP, SE, or WRSR. WEL is cleared by the flash chip
    after each such operation completes — including after a rejected attempt.
-   **The controller does not issue WREN automatically. Every erase or program
-   sequence must begin with an explicit WREN operation.**
+   **For PP and SE the controller does not issue WREN automatically: every
+   erase or program sequence must begin with an explicit WREN operation.**
+   WRSR and WRSR2 are the exception: a status register write without a
+   preceding WREN takes effect (block protection gets set that way).
 
 2. **Controller BP check.** The controller reads the flash SR block-protection
    (BP) bits before issuing PP. **If any BP bit is non-zero the controller
@@ -308,13 +310,12 @@ unmodified only if a read-modify-write is used.
 
 ### Clear write protection
 
-1. Issue WREN: write `operate_sw = (WREN << 24) | (1 << 29) | (1 << 30)`.
-   Poll `busy` until 0.
-2. Write the desired SR value into `conf.wrsr_data` (bits `[25:10]`).
-3. Write `operate_sw = (WRSR << 24) | (1 << 29) | (1 << 30)`.
+1. Write the desired SR value into `conf.wrsr_data` (bits `[25:10]`).
+2. Write `operate_sw = (WRSR << 24) | (1 << 29) | (1 << 30)`.
    Poll `busy` until 0.
 
-To remove all block protection, write `0x00` to `conf.wrsr_data` before step 3.
+A WREN before step 2 is not needed but does no harm.
+To remove all block protection, write `0x00` to `conf.wrsr_data` before step 2.
 Use WRSR2 (opcode 7) to write a 16-bit value covering SR1+SR2 on chips with
 two status register bytes. After the WRSR trigger, poll `operate_sw.busy` until
 0; the internal SR write cycle completes in up to 30 ms (t_W max on EN25QH16B).

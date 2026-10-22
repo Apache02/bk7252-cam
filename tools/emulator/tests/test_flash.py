@@ -261,14 +261,34 @@ class WriteTest(unittest.TestCase):
         self.assertEqual(self.raw(0), b"\x55" * 32)
         self.assertEqual(self.sr() & SR_WEL, 0)
 
-    def test_write_status_register_needs_the_latch_and_keeps_the_ro_bits(self):
+    def test_write_status_register_keeps_the_ro_bits(self):
         conf = self.flash.read("ctrl", CONF, 4) & ~(0xFFFF << 10)
         self.flash.write("ctrl", CONF, 4, conf | 0x7F << 10)
-        self.op(WRSR)  # no WREN: ignored
-        self.assertEqual(self.sr(), 0)
         self.op(WREN)
         self.op(WRSR)
         self.assertEqual(self.sr(), 0x7C)  # bits 0 (WIP) and 1 (WEL) are read-only
+
+    def test_write_status_register_needs_no_explicit_write_enable(self):
+        conf = self.flash.read("ctrl", CONF, 4) & ~(0xFFFF << 10)
+        self.flash.write("ctrl", CONF, 4, conf | 0x7C << 10)
+        self.op(WRSR)
+        self.assertEqual(self.sr(), 0x7C)
+        self.assertEqual(self.sr() & SR_WEL, 0)
+
+    def test_write_status_register_2_needs_no_explicit_write_enable(self):
+        conf = self.flash.read("ctrl", CONF, 4) & ~(0xFFFF << 10)
+        self.flash.write("ctrl", CONF, 4, conf | 0x0200 << 10)
+        self.op(WRSR2)
+        self.op(RDSR2)
+        self.assertEqual(self.flash.read("ctrl", SR_REG, 4) & 0xFF, 0x02)
+
+    def test_page_program_still_needs_an_explicit_write_enable(self):
+        self.op(WREN)
+        self.op(SE, 0)
+        self.fill_fifo(b"\x55" * 32)
+        with self.assertLogs("emulator.flash", level="WARNING"):
+            self.op(PP, 0)
+        self.assertEqual(self.raw(0), b"\xff" * 32)
 
     def test_block_protection_suppresses_page_program_and_keeps_the_latch(self):
         self.set_sr(0x7C)
