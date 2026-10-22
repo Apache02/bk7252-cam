@@ -113,6 +113,43 @@ class WdtTest(unittest.TestCase):
         advance(wdt, clock, 16_385 * MS)
         self.assertEqual(len(resets), 1)
 
+    def kick_logs(self, wdt, period):
+        with self.assertLogs("emulator.wdt", level="DEBUG") as logs:
+            kick(wdt, period)
+        return logs.output
+
+    def test_debug_log_shows_time_since_the_last_kick_as_percent_of_the_period(self):
+        wdt, clock, _, _ = make()
+        kick(wdt, 2000)
+        advance(wdt, clock, 1500 * MS)
+        (line,) = self.kick_logs(wdt, 2000)
+        self.assertIn("1500.0 ms since the last kick", line)
+        self.assertIn("75%", line)
+
+    def test_debug_log_shows_how_far_the_reset_moved(self):
+        wdt, clock, _, _ = make()
+        kick(wdt, 2000)
+        advance(wdt, clock, 1500 * MS)
+        (line,) = self.kick_logs(wdt, 3000)
+        self.assertIn("postponed by 2500.0 ms", line)
+        self.assertIn("period 3000 ms", line)
+
+    def test_debug_log_for_the_first_kick_has_no_previous_one(self):
+        wdt, *_ = make()
+        wdt.tick(0)
+        (line,) = self.kick_logs(wdt, 2000)
+        self.assertIn("first kick", line)
+
+    def test_debug_log_for_a_kick_while_the_clock_is_off(self):
+        wdt, *_ = make(off=True)
+        (line,) = self.kick_logs(wdt, 2000)
+        self.assertIn("clock is powered down", line)
+
+    def test_a_half_kick_is_not_logged(self):
+        wdt, *_ = make()
+        with self.assertNoLogs("emulator.wdt", level="DEBUG"):
+            write(wdt, KEY1 | 2000)
+
     def test_reset_restores_default_and_stops_countdown(self):
         wdt, clock, _, resets = make()
         kick(wdt, 100)

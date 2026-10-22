@@ -36,7 +36,7 @@ Options:
 | ------ | ------- |
 | `PROFILE` | Profile name, upper case: `profiles/PROFILE.toml`. |
 | `--load TARGET:FILE` | Copy FILE byte for byte to TARGET. Repeatable, at least one is required. |
-| `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. |
+| `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wdt`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. |
 | `--uart1 SPEC`, `--uart2 SPEC` | Host end of the UART: `pty` (default), `stdio`, or a serial device path. |
 
 Log lines go to stderr. When stderr is a terminal, warnings are yellow and errors red; `NO_COLOR=1`
@@ -69,7 +69,7 @@ error reported before the emulator starts.
 | ICU | Interrupt enable, status, global IRQ/FIQ enables. |
 | UART1, UART2 | 128-byte RX FIFO, instant TX, level and latched interrupts. |
 | Timers | Two banks (26 MHz and 32 kHz), three periodic timers each. |
-| WDT | Period in ms and the `0x5A`/`0xA5` reload keys. Counts only while the ICU clock-power-down bit for it is 0 (it is 1 at reset). Expiry resets the chip. |
+| WDT | Period in ms and the `0x5A`/`0xA5` reload keys. Counts only while the ICU clock-power-down bit for it is 0 (it is 1 at reset). Expiry resets the chip. `-d wdt` logs every reload ("kick"): the period, the time since the previous kick as a percent of its period (close to 100% means the chip nearly reset) and how far the reset moved. |
 
 A chip reset (watchdog expiry, so also the shell `reboot` command) fills every memory region that has a
 `reset_fill` in the profile with that byte (both RAM blocks of BK7252 use `0xAA`; a region without

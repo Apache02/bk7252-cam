@@ -27,6 +27,8 @@ class WdtModule(Module):
     def reset(self):
         self._ctrl = _DEFAULT
         self._start = None
+        self._loaded_ms = _DEFAULT  # period the running countdown was started with
+        self._kicked = False
         self._key1_seen = False
 
     def ranges(self):
@@ -42,9 +44,32 @@ class WdtModule(Module):
             self._key1_seen = True
         elif key == _KEY2 and self._key1_seen:
             self._key1_seen = False
-            self._start = self._clock.now_ns() if self._running() else None
+            self._kick()
         else:
             self._key1_seen = False
+
+    def _kick(self):
+        now = self._clock.now_ns()
+        period = self._ctrl & 0xFFFF
+        if not self._running():
+            self._start = None
+            log.debug("kick, period %d ms: the clock is powered down, nothing counts", period)
+            return
+        label = "kick" if self._kicked else "first kick"
+        if self._start is None:
+            log.debug("%s, period %d ms: the countdown had not started", label, period)
+        else:
+            elapsed = now - self._start
+            percent = round(elapsed * 100 / (self._loaded_ms * _MS)) if self._loaded_ms else 0
+            postponed = now + period * _MS - (self._start + self._loaded_ms * _MS)
+            log.debug(
+                "%s, period %d ms: %.1f ms since the last kick (%d%% of %d ms), "
+                "reset postponed by %.1f ms",
+                label, period, elapsed / _MS, percent, self._loaded_ms, postponed / _MS,
+            )
+        self._start = now
+        self._loaded_ms = period
+        self._kicked = True
 
     def tick(self, now_ns):
         if not self._running():
@@ -52,6 +77,7 @@ class WdtModule(Module):
             return
         if self._start is None:
             self._start = now_ns
+            self._loaded_ms = self._ctrl & 0xFFFF
         if now_ns >= self._deadline():
             log.warning("watchdog expired: resetting the chip")
             self._start = None
