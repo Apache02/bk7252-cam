@@ -141,6 +141,19 @@ class CliTest(unittest.TestCase):
         for name in names:
             self.assertEqual(logging.getLogger("emulator." + name).level, logging.DEBUG, name)
 
+    def test_debug_all_turns_on_every_modules_debug_log(self):
+        root = logging.getLogger("emulator")
+        self.addCleanup(root.setLevel, logging.INFO)
+        self.interrupt_soon()
+        run_cli("BK7252", "--load", "iram:" + tmp_image(), "-d", "all")
+        for name in ("gdma", "wifi.mac_core", "net.forward"):
+            self.assertTrue(logging.getLogger("emulator." + name).isEnabledFor(logging.DEBUG), name)
+
+    def test_without_debug_all_debug_stays_off(self):
+        self.interrupt_soon()
+        run_cli("BK7252", "--load", "iram:" + tmp_image())
+        self.assertFalse(logging.getLogger("emulator.gdma").isEnabledFor(logging.DEBUG))
+
     def interrupt_soon(self):
         timer = threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGINT))
         timer.start()

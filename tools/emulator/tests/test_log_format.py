@@ -4,7 +4,7 @@ import unittest
 
 from host.log_format import ColorFormatter, configure_logging, want_color
 
-YELLOW, RED, RESET = "\x1b[33m", "\x1b[31m", "\x1b[0m"
+GREEN, YELLOW, RED, RESET = "\x1b[32m", "\x1b[33m", "\x1b[31m", "\x1b[0m"
 
 
 def record(level, message="text"):
@@ -29,9 +29,12 @@ class ColorFormatterTest(unittest.TestCase):
             line = self.formatter.format(record(level))
             self.assertTrue(line.startswith(RED) and line.endswith(RESET), line)
 
-    def test_info_and_debug_stay_plain(self):
-        for level in (logging.INFO, logging.DEBUG):
-            self.assertNotIn("\x1b", self.formatter.format(record(level)))
+    def test_info_is_green(self):
+        line = self.formatter.format(record(logging.INFO))
+        self.assertEqual(line, GREEN + "INFO emulator.test: text" + RESET)
+
+    def test_debug_stays_plain(self):
+        self.assertNotIn("\x1b", self.formatter.format(record(logging.DEBUG)))
 
 
 class WantColorTest(unittest.TestCase):
@@ -67,6 +70,24 @@ class ConfigureTest(unittest.TestCase):
         out = stream.getvalue()
         self.assertIn(YELLOW + "WARNING emulator.bus: w" + RESET, out)
         self.assertIn(RED + "ERROR emulator.flash: e" + RESET, out)
+
+    def test_info_warning_and_error_always_show_but_debug_only_when_asked(self):
+        stream = io.StringIO()
+        configure_logging(stream, {})
+        quiet, asked = logging.getLogger("emulator.quiet"), logging.getLogger("emulator.asked")
+        self.addCleanup(asked.setLevel, logging.NOTSET)
+        asked.setLevel(logging.DEBUG)
+        for logger in (quiet, asked):
+            logger.debug("d-%s", logger.name)
+            logger.info("i-%s", logger.name)
+            logger.warning("w-%s", logger.name)
+            logger.error("e-%s", logger.name)
+        out = stream.getvalue()
+        for name in ("quiet", "asked"):
+            for letter in "iwe":
+                self.assertIn("%s-emulator.%s" % (letter, name), out)
+        self.assertIn("d-emulator.asked", out)
+        self.assertNotIn("d-emulator.quiet", out)
 
     def test_plain_output_has_no_escape_codes(self):
         stream = io.StringIO()

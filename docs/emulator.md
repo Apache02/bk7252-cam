@@ -37,10 +37,10 @@ Options:
 | `PROFILE` | Profile name, upper case: `profiles/PROFILE.toml`. |
 | `--load TARGET:FILE` | Copy FILE byte for byte to TARGET. Repeatable, at least one is required. |
 | `-p`, `--publish [HOST_IP:]HOST_PORT:GUEST_PORT[/tcp\|/udp]` | Forward a host port to a port of the firmware, written like Docker's `-p`. Repeatable. See [Network](#network). |
-| `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wdt`, `net`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. |
+| `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wdt`, `net`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. `-d all` turns on every module. |
 | `--uart1 SPEC`, `--uart2 SPEC` | Host end of the UART: `pty` (default), `stdio`, or a serial device path. |
 
-Log lines go to stderr. When stderr is a terminal, warnings are yellow and errors red; `NO_COLOR=1`
+Log lines go to stderr. Info, warning and error lines always show; a module's debug lines only with `-d` for it. When stderr is a terminal, info lines are green, warnings yellow and errors red; `NO_COLOR=1`
 turns the colour off and `FORCE_COLOR=1` turns it on for a pipe or a file.
 
 `TARGET` is an alias from the profile (case-insensitive) or a number. Aliases of `BK7252`:

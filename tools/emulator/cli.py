@@ -33,7 +33,7 @@ def _parser():
     )
     parser.add_argument(
         "-d", "--debug", action="append", default=[], metavar="MODULE[,MODULE...]",
-        help="print the debug log of modules, decoded (for example gdma,wifi); repeatable",
+        help="print the debug log of modules, decoded (for example gdma,wifi; all for every module); repeatable",
     )
     for number in (1, 2):
         parser.add_argument(
@@ -59,7 +59,7 @@ def main(
     args = _parser().parse_args(argv)
     configure_logging(sys.stderr, os.environ)
     for module in (name for arg in args.debug for name in arg.split(",") if name):
-        logging.getLogger("emulator." + module).setLevel(logging.DEBUG)
+        logging.getLogger("emulator" if module == "all" else "emulator." + module).setLevel(logging.DEBUG)
 
     network = None
     try:
