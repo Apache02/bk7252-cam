@@ -6,6 +6,7 @@ and its cause is gone; while the cause persists it re-latches at once.
 """
 
 from core.module import Module
+from core.signals import make_signals
 
 _IRQ_ENABLE = 0x40
 _GLOBAL_EN = 0x44
@@ -30,27 +31,15 @@ class _Source:
         self._intc.drive(self.number, level)
 
 
-class _Bit:
-    """A register bit other modules can watch (clock gates and the like)."""
-
-    def __init__(self, intc, offset, bit):
-        self._intc = intc
-        self._offset = offset
-        self._bit = bit
-
-    def active(self):
-        return bool(self._intc.read("regs", self._offset, 4) >> self._bit & 1)
-
-
 class IntcModule(Module):
-    """`signals` maps a name to [register offset, bit]; `reset_words` maps a
-    register offset (as a string) to its reset value for the plain registers."""
+    """`signals`: register fields other modules watch (core/signals.py); `reset_words`
+    maps a register offset (as a string) to its reset value for the plain registers."""
 
     def __init__(self, name, cpu_irq=None, cpu_fiq=None, signals=None, reset_words=None, **params):
         super().__init__(name, **params)
         self._cpu_irq = cpu_irq
         self._cpu_fiq = cpu_fiq
-        self._signals = signals or {}
+        self._signals = make_signals(lambda offset: self.read("regs", offset, 4), signals or {})
         self._reset_words = {int(k, 0): v for k, v in (reset_words or {}).items()}
         self._sources = []
         self.reset()
@@ -66,8 +55,7 @@ class IntcModule(Module):
         return [("regs", _SIZE)]
 
     def signal(self, name):
-        offset, bit = self._signals[name]
-        return _Bit(self, offset, bit)
+        return self._signals[name]
 
     def line(self, source):
         line = _Source(self, source)

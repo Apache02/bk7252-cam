@@ -135,11 +135,13 @@ class Bus:
         self._cpu.unicorn.mmio_map(
             base, size, self._window_read, None, self._window_write, None
         )
-        for module, range_name, mbase, msize in self._claims:
-            if (module, range_name, mbase, msize) in self._demand:
-                self._install_demand(mbase, msize)
-            elif not self._in_window(mbase, msize):
-                self._map_own_region(module, range_name, mbase, msize)
+        outside = []
+        for claim in self._claims:
+            if claim in self._demand:
+                self._install_demand(claim[2], claim[3])
+            elif not self._in_window(claim[2], claim[3]):
+                outside.append(claim)
+        self._map_outside(outside)
 
         # Registered last so demand ranges get the first chance to map a page.
         self._cpu.unicorn.hook_add(
@@ -259,20 +261,27 @@ class Bus:
         wbase, wsize = self._window
         return wbase <= base and base + size <= wbase + wsize
 
-    def _map_own_region(self, module, range_name, base, size):
-        if base % PAGE or size % PAGE:
-            raise ValueError(
-                "%s.%s is outside the peripheral window and not page aligned"
-                % (module.name, range_name)
+    def _map_outside(self, claims):
+        """Blocks outside the window: Unicorn maps whole 4 KiB pages, so every page a
+        block touches becomes MMIO and blocks sharing a page are told apart by address."""
+        pages = sorted({
+            page for _, _, base, size in claims
+            for page in range(base & ~(PAGE - 1), base + size, PAGE)
+        })
+        runs = []
+        for page in pages:
+            if runs and runs[-1][1] == page:
+                runs[-1][1] = page + PAGE
+            else:
+                runs.append([page, page + PAGE])
+        for start, end in runs:
+            self._cpu.unicorn.mmio_map(
+                start, end - start,
+                lambda uc, offset, size, _, start=start: self._read_at(start + offset, size),
+                None,
+                lambda uc, offset, size, value, _, start=start: self._write_at(start + offset, size, value),
+                None,
             )
-
-        def read(uc, offset, rsize, _):
-            return self._call(module.read, range_name, offset, rsize)
-
-        def write(uc, offset, rsize, value, _):
-            self._call(module.write, range_name, offset, rsize, value)
-
-        self._cpu.unicorn.mmio_map(base, size, read, None, write, None)
 
     def _find(self, addr):
         for module, range_name, base, size in self._claims:
@@ -281,7 +290,12 @@ class Bus:
         return None
 
     def _window_read(self, uc, offset, size, _):
-        addr = self._window[0] + offset
+        return self._read_at(self._window[0] + offset, size)
+
+    def _window_write(self, uc, offset, size, value, _):
+        self._write_at(self._window[0] + offset, size, value)
+
+    def _read_at(self, addr, size):
         found = self._find(addr)
         if found is None:
             self._report(addr, "read")
@@ -289,8 +303,7 @@ class Bus:
         module, range_name, rel = found
         return self._call(module.read, range_name, rel, size)
 
-    def _window_write(self, uc, offset, size, value, _):
-        addr = self._window[0] + offset
+    def _write_at(self, addr, size, value):
         found = self._find(addr)
         if found is None:
             self._report(addr, "write")

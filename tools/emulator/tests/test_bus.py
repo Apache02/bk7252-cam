@@ -43,6 +43,7 @@ def ldr_r1(cpu, value):
 
 def run_code(cpu, *words, at=0x00400000):
     cpu.mem_write(at, struct.pack("<%dI" % len(words), *words))
+    cpu.unicorn.ctl_flush_tb()  # code rewritten from the host is not noticed by cached blocks
     cpu.reset(at)
     return cpu.run(len(words))
 
@@ -97,6 +98,60 @@ class BusTest(unittest.TestCase):
         run_code(cpu, ldr_r1(cpu, 0x00802104), 0xE5910000)
         self.assertEqual(len(faults), 1)
         self.assertEqual((faults[0].kind, faults[0].addr), ("dabt", 0x00802104))
+
+
+class OutsideWindowTest(unittest.TestCase):
+    """Blocks far from the peripheral window, several to one 4 KiB page (the WiFi blocks)."""
+
+    def machine(self):
+        cpu, bus = make_bus()
+        bus.add_memory("RAM1", 0x00400000, 0x1000)
+        low, high = Recorder("MDM_STAT", size=0x6C), Recorder("MDM_CFG", size=0x98)
+        bus.add_module(low, {"regs": 0x01000000})
+        bus.add_module(high, {"regs": 0x01000800})
+        bus.add_module(Recorder("INTC", size=0x44), {"regs": 0x10910000})
+        bus.claim_unclaimed(*PERIPHERALS)
+        bus.set_fault_sink(lambda fault: cpu.post_fault(fault.kind))
+        return cpu, low, high
+
+    def store(self, cpu, address, value):
+        run_code(cpu, ldr_r1(cpu, address), 0xE3A02000 | value, STR_R2_R1)
+
+    def test_two_modules_in_one_page_get_their_own_offsets(self):
+        cpu, low, high = self.machine()
+        self.store(cpu, 0x01000010, 0x11)
+        self.store(cpu, 0x01000804, 0x22)
+        self.assertEqual(low.writes, [("regs", 0x10, 4, 0x11)])
+        self.assertEqual(high.writes, [("regs", 0x04, 4, 0x22)])
+
+    def test_unaligned_base_and_size_are_fine(self):
+        cpu, bus = make_bus()
+        bus.add_memory("RAM1", 0x00400000, 0x1000)
+        intc = Recorder("INTC", size=0x44)
+        bus.add_module(intc, {"regs": 0x10910000})
+        bus.claim_unclaimed(*PERIPHERALS)
+        run_code(cpu, ldr_r1(cpu, 0x10910040), LDR_R0_R1)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x13)  # no abort
+
+    def test_gap_between_modules_in_a_mapped_page_is_unclaimed_and_reads_zero(self):
+        cpu, _, _ = self.machine()
+        with self.assertLogs("emulator.bus", level="WARNING") as logs:
+            run_code(cpu, ldr_r1(cpu, 0x01000400), LDR_R0_R1)
+        self.assertEqual(cpu.reg("r0"), 0)
+        self.assertIn("0x01000400", logs.output[0])
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x13)
+
+    def test_read_reaches_the_module(self):
+        cpu, low, _ = self.machine()
+        low.next_read = 0x1234
+        run_code(cpu, ldr_r1(cpu, 0x01000000), LDR_R0_R1)
+        self.assertEqual(cpu.reg("r0"), 0x1234)
+
+    def test_page_outside_every_block_is_still_a_bus_error(self):
+        cpu, _, _ = self.machine()
+        with self.assertLogs("emulator.bus", level="WARNING"):
+            run_code(cpu, ldr_r1(cpu, 0x01005000), LDR_R0_R1)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x17)
 
 
 class BusMemoryTest(unittest.TestCase):

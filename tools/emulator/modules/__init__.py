@@ -8,8 +8,10 @@ from modules.sctrl import SctrlModule
 from modules.timer import TimerModule
 from modules.uart import UartModule
 from modules.wdt import WdtModule
+from modules.wifi import WIFI_MODULES
 
 REGISTRY = {
+    **WIFI_MODULES,
     "flash": FlashModule,
     "gdma": GdmaModule,
     "gpio": GpioModule,

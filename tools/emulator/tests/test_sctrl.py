@@ -61,6 +61,19 @@ class SctrlTest(unittest.TestCase):
         sctrl.reset()
         self.assertEqual(reg(sctrl, CHARGE_STATUS), 0xFFE08010)
 
+    def test_signals_watch_register_fields(self):
+        sctrl = make(signals={"mac_powered": {"offset": 0x10C, "shift": 16, "width": 16, "equals": 1}})
+        signal = sctrl.signal("mac_powered")
+        self.assertFalse(signal.active())
+        reg(sctrl, 0x10C, 0x0001 << 16)
+        self.assertTrue(signal.active())
+        reg(sctrl, 0x10C, 0xD802 << 16)
+        self.assertFalse(signal.active())
+
+    def test_unknown_signal_rejected(self):
+        with self.assertRaisesRegex(KeyError, "nope"):
+            make().signal("nope")
+
     def test_range_covers_the_block(self):
         sizes = dict(make().ranges())
         self.assertGreaterEqual(sizes["regs"], 0x154)

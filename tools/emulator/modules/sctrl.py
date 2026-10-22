@@ -7,6 +7,7 @@ the measured warm state differs (docs/por_reset_state.md).
 """
 
 from core.module import Module
+from core.signals import make_signals
 
 _CHIP_ID = 0x00
 _DEVICE_ID = 0x04
@@ -18,16 +19,22 @@ def _offsets(words):
 
 
 class SctrlModule(Module):
-    def __init__(self, name, chip_id=0, device_id=0, reset_words=None, warm_reset_words=None, **params):
+    def __init__(
+        self, name, chip_id=0, device_id=0, reset_words=None, warm_reset_words=None, signals=None, **params
+    ):
         super().__init__(name, **params)
         self._chip_id = chip_id
         self._device_id = device_id
+        self._signals = make_signals(lambda offset: self.read("regs", offset, 4), signals or {})
         self._cold = _offsets(reset_words)
         self._warm = {**self._cold, **_offsets(warm_reset_words)}
         self._words = dict(self._cold)
 
     def reset(self):
         self._words = dict(self._warm)
+
+    def signal(self, name):
+        return self._signals[name]
 
     def ranges(self):
         return [("regs", _SIZE)]

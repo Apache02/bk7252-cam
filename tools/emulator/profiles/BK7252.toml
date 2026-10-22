@@ -76,6 +76,10 @@ device_id = 0x18221020
 "0x134" = 0x00000030  # rosc_cal
 [module.params.warm_reset_words]
 "0x084" = 0xffe08010  # charge_status after a watchdog reset
+# Register fields other modules watch. power_mac_modem: the upper half is the MAC key
+# (MAC_PWU = 1 wakes it, MAC_PWD = 0xD802 powers it down).
+[module.params.signals]
+mac_powered = { offset = 0x10c, shift = 16, width = 16, equals = 1 }
 
 [[module]]
 type = "intc"
@@ -95,6 +99,70 @@ name = "WDT"
 regs = 0x00802900
 [module.params]
 clock_off_signal = "ICU.arm_wdt_pwd"
+
+# WiFi blocks (src/platform/soc/include/rwnx): plain registers for now, except the MAC
+# core's monotonic counters, which run while the MAC is powered.
+[[module]]
+type = "wifi_mdm_stat"
+name = "MDM_STAT"
+[module.bases]
+regs = 0x01000000
+
+[[module]]
+type = "wifi_mdm_cfg"
+name = "MDM_CFG"
+[module.bases]
+regs = 0x01000800
+
+[[module]]
+type = "wifi_agc"
+name = "AGC"
+[module.bases]
+regs = 0x01002000
+
+[[module]]
+type = "wifi_rc"
+name = "RC"
+[module.bases]
+regs = 0x01050000
+
+[[module]]
+type = "wifi_nx_intc"
+name = "NX_INTC"
+[module.bases]
+regs = 0x10910000
+
+[[module]]
+type = "wifi_nx_dma"
+name = "NX_DMA"
+[module.bases]
+regs = 0x10a00000
+
+[[module]]
+type = "wifi_la"
+name = "LA"
+[module.bases]
+regs = 0x10e00000
+
+[[module]]
+type = "wifi_mac_core"
+name = "MAC_CORE"
+[module.bases]
+regs = 0xc0000000
+[module.params]
+mac_powered_signal = "SCTRL.mac_powered"
+
+[[module]]
+type = "wifi_mac_pl"
+name = "MAC_PL"
+[module.bases]
+regs = 0xc0008000
+
+[[module]]
+type = "wifi_mac_pta"
+name = "MAC_PTA"
+[module.bases]
+regs = 0xc0010000
 
 # bus_hz: the clock the transfer times in docs/hardware/dma.md were measured at.
 [[module]]
