@@ -3,7 +3,7 @@ import unittest
 
 from core.bus import Bus
 from core.cpu import Cpu
-from core.module import Fault, Module
+from core.module import BusError, Fault, Module
 
 PERIPHERALS = (0x00800000, 0x00100000)
 
@@ -97,6 +97,64 @@ class BusTest(unittest.TestCase):
         run_code(cpu, ldr_r1(cpu, 0x00802104), 0xE5910000)
         self.assertEqual(len(faults), 1)
         self.assertEqual((faults[0].kind, faults[0].addr), ("dabt", 0x00802104))
+
+
+class BusMemoryTest(unittest.TestCase):
+    """The bus-master view of memory that DMA engines use."""
+
+    def machine(self, module=None):
+        cpu, bus = make_bus()
+        bus.add_memory("RAM1", 0x00400000, 0x2000)
+        bus.add_memory("RAM2", 0x00402000, 0x1000)  # adjacent to RAM1
+        if module is not None:
+            bus.add_module(module, {"win": 0x00000000})
+        bus.claim_unclaimed(*PERIPHERALS)
+        return bus.memory()
+
+    def test_reads_and_writes_ram_across_a_page_boundary(self):
+        memory = self.machine()
+        memory.write(0x00400FFE, b"\x01\x02\x03\x04")
+        self.assertEqual(memory.read(0x00400FFE, 4), b"\x01\x02\x03\x04")
+
+    def test_access_may_span_two_adjacent_regions(self):
+        memory = self.machine()
+        memory.write(0x00401FFE, b"\xAA\xBB\xCC\xDD")
+        self.assertEqual(memory.read(0x00401FFE, 4), b"\xAA\xBB\xCC\xDD")
+
+    def test_unmapped_address_is_a_bus_error_naming_it(self):
+        memory = self.machine()
+        with self.assertRaisesRegex(BusError, "0x20000000"):
+            memory.read(0x20000000, 4)
+        with self.assertRaises(BusError):
+            memory.write(0x20000000, b"\x00")
+
+    def test_access_running_off_the_end_of_memory_is_a_bus_error(self):
+        memory = self.machine()
+        with self.assertRaisesRegex(BusError, "0x00403000"):
+            memory.read(0x00402FFC, 8)
+
+    def test_peripheral_window_is_not_dma_memory(self):
+        memory = self.machine()
+        with self.assertRaises(BusError):
+            memory.read(0x00802100, 4)
+
+    def test_demand_range_is_readable_through_the_module(self):
+        module = DemandModule("W", {0x1000: bytes([7]) * 0x1000})
+        memory = self.machine(module)
+        self.assertEqual(memory.read(0x1004, 4), b"\x07" * 4)
+
+    def test_bad_block_of_a_demand_range_is_a_bus_error(self):
+        module = DemandModule("W", {}, bad=[0x1020])
+        memory = self.machine(module)
+        with self.assertRaises(BusError):
+            memory.read(0x1020, 4)
+        self.assertEqual(memory.read(0x1000, 4), b"\x00" * 4)
+
+    def test_demand_range_is_read_only(self):
+        module = DemandModule("W", {})
+        memory = self.machine(module)
+        with self.assertRaises(BusError):
+            memory.write(0x1000, b"\x01")
 
 
 class UnmappedTest(unittest.TestCase):

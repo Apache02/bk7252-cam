@@ -20,6 +20,14 @@ class Fault(Exception):
         self.addr = addr
 
 
+class BusError(Exception):
+    """A bus master (DMA) touched an address nothing readable or writable answers at."""
+
+    def __init__(self, addr, reason):
+        super().__init__("bus error at 0x%08X: %s" % (addr, reason))
+        self.addr = addr
+
+
 class Module:
     """One emulated peripheral block. Collaborators arrive as constructor params."""
 

@@ -96,6 +96,17 @@ regs = 0x00802900
 [module.params]
 clock_off_signal = "ICU.arm_wdt_pwd"
 
+# bus_hz: the clock the transfer times in docs/hardware/dma.md were measured at.
+[[module]]
+type = "gdma"
+name = "GDMA"
+[module.bases]
+regs = 0x00809000
+[module.params]
+intc = "ICU"
+irq = 15
+bus_hz = 120000000
+
 # Pin words read 0x28 at reset (output driver off, pull-down); GPIO 20-23 also have
 # function_enable set by the vendor ROM (docs/por_reset_state.md).
 [[module]]

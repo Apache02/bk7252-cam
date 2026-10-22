@@ -1,6 +1,7 @@
 """Registry of module types the profile can name."""
 
 from modules.flash import FlashModule
+from modules.gdma import GdmaModule
 from modules.gpio import GpioModule
 from modules.intc import IntcModule
 from modules.sctrl import SctrlModule
@@ -10,6 +11,7 @@ from modules.wdt import WdtModule
 
 REGISTRY = {
     "flash": FlashModule,
+    "gdma": GdmaModule,
     "gpio": GpioModule,
     "intc": IntcModule,
     "sctrl": SctrlModule,

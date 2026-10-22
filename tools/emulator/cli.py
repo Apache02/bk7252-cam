@@ -22,6 +22,10 @@ def _parser():
         "--load", action="append", default=[], metavar="TARGET:FILE",
         help="load FILE at an alias or address; repeatable",
     )
+    parser.add_argument(
+        "--debug", action="append", default=[], metavar="MODULE",
+        help="print the debug log of a module, decoded (for example gdma); repeatable",
+    )
     for number in (1, 2):
         parser.add_argument(
             "--uart%d" % number, default="pty", metavar="SPEC",
@@ -38,6 +42,8 @@ def _fail(message):
 def main(argv=None, make_endpoint=default_make_endpoint, profile_dir=PROFILES, registry=REGISTRY):
     args = _parser().parse_args(argv)
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+    for module in args.debug:
+        logging.getLogger("emulator." + module).setLevel(logging.DEBUG)
 
     try:
         profile = load_profile(args.profile, profile_dir)

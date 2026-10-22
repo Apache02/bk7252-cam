@@ -1,5 +1,6 @@
 import contextlib
 import io
+import logging
 import os
 import signal
 import tempfile
@@ -85,6 +86,16 @@ class CliTest(unittest.TestCase):
         self.assertIn("UART1: fake:a", out)
         self.assertIn("UART2: fake:b", out)
         self.assertTrue(all(e.closed for e in made))
+
+    def test_debug_option_turns_on_a_modules_debug_log(self):
+        logger = logging.getLogger("emulator.gdma")
+        self.addCleanup(logger.setLevel, logging.NOTSET)
+        timer = threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGINT))
+        timer.start()
+        self.addCleanup(timer.cancel)
+        run_cli("BK7252", "--load", "iram:" + tmp_image(), "--debug", "gdma")
+        self.assertEqual(logger.level, logging.DEBUG)
+        self.assertEqual(logging.getLogger("emulator.uart").level, logging.NOTSET)
 
     def test_uart_options_default_to_pty(self):
         timer = threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGINT))

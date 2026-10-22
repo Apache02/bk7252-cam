@@ -14,7 +14,7 @@ from unicorn import (
     UC_PROT_READ,
 )
 
-from core.module import Fault
+from core.module import BusError, Fault
 
 PAGE = 0x1000
 log = logging.getLogger("emulator.bus")
@@ -22,6 +22,32 @@ log = logging.getLogger("emulator.bus")
 
 def _overlaps(spans, start, size):
     return any(start < end and s < start + size for s, end in spans)
+
+
+class BusMemory:
+    """What a bus master (a DMA engine) can reach: RAM, and flash through its module.
+
+    Peripheral registers are not reachable this way.
+    """
+
+    def __init__(self, bus):
+        self._bus = bus
+
+    def read(self, addr, size):
+        out = bytearray()
+        while size:
+            data = self._bus._read_chunk(addr, size)
+            out += data
+            addr += len(data)
+            size -= len(data)
+        return bytes(out)
+
+    def write(self, addr, data):
+        data = bytes(data)
+        while data:
+            n = self._bus._write_chunk(addr, data)
+            addr += n
+            data = data[n:]
 
 
 class Bus:
@@ -45,6 +71,45 @@ class Bus:
 
     def write_memory(self, address, data):
         self._cpu.mem_write(address, data)
+
+    def memory(self):
+        return BusMemory(self)
+
+    def _region_at(self, addr):
+        for _, base, size in self._memory:
+            if base <= addr < base + size:
+                return base + size
+        return None
+
+    def _read_chunk(self, addr, size):
+        end = self._region_at(addr)
+        if end is not None:
+            return self._cpu.mem_read(addr, min(size, end - addr))
+        for module, range_name, base, rsize in self._demand:
+            if base <= addr < base + rsize:
+                return self._read_demand(module, range_name, base, addr, size)
+        raise BusError(addr, "nothing readable there")
+
+    def _read_demand(self, module, range_name, base, addr, size):
+        offset = addr - base
+        page_off = offset & ~(PAGE - 1)
+        n = min(size, page_off + PAGE - offset)
+        data, bad = module.page(range_name, page_off)
+        if _overlaps(bad, offset - page_off, n):
+            try:
+                module.read(range_name, offset, n)  # logs the details, raises the Fault
+            except Fault as fault:
+                raise BusError(addr, str(fault)) from fault
+            raise BusError(addr, "unreadable block")
+        return bytes(data[offset - page_off:offset - page_off + n])
+
+    def _write_chunk(self, addr, data):
+        end = self._region_at(addr)
+        if end is None:
+            raise BusError(addr, "nothing writable there")
+        n = min(len(data), end - addr)
+        self._cpu.mem_write(addr, data[:n])
+        return n
 
     def set_fault_sink(self, fn):
         self._sink = fn

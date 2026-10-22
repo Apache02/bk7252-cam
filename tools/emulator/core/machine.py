@@ -42,6 +42,7 @@ class Machine:
             cpu_irq=self._cpu_irq,
             cpu_fiq=self._cpu_fiq,
             reset_chip=self.reset,
+            memory=self.bus.memory(),
         )
         if spec.name in endpoints:
             params["endpoint"] = endpoints[spec.name]

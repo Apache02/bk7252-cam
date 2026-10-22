@@ -65,6 +65,13 @@ class MachineTest(unittest.TestCase):
         self.assertIs(params["clock"], machine.scheduler)
         self.assertIn("cpu_irq", params)
 
+    def test_module_receives_bus_memory_access(self):
+        p = profile(ModuleSpec("dummy", "A", {"regs": 0x00802100}))
+        machine = Machine(p, {"dummy": Dummy}, {})
+        memory = machine.modules["A"].params["memory"]
+        memory.write(0x00400010, b"\x42")
+        self.assertEqual(machine.cpu.mem_read(0x00400010, 1), b"\x42")
+
     def test_irq_param_resolved_through_named_controller(self):
         p = profile(
             ModuleSpec("controller", "ICU", {"regs": 0x00802000}),
