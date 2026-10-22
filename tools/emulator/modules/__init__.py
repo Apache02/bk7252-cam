@@ -6,6 +6,7 @@ from modules.gpio import GpioModule
 from modules.intc import IntcModule
 from modules.sctrl import SctrlModule
 from modules.timer import TimerModule
+from modules.trng import TrngModule
 from modules.uart import UartModule
 from modules.wdt import WdtModule
 from modules.wifi import WIFI_MODULES
@@ -18,6 +19,7 @@ REGISTRY = {
     "intc": IntcModule,
     "sctrl": SctrlModule,
     "timer": TimerModule,
+    "trng": TrngModule,
     "uart": UartModule,
     "wdt": WdtModule,
 }
