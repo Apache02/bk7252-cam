@@ -57,6 +57,7 @@ error reported before the emulator starts.
 | CPU | Unicorn, ARM946 model (closest to ARM968E-S). SWI, undefined instruction, aborts, IRQ and FIQ are entered the way the core does. |
 | RAM | `RAM1`, `RAM2`. |
 | Flash | 2 MiB raw store and the CRC-decoded XIP window. A block with a bad CRC logs an `ALERT` line and raises a Data Abort while `conf.crc_en` is set. Controller commands: read ID, read status, write enable/disable, 32-byte read. Erase and program are logged and not performed. |
+| SCTRL | `chip_id` and `device_id` (read-only, set in the profile); every other register reads back what was written, starting from the profile's `reset_words` (`warm_reset_words` after a chip reset). No analog or clock behaviour. |
 | ICU | Interrupt enable, status, global IRQ/FIQ enables. |
 | UART1, UART2 | 128-byte RX FIFO, instant TX, level and latched interrupts. |
 | Timers | Two banks (26 MHz and 32 kHz), three periodic timers each. |
@@ -106,5 +107,5 @@ Booting a real image is a manual check.
 
 ## Limits
 
-One chip. Flash erase and program are not emulated. No WiFi, JPEG, camera sensor, GPIO, DMA
-or system control modules yet; firmware that needs them runs into the log lines above.
+One chip. Flash erase and program are not emulated. No WiFi, JPEG, camera sensor, GPIO or DMA
+modules yet; firmware that needs them runs into the log lines above.

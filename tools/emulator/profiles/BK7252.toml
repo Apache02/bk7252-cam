@@ -46,6 +46,37 @@ ctrl = 0x00803000
 size = 0x200000
 
 # "irq" is a bit number of the ICU's irq_enable register (soc/icu.h).
+# Values below are the register state at bootloader entry, docs/por_reset_state.md.
+[[module]]
+type = "sctrl"
+name = "SCTRL"
+[module.bases]
+regs = 0x00800000
+[module.params]
+chip_id = 0x0007221a
+device_id = 0x18221020
+[module.params.reset_words]
+"0x008" = 0x00020000  # control: DCO main clock, qspi_io_volt = 2
+"0x00c" = 0x000001ff  # clk_gating
+"0x010" = 0x00000028  # reset: tl410_boot, tl410_ext_wait
+"0x01c" = 0x00000207  # flash_delay
+"0x040" = 0x3c000000  # analog_spi: idle, freq_div = 60
+"0x058" = 0x61105b57  # analog_ctrl0..6: calibration preloaded by the vendor ROM
+"0x05c" = 0x68c03102
+"0x060" = 0x84036080
+"0x064" = 0x180004a0
+"0x068" = 0x84200a52
+"0x06c" = 0x3b13b13b
+"0x070" = 0x00b09350
+"0x084" = 0xffe08410  # charge_status after a cold power-on
+"0x104" = 0x00a60000  # sleep
+"0x108" = 0x00000040  # digital_vdd
+"0x118" = 0x0000001f  # pmu_status: USB, DSP, modem, MAC powered down
+"0x12c" = 0x00000147  # block_enable
+"0x134" = 0x00000030  # rosc_cal
+[module.params.warm_reset_words]
+"0x084" = 0xffe08010  # charge_status after a watchdog reset
+
 [[module]]
 type = "intc"
 name = "ICU"
