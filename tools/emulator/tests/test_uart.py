@@ -117,6 +117,20 @@ class UartTest(unittest.TestCase):
         popped += [(reg(uart, FIFO_DATA) >> 8) & 0xFF for _ in range(72)]
         self.assertEqual(popped, list(range(200)))
 
+    def test_reset_clears_state_and_keeps_the_endpoint(self):
+        uart, endpoint, line = make()
+        reg(uart, IRQ_ENABLE, RX_NEED_READ)
+        reg(uart, FIFO_CONFIG, 1 << 8)
+        endpoint.inbox = b"A"
+        uart.tick(0)
+        self.assertTrue(line.level)
+        uart.reset()
+        self.assertFalse(line.level)
+        self.assertTrue(reg(uart, FIFO_STATUS) & RX_EMPTY)
+        self.assertEqual(reg(uart, IRQ_ENABLE), 0)
+        reg(uart, FIFO_DATA, ord("z"))
+        self.assertEqual(endpoint.sent, b"z")
+
     def test_other_registers_read_back(self):
         uart, _, _ = make()
         reg(uart, CONFIG, 0x1234)

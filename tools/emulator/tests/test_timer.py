@@ -133,6 +133,19 @@ class TimerTest(unittest.TestCase):
         timer.tick(clock.now)
         self.assertEqual(status(timer), 1)
 
+    def test_reset_stops_timers_and_clears_status(self):
+        timer, clock, line = make()
+        reg(timer, 0x00, 26_000)
+        reg(timer, CTL, EN0)
+        clock.now = MS
+        timer.tick(clock.now)
+        self.assertTrue(line.level)
+        timer.reset()
+        self.assertFalse(line.level)
+        self.assertIsNone(timer.next_event_ns())
+        self.assertEqual(reg(timer, CTL), 0)
+        self.assertEqual(reg(timer, 0x00), 0)
+
     def test_counter_registers_read_back(self):
         timer, _, _ = make()
         reg(timer, 0x08, 1234)

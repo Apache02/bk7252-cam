@@ -87,7 +87,12 @@ class Cpu:
 
     def reset(self, pc=0):
         self.set_reg("cpsr", MODE_SVC | I_BIT | F_BIT)
+        for name in [*("r%d" % i for i in range(13)), "sp", "lr"]:
+            self.set_reg(name, 0)
         self.set_reg("pc", pc)
+        self._irq = self._fiq = False
+        self._fault = None
+        self._restart = False
 
     def raise_irq(self, on):
         self._irq = on

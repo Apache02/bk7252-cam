@@ -60,6 +60,12 @@ error reported before the emulator starts.
 | ICU | Interrupt enable, status, global IRQ/FIQ enables. |
 | UART1, UART2 | 128-byte RX FIFO, instant TX, level and latched interrupts. |
 | Timers | Two banks (26 MHz and 32 kHz), three periodic timers each. |
+| WDT | Period in ms and the `0x5A`/`0xA5` reload keys. Counts only while the ICU clock-power-down bit for it is 0 (it is 1 at reset). Expiry resets the chip. |
+
+A chip reset (watchdog expiry, so also the shell `reboot` command) fills every memory region that has a
+`reset_fill` in the profile with that byte (both RAM blocks of BK7252 use `0xAA`; a region without
+it keeps its contents), clears the general registers, returns every module to its reset state, keeps the flash contents and
+restarts the CPU at address 0. The UART endpoints stay connected.
 
 Anything else in the peripheral window (`0x00800000`-`0x008FFFFF`) is logged once per address as
 `unclaimed peripheral` and reads as 0. An access to memory nothing answers logs
@@ -70,11 +76,14 @@ the clock jumps to the next timer event.
 
 ## Profile
 
-`profiles/<NAME>.toml` holds the instruction rate, the peripheral window, `[[memory]]` regions,
+`profiles/<NAME>.toml` holds the instruction rate, the peripheral window, `[[memory]]` regions (each with an optional `reset_fill` byte),
 `[alias]` entries (a number is a bus address; a table `{module, offset}` points into a module)
 and `[[module]]` instances (`type`, `name`, `[module.bases]` per address range, `[module.params]`).
 A module that raises interrupts names its controller and source bit with `intc` and `irq`; the
-controller must be listed first.
+controller must be listed first. A module that watches a register bit of another module takes a
+param ending in `_signal`, such as `clock_off_signal = "ICU.arm_wdt_pwd"`; the owner declares the
+bit under its own `signals` param. Every module also gets `clock` and `reset_chip` constructor
+arguments.
 
 ## Adding a module
 
@@ -97,5 +106,5 @@ Booting a real image is a manual check.
 
 ## Limits
 
-One chip. Flash erase and program are not emulated. No WiFi, JPEG, camera sensor, GPIO, DMA,
-system control or watchdog modules yet; firmware that needs them runs into the log lines above.
+One chip. Flash erase and program are not emulated. No WiFi, JPEG, camera sensor, GPIO, DMA
+or system control modules yet; firmware that needs them runs into the log lines above.

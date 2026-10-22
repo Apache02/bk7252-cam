@@ -20,11 +20,15 @@ class TimerModule(Module):
         self._clock = clock
         self._irq = irq
         self._hz = hz
+        self.reset()
+
+    def reset(self):
         self._counter = [0, 0, 0]
         self._enable = 0
         self._divider = 0
         self._status = 0
         self._next = [None, None, None]
+        self._update_irq()
 
     def ranges(self):
         return [("regs", _SIZE)]

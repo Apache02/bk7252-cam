@@ -28,12 +28,16 @@ class UartModule(Module):
         super().__init__(name, **params)
         self._endpoint = endpoint
         self._irq = irq
+        self.reset()
+
+    def reset(self):
         self._rx = bytearray()
         self._backlog = bytearray()
         self._latched = 0
         self._enable = 0
         self._fifo_config = 0
         self._words = {}
+        self._update_irq()
 
     def ranges(self):
         return [("regs", _SIZE)]

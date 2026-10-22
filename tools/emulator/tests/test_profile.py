@@ -37,6 +37,22 @@ class ProfileTest(unittest.TestCase):
         app = profile.aliases["APP"]
         self.assertEqual((app.module, app.offset), ("FLASH", 0x11000))
 
+    def test_bk7252_ram_regions_reset_to_0xaa(self):
+        profile = load_profile("BK7252", PROFILES)
+        self.assertEqual({m.name: m.reset_fill for m in profile.memory}, {"RAM1": 0xAA, "RAM2": 0xAA})
+
+    def test_memory_without_reset_fill_keeps_its_contents(self):
+        self.assertIsNone(profile_from(MINIMAL.format(extra="")).memory[0].reset_fill)
+
+    def test_reset_fill_is_read_per_memory_region(self):
+        text = MINIMAL.replace("size = 0x40000", "size = 0x40000\nreset_fill = 0x55")
+        self.assertEqual(profile_from(text.format(extra="")).memory[0].reset_fill, 0x55)
+
+    def test_reset_fill_must_be_a_byte_and_names_the_region(self):
+        text = MINIMAL.replace("size = 0x40000", "size = 0x40000\nreset_fill = 256")
+        with self.assertRaisesRegex(ProfileError, "RAM1.*reset_fill"):
+            profile_from(text.format(extra=""))
+
     def test_name_must_be_upper_case(self):
         with self.assertRaisesRegex(ProfileError, "upper case"):
             load_profile("bk7252", PROFILES)

@@ -56,8 +56,19 @@ class FlashModule(Module):
         self._valid = {}  # block index -> bool, filled on demand
         self._window = (self._blocks * DATA + PAGE - 1) & ~(PAGE - 1)
         self._jedec = jedec_id
-        self._operate = 0
         self._conf = _CRC_EN
+        self._reset_registers()
+
+    def reset(self):
+        """Registers go back to their defaults; the stored contents stay."""
+        changed = (self._conf ^ _CRC_EN) & _CRC_EN
+        self._conf = _CRC_EN
+        self._reset_registers()
+        if changed:
+            self.invalidate("xip", 0, self._window)
+
+    def _reset_registers(self):
+        self._operate = 0
         self._m_value = 0
         self._sr = 0
         self._fifo = [0] * 8

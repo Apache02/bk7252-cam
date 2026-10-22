@@ -27,12 +27,12 @@ class Controller(Module):
         return ("line", source)
 
 
-def profile(*modules):
+def profile(*modules, memory=None):
     return Profile(
         name="TEST",
         insns_per_us=100,
         peripheral_window=(0x00800000, 0x100000),
-        memory=[MemorySpec("RAM1", 0x00400000, 0x1000)],
+        memory=memory or [MemorySpec("RAM1", 0x00400000, 0x1000)],
         aliases={},
         modules=list(modules),
     )
@@ -80,6 +80,79 @@ class MachineTest(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "ICU"):
             Machine(p, {"dummy": Dummy, "controller": Controller}, {})
+
+
+class Resettable(Module):
+    resets = 0
+
+    def ranges(self):
+        return [("regs", 0x100)]
+
+    def reset(self):
+        Resettable.resets += 1
+
+    def signal(self, name):
+        return ("signal", name)
+
+
+class ResetTest(unittest.TestCase):
+    def setUp(self):
+        Resettable.resets = 0
+
+    def test_signal_param_resolved_through_named_module(self):
+        p = profile(
+            ModuleSpec("res", "ICU", {"regs": 0x00802000}),
+            ModuleSpec("dummy", "A", {"regs": 0x00802100}, {"clock_off_signal": "ICU.gate"}),
+        )
+        machine = Machine(p, {"dummy": Dummy, "res": Resettable}, {})
+        params = machine.modules["A"].params
+        self.assertEqual(params["clock_off"], ("signal", "gate"))
+        self.assertNotIn("clock_off_signal", params)
+
+    def test_signal_module_listed_after_user_rejected(self):
+        p = profile(
+            ModuleSpec("dummy", "A", {"regs": 0x00802100}, {"clock_off_signal": "ICU.gate"}),
+            ModuleSpec("res", "ICU", {"regs": 0x00802000}),
+        )
+        with self.assertRaisesRegex(ValueError, "ICU"):
+            Machine(p, {"dummy": Dummy, "res": Resettable}, {})
+
+    def test_reset_resets_modules_and_restarts_the_cpu(self):
+        p = profile(ModuleSpec("res", "R", {"regs": 0x00802000}))
+        machine = Machine(p, {"res": Resettable}, {})
+        machine.cpu.reset(0x00400010)
+        machine.reset()
+        self.assertEqual(Resettable.resets, 1)
+        self.assertEqual(machine.cpu.reg("pc"), 0)
+
+    def test_reset_fills_each_region_with_its_own_byte(self):
+        p = profile(memory=[
+            MemorySpec("RAM1", 0x00400000, 0x1000, reset_fill=0xAA),
+            MemorySpec("RAM2", 0x00900000, 0x1000, reset_fill=0x55),
+        ])
+        machine = Machine(p, {}, {})
+        machine.cpu.mem_write(0x00400010, b"\x11\x22")
+        machine.cpu.mem_write(0x00900010, b"\x33")
+        machine.reset()
+        self.assertEqual(machine.cpu.mem_read(0x00400010, 2), b"\xAA\xAA")
+        self.assertEqual(machine.cpu.mem_read(0x00400FFF, 1), b"\xAA")  # last byte of the region
+        self.assertEqual(machine.cpu.mem_read(0x00900010, 1), b"\x55")
+
+    def test_region_without_reset_fill_keeps_its_contents(self):
+        p = profile(memory=[
+            MemorySpec("RAM1", 0x00400000, 0x1000, reset_fill=0xAA),
+            MemorySpec("KEEP", 0x00900000, 0x1000),
+        ])
+        machine = Machine(p, {}, {})
+        machine.cpu.mem_write(0x00900010, b"\x33")
+        machine.reset()
+        self.assertEqual(machine.cpu.mem_read(0x00900010, 1), b"\x33")
+
+    def test_modules_can_reset_the_chip_through_their_reset_chip_param(self):
+        p = profile(ModuleSpec("res", "R", {"regs": 0x00802000}))
+        machine = Machine(p, {"res": Resettable}, {})
+        machine.modules["R"].params["reset_chip"]()
+        self.assertEqual(Resettable.resets, 1)
 
 
 class FaultOnRead(Module):

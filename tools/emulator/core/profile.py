@@ -14,6 +14,7 @@ class MemorySpec:
     name: str
     base: int
     size: int
+    reset_fill: int | None = None  # byte the region holds after a chip reset; None keeps it
 
 
 @dataclass
@@ -65,7 +66,7 @@ def load_profile(name, directory):
 
 
 def _build(name, raw):
-    memory = [MemorySpec(m["name"], m["base"], m["size"]) for m in raw["memory"]]
+    memory = [_memory(m) for m in raw["memory"]]
     modules = [
         ModuleSpec(m["type"], m["name"], dict(m["bases"]), dict(m.get("params", {})))
         for m in raw.get("module", [])
@@ -90,6 +91,15 @@ def _build(name, raw):
         aliases=aliases,
         modules=modules,
     )
+
+
+def _memory(raw):
+    fill = raw.get("reset_fill")
+    if fill is not None and (not isinstance(fill, int) or not 0 <= fill <= 0xFF):
+        raise ProfileError(
+            "memory %s: reset_fill must be a byte (0-255), got %r" % (raw["name"], fill)
+        )
+    return MemorySpec(raw["name"], raw["base"], raw["size"], fill)
 
 
 def _alias(key, value):

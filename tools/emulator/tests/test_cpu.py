@@ -122,6 +122,24 @@ class CpuTest(unittest.TestCase):
         with self.assertRaises(UcError):
             cpu.run(3)
 
+    def test_reset_clears_general_registers_so_reboots_look_like_a_cold_start(self):
+        cpu = make_cpu(MOV_R0_5, B_SELF)
+        cpu.run(1)
+        cpu.set_reg("r12", 7)
+        cpu.set_reg("lr", 0x1234)
+        cpu.reset(RAM)
+        for name in ("r0", "r12", "sp", "lr"):
+            self.assertEqual(cpu.reg(name), 0, name)
+
+    def test_reset_drops_pending_interrupt_lines(self):
+        cpu = make_cpu(B_SELF)
+        cpu.raise_irq(True)
+        cpu.raise_fiq(True)
+        cpu.reset(RAM)
+        cpu.set_reg("cpsr", MODE_SVC)  # unmasked
+        cpu.run(1)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, MODE_SVC)
+
     def test_irq_ignored_when_masked(self):
         cpu = make_cpu(B_SELF)
         cpu.set_reg("cpsr", MODE_SVC | I_BIT)

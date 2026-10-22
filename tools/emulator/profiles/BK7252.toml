@@ -8,15 +8,19 @@ insns_per_us = 100
 # [base, size]: accesses no module claims are logged and read as 0.
 peripheral_window = [0x00800000, 0x00100000]
 
+# reset_fill: the byte the region holds after a chip reset (watchdog expiry).
+# Without it the contents survive the reset.
 [[memory]]
 name = "RAM1"
 base = 0x00400000
 size = 0x40000
+reset_fill = 0xAA
 
 [[memory]]
 name = "RAM2"
 base = 0x00900000
 size = 0x40000
+reset_fill = 0xAA
 
 # Names usable in --load. A plain number is a bus address; a table points
 # into a module (flash offsets are raw physical, CRC bytes included).
@@ -47,6 +51,19 @@ type = "intc"
 name = "ICU"
 [module.bases]
 regs = 0x00802000
+[module.params]
+# peri_clk_pwd (+0x08) powers every peripheral clock down at reset (docs/por_reset_state.md).
+reset_words = { "0x08" = 0x00ffffff }
+# Register bits other modules watch: [offset, bit]. 1 = clock powered down.
+signals = { arm_wdt_pwd = [0x08, 8] }
+
+[[module]]
+type = "wdt"
+name = "WDT"
+[module.bases]
+regs = 0x00802900
+[module.params]
+clock_off_signal = "ICU.arm_wdt_pwd"
 
 [[module]]
 type = "timer"

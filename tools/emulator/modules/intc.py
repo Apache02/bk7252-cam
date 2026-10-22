@@ -30,19 +30,44 @@ class _Source:
         self._intc.drive(self.number, level)
 
 
+class _Bit:
+    """A register bit other modules can watch (clock gates and the like)."""
+
+    def __init__(self, intc, offset, bit):
+        self._intc = intc
+        self._offset = offset
+        self._bit = bit
+
+    def active(self):
+        return bool(self._intc.read("regs", self._offset, 4) >> self._bit & 1)
+
+
 class IntcModule(Module):
-    def __init__(self, name, cpu_irq=None, cpu_fiq=None, **params):
+    """`signals` maps a name to [register offset, bit]; `reset_words` maps a
+    register offset (as a string) to its reset value for the plain registers."""
+
+    def __init__(self, name, cpu_irq=None, cpu_fiq=None, signals=None, reset_words=None, **params):
         super().__init__(name, **params)
         self._cpu_irq = cpu_irq
         self._cpu_fiq = cpu_fiq
+        self._signals = signals or {}
+        self._reset_words = {int(k, 0): v for k, v in (reset_words or {}).items()}
         self._sources = []
+        self.reset()
+
+    def reset(self):
         self._latched = 0
         self._enable = 0
         self._global = 0
-        self._words = {}
+        self._words = dict(self._reset_words)
+        self._update()
 
     def ranges(self):
         return [("regs", _SIZE)]
+
+    def signal(self, name):
+        offset, bit = self._signals[name]
+        return _Bit(self, offset, bit)
 
     def line(self, source):
         line = _Source(self, source)

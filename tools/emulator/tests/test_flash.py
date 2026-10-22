@@ -94,6 +94,16 @@ class FlashTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][:2], ("xip", 0))
 
+    def test_reset_restores_registers_but_keeps_contents(self):
+        calls = []
+        self.flash.load(0, image(bytes(range(32))))
+        self.flash.write("ctrl", CONF, 4, 0)
+        self.flash.invalidate = lambda *args: calls.append(args)
+        self.flash.reset()
+        self.assertTrue(self.flash.read("ctrl", CONF, 4) & CRC_EN)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(self.flash.read("xip", 0, 4), 0x03020100)
+
     def test_unwritten_flash_is_bad_block(self):
         with self.assertLogs("emulator.flash", level="ERROR"):
             with self.assertRaises(Fault):

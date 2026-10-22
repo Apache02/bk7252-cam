@@ -97,6 +97,37 @@ class IntcTest(unittest.TestCase):
         reg(intc, STATUS, 1 << UART2)
         self.assertFalse(irq.level)
 
+    def test_signal_reports_a_register_bit(self):
+        intc = IntcModule("ICU", signals={"wdt_off": [0x08, 8]})
+        signal = intc.signal("wdt_off")
+        self.assertFalse(signal.active())
+        reg(intc, 0x08, 1 << 8)
+        self.assertTrue(signal.active())
+        reg(intc, 0x08, 0)
+        self.assertFalse(signal.active())
+
+    def test_unknown_signal_rejected(self):
+        with self.assertRaisesRegex(KeyError, "nope"):
+            IntcModule("ICU").signal("nope")
+
+    def test_reset_words_set_register_reset_values(self):
+        intc = IntcModule("ICU", reset_words={"0x08": 0xFFFFFF})
+        self.assertEqual(reg(intc, 0x08), 0xFFFFFF)
+        reg(intc, 0x08, 0)
+        intc.reset()
+        self.assertEqual(reg(intc, 0x08), 0xFFFFFF)
+
+    def test_reset_clears_interrupt_state_and_drops_cpu_lines(self):
+        intc, irq, _ = make()
+        reg(intc, IRQ_ENABLE, 1 << UART2)
+        reg(intc, GLOBAL_EN, GLOBAL_IRQ)
+        intc.line(UART2).set(True)
+        self.assertTrue(irq.level)
+        intc.reset()
+        self.assertFalse(irq.level)
+        self.assertEqual(reg(intc, IRQ_ENABLE), 0)
+        self.assertEqual(reg(intc, GLOBAL_EN), 0)
+
     def test_other_registers_read_back(self):
         intc, _, _ = make()
         reg(intc, 0x00, 0x1234)
