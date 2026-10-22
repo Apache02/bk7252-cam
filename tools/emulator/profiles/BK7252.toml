@@ -11,6 +11,13 @@ peripheral_window = [0x00800000, 0x00100000]
 # reset_fill: the byte the region holds after a chip reset (watchdog expiry).
 # Without it the contents survive the reset.
 # executable = false: a fetch from the region is a Prefetch Abort (RAM1 cannot run code).
+# The upper SRAM bank (docs/memory_map.md): 32 KiB below RAM1, readable, writable, executable.
+[[memory]]
+name = "TCM"
+base = 0x003F8000
+size = 0x8000
+reset_fill = 0xAA
+
 [[memory]]
 name = "RAM1"
 base = 0x00400000

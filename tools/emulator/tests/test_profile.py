@@ -39,7 +39,9 @@ class ProfileTest(unittest.TestCase):
 
     def test_bk7252_ram_regions_reset_to_0xaa(self):
         profile = load_profile("BK7252", PROFILES)
-        self.assertEqual({m.name: m.reset_fill for m in profile.memory}, {"RAM1": 0xAA, "RAM2": 0xAA})
+        self.assertEqual(
+            {m.name: m.reset_fill for m in profile.memory}, {"TCM": 0xAA, "RAM1": 0xAA, "RAM2": 0xAA}
+        )
 
     def test_memory_without_reset_fill_keeps_its_contents(self):
         self.assertIsNone(profile_from(MINIMAL.format(extra="")).memory[0].reset_fill)

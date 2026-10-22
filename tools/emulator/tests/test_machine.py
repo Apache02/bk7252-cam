@@ -244,6 +244,29 @@ class Bk7252ProfileTest(unittest.TestCase):
         cpu = self.run_mov_at(0x00900000)
         self.assertEqual(cpu.reg("r0"), 5)
 
+    def test_code_in_the_upper_sram_bank_runs(self):
+        for base in (0x003F8000, 0x003FFFFC):
+            with self.subTest(base=hex(base)):
+                self.assertEqual(self.run_mov_at(base).reg("r0"), 5)
+
+    def test_the_upper_sram_bank_is_32_kib_of_memory_that_holds_what_is_written(self):
+        cpu = self.machine().cpu
+        for address in (0x003F8000, 0x003FC000, 0x003FFFFC):
+            cpu.mem_write(address, struct.pack("<I", address))
+            self.assertEqual(struct.unpack("<I", cpu.mem_read(address, 4))[0], address)
+
+    def test_the_upper_sram_bank_reads_aa_after_a_chip_reset(self):
+        machine = self.machine()
+        machine.cpu.mem_write(0x003F8000, b"\x11" * 4)
+        machine.reset()
+        self.assertEqual(machine.cpu.mem_read(0x003F8000, 4), b"\xAA" * 4)
+        self.assertEqual(machine.cpu.mem_read(0x003FFFFC, 4), b"\xAA" * 4)
+
+    def test_the_word_below_the_upper_sram_bank_is_not_memory(self):
+        machine = self.machine()
+        with self.assertRaises(Exception):
+            machine.cpu.mem_read(0x003F7FFC, 4)
+
     def test_a_chip_reset_powers_the_mac_down_again(self):
         machine = self.machine()
         machine.modules["SCTRL"].write("regs", 0x10C, 4, 0x0001 << 16)
