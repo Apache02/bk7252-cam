@@ -55,6 +55,10 @@ regs = 0x00800000
 [module.params]
 chip_id = 0x0007221a
 device_id = 0x18221020
+# Emulation hack: the firmware's busy-wait loops count iterations from the MCLK divider
+# (control[7:4], clock = source / (divider + 1)) and run several times slower here than
+# on the chip. Reading the divider one higher makes them count fewer iterations.
+read_adjust = [{ offset = 0x008, shift = 4, width = 4, add = 1 }]
 [module.params.reset_words]
 "0x008" = 0x00020000  # control: DCO main clock, qspi_io_volt = 2
 "0x00c" = 0x000001ff  # clk_gating

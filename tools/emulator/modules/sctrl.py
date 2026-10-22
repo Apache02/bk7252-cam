@@ -19,13 +19,19 @@ def _offsets(words):
 
 
 class SctrlModule(Module):
+    """`read_adjust` is a list of {offset, shift, width, add}: reads of that register show the
+    field `add` higher than what is stored (stopping at the field's maximum). The firmware's
+    own writes are stored as they are."""
+
     def __init__(
-        self, name, chip_id=0, device_id=0, reset_words=None, warm_reset_words=None, signals=None, **params
+        self, name, chip_id=0, device_id=0, reset_words=None, warm_reset_words=None, signals=None,
+        read_adjust=None, **params
     ):
         super().__init__(name, **params)
         self._chip_id = chip_id
         self._device_id = device_id
-        self._signals = make_signals(lambda offset: self.read("regs", offset, 4), signals or {})
+        self._read_adjust = read_adjust or []
+        self._signals = make_signals(lambda offset: self._words.get(offset, 0), signals or {})
         self._cold = _offsets(reset_words)
         self._warm = {**self._cold, **_offsets(warm_reset_words)}
         self._words = dict(self._cold)
@@ -44,7 +50,13 @@ class SctrlModule(Module):
             return self._chip_id
         if offset == _DEVICE_ID:
             return self._device_id
-        return self._words.get(offset, 0)
+        word = self._words.get(offset, 0)
+        for adjust in self._read_adjust:
+            if adjust["offset"] == offset:
+                mask = (1 << adjust["width"]) - 1
+                field = word >> adjust["shift"] & mask
+                word = word & ~(mask << adjust["shift"]) | min(field + adjust["add"], mask) << adjust["shift"]
+        return word
 
     def write(self, range_name, offset, size, value):
         if offset not in (_CHIP_ID, _DEVICE_ID):

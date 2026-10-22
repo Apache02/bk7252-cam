@@ -61,6 +61,37 @@ class SctrlTest(unittest.TestCase):
         sctrl.reset()
         self.assertEqual(reg(sctrl, CHARGE_STATUS), 0xFFE08010)
 
+    DIVIDER_BIAS = [{"offset": 0x08, "shift": 4, "width": 4, "add": 1}]
+
+    def test_a_biased_field_reads_one_more_than_was_written(self):
+        sctrl = make(read_adjust=self.DIVIDER_BIAS)
+        reg(sctrl, CONTROL, 0x30)  # divider 3
+        self.assertEqual(reg(sctrl, CONTROL), 0x40)
+
+    def test_the_bias_leaves_the_other_bits_alone(self):
+        sctrl = make(read_adjust=self.DIVIDER_BIAS)
+        reg(sctrl, CONTROL, 0x00F20132)  # divider 3, other fields set
+        self.assertEqual(reg(sctrl, CONTROL), 0x00F20142)
+
+    def test_the_bias_stops_at_the_top_of_the_field(self):
+        sctrl = make(read_adjust=self.DIVIDER_BIAS)
+        reg(sctrl, CONTROL, 0xF0)
+        self.assertEqual(reg(sctrl, CONTROL), 0xF0)  # no carry into bit 8
+
+    def test_the_bias_applies_to_the_reset_value_too(self):
+        sctrl = make(read_adjust=self.DIVIDER_BIAS, reset_words={"0x008": 0x00020000})
+        self.assertEqual(reg(sctrl, CONTROL), 0x00020010)
+
+    def test_the_bias_touches_only_its_register(self):
+        sctrl = make(read_adjust=self.DIVIDER_BIAS)
+        reg(sctrl, 0x58, 0x30)
+        self.assertEqual(reg(sctrl, 0x58), 0x30)
+
+    def test_without_the_parameter_reads_are_exact(self):
+        sctrl = make()
+        reg(sctrl, CONTROL, 0x30)
+        self.assertEqual(reg(sctrl, CONTROL), 0x30)
+
     def test_signals_watch_register_fields(self):
         sctrl = make(signals={"mac_powered": {"offset": 0x10C, "shift": 16, "width": 16, "equals": 1}})
         signal = sctrl.signal("mac_powered")

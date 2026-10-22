@@ -198,7 +198,7 @@ def step_switch_speed(ser, new_baud, timeout):
     ser.flush()
     time.sleep(0.1)
     ser.baudrate = new_baud
-    time.sleep(0.1)
+    time.sleep(0.4)
     log_ok(f"Baud rate switched to {new_baud}.")
     return True
 
