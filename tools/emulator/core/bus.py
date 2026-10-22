@@ -234,7 +234,8 @@ class Bus:
         def invalidate(range_name, offset, size):
             for m, name, base, _ in self._demand:
                 if m is module and name == range_name:
-                    self._drop_pages(base + offset, size)
+                    start = (base + offset) & ~(PAGE - 1)  # pages touched by a partial range
+                    self._drop_pages(start, base + offset + size - start)
         return invalidate
 
     def _drop_pages(self, start, size):

@@ -17,8 +17,17 @@ CTRL_SIZE = 0x28
 
 _OP_SHIFT, _OP_MASK = 24, 0x1F
 _OP_START = 1 << 29
-_OP_RDID, _OP_READ, _OP_RDSR, _OP_WREN, _OP_WRDI = 20, 5, 3, 1, 2
-_WRITE_OPS = {12: "PP", 13: "SE", 14: "BE1", 15: "BE2", 16: "CE"}
+_OP_WP = 1 << 30
+_OP_RDID, _OP_READ, _OP_RDSR, _OP_RDSR2, _OP_WREN, _OP_WRDI = 20, 5, 3, 6, 1, 2
+_OP_WRSR, _OP_WRSR2, _OP_PP, _OP_SE, _OP_BE1, _OP_BE2, _OP_CE = 4, 7, 12, 13, 14, 15, 16
+_WRITE_OPS = {
+    _OP_WRSR: "WRSR", _OP_WRSR2: "WRSR2", _OP_PP: "PP", _OP_SE: "SE",
+    _OP_BE1: "BE1", _OP_BE2: "BE2", _OP_CE: "CE",
+}
+_ERASE_SIZE = {_OP_SE: 0x1000, _OP_BE1: 0x8000, _OP_BE2: 0x10000}
+_ERASE_NAME = {_OP_SE: "4 KiB sector", _OP_BE1: "32 KiB block", _OP_BE2: "64 KiB block"}
+_SR_WEL = 1 << 1
+_BP_MASK = 0x1C  # status register BP2..BP0
 _CRC_EN = 1 << 26
 
 log = logging.getLogger("emulator.flash")
@@ -70,9 +79,12 @@ class FlashModule(Module):
     def _reset_registers(self):
         self._operate = 0
         self._m_value = 0
-        self._sr = 0
+        self._sr = 0  # flash chip status register 1, protection bits only
+        self._sr2 = 0
+        self._sr_out = 0  # what the last RDSR or RDSR2 captured
         self._fifo = [0] * 8
         self._fifo_ptr = 0
+        self._wfifo = []
         self._wel = False
         self._last_alert = None
 
@@ -178,7 +190,7 @@ class FlashModule(Module):
         if reg == 4:
             return self._jedec
         if reg == 5:
-            return self._sr | (self._fifo_ptr << 16) | (7 << 19) | (self._m_value << 22)
+            return self._sr_out | (self._fifo_ptr << 16) | (7 << 19) | (self._m_value << 22)
         if reg == 7:
             return self._conf
         return 0
@@ -188,7 +200,11 @@ class FlashModule(Module):
         if reg == 0:
             self._operate = value
             if value & _OP_START:
-                self._command((value >> _OP_SHIFT) & _OP_MASK, value & 0xFFFFFF)
+                self._command(
+                    (value >> _OP_SHIFT) & _OP_MASK, value & 0xFFFFFF, bool(value & _OP_WP)
+                )
+        elif reg == 1:
+            self._wfifo = (self._wfifo + [value & 0xFFFFFFFF])[-8:]
         elif reg == 5:
             self._m_value = (value >> 22) & 0xFF
         elif reg == 7:
@@ -197,22 +213,110 @@ class FlashModule(Module):
             if changed:
                 self.invalidate("xip", 0, self._window)
 
-    def _command(self, op, addr):
+    def _command(self, op, addr, wp):
         if op == _OP_RDID:
             return
         if op == _OP_RDSR:
-            self._sr = 2 if self._wel else 0
+            self._sr_out = (self._sr & 0xFC) | (_SR_WEL if self._wel else 0)
+        elif op == _OP_RDSR2:
+            self._sr_out = self._sr2
         elif op == _OP_WREN:
             self._wel = True
+            log.debug("write enable latch set")
         elif op == _OP_WRDI:
             self._wel = False
+            log.debug("write enable latch cleared")
         elif op == _OP_READ:
             start = addr & ~(DATA - 1)
             chunk = bytes(self._raw[start:start + DATA]).ljust(DATA, b"\xff")
             self._fifo = list(struct.unpack("<8I", chunk))
             self._fifo_ptr = 0
         elif op in _WRITE_OPS:
-            log.warning("flash %s at 0x%06X is not emulated", _WRITE_OPS[op], addr)
+            self._write_command(op, addr, wp)
+
+    def _write_command(self, op, addr, wp):
+        """PP, erases and status register writes. Rules: docs/hardware/flash.md,
+        "Write protection model". Block protection stops erases too, which the
+        docs leave uncharacterised."""
+        name = _WRITE_OPS[op]
+        if not wp:
+            log.warning("flash %s at 0x%06X ignored: WP# not released (operate_sw.wp = 0)", name, addr)
+            return
+        protected = bool(self._sr & _BP_MASK)
+        if op == _OP_PP and protected:
+            log.warning(
+                "flash PP at 0x%06X suppressed: block protection is set in the status register", addr
+            )
+            return
+        if not self._wel:
+            log.warning("flash %s at 0x%06X ignored: write enable latch not set", name, addr)
+            return
+        self._wel = False
+        if op in (_OP_WRSR, _OP_WRSR2):
+            data = self._conf >> 10 & 0xFFFF
+            self._sr = data & 0xFC
+            log.debug("write status register 1 = 0x%02X (%s)", self._sr, _describe_sr(self._sr))
+            if op == _OP_WRSR2:
+                self._sr2 = data >> 8
+                log.debug("write status register 2 = 0x%02X", self._sr2)
+        elif protected:
+            log.warning(
+                "flash %s at 0x%06X ignored: block protection is set in the status register", name, addr
+            )
+        elif op == _OP_PP:
+            self._program(addr & ~(DATA - 1))
+        else:
+            size = _ERASE_SIZE.get(op, self._size)
+            start = 0 if op == _OP_CE else addr & ~(size - 1)
+            end = min(start + size, self._size)
+            if op == _OP_CE:
+                log.debug("erase whole chip")
+            else:
+                log.debug(
+                    "erase %s 0x%08X-0x%08X (XIP blocks %d-%d)",
+                    _ERASE_NAME[op], start, end - 1, start // BLOCK, (end - 1) // BLOCK,
+                )
+            self._raw[start:end] = b"\xff" * (end - start)
+            self._changed(start, end)
+
+    def _program(self, start):
+        """A 32-byte page program can only clear bits."""
+        words = (self._wfifo + [0xFFFFFFFF] * 8)[:8]
+        self._wfifo = []
+        data = struct.pack("<8I", *words)
+        end = min(start + DATA, self._size)
+        log.debug(
+            "program %d bytes at 0x%08X (%s): %s%s", end - start, start, _where(start),
+            data[:16].hex(" "), " ..." if end - start > 16 else "",
+        )
+        for i in range(start, end):
+            self._raw[i] &= data[i - start]
+        self._changed(start, end)
+
+    def _changed(self, start, end):
+        """Raw bytes [start, end) changed: forget their CRC verdicts and cached pages."""
+        first, last = start // BLOCK, (end - 1) // BLOCK
+        for n in range(first, last + 1):
+            self._valid.pop(n, None)
+        window = min(self._window, (last + 1) * DATA)
+        self.invalidate("xip", first * DATA, max(window - first * DATA, 0))
+
+
+def _where(addr):
+    """Where a raw physical address sits in the CRC-interleaved XIP layout."""
+    block, byte = divmod(addr, BLOCK)
+    if byte < DATA:
+        return "XIP block %d byte %d" % (block, byte)
+    return "XIP block %d crc byte %d" % (block, byte - DATA)
+
+
+def _describe_sr(sr):
+    names = [
+        name for bit, name in
+        ((4, "BP2"), (3, "BP1"), (2, "BP0"), (5, "TB"), (6, "4KBL"), (7, "SRP"))
+        if sr >> bit & 1
+    ]
+    return " ".join(names) if names and sr & 0xFC != 0 else "no protection"
 
 
 def _merge(spans):

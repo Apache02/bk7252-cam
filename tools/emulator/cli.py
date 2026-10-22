@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import signal
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ from core.loader import LoadError, apply_loads, parse_load
 from core.machine import Machine
 from core.profile import ProfileError, load_profile
 from host.endpoint import make_endpoint as default_make_endpoint
+from host.log_format import configure_logging
 from modules import REGISTRY
 
 PROFILES = Path(__file__).resolve().parent / "profiles"
@@ -41,7 +43,7 @@ def _fail(message):
 
 def main(argv=None, make_endpoint=default_make_endpoint, profile_dir=PROFILES, registry=REGISTRY):
     args = _parser().parse_args(argv)
-    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+    configure_logging(sys.stderr, os.environ)
     for module in args.debug:
         logging.getLogger("emulator." + module).setLevel(logging.DEBUG)
 

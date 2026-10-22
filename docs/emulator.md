@@ -39,6 +39,9 @@ Options:
 | `--debug MODULE` | Print a module's decoded debug log (for example `--debug gdma`). Repeatable. |
 | `--uart1 SPEC`, `--uart2 SPEC` | Host end of the UART: `pty` (default), `stdio`, or a serial device path. |
 
+Log lines go to stderr. When stderr is a terminal, warnings are yellow and errors red; `NO_COLOR=1`
+turns the colour off and `FORCE_COLOR=1` turns it on for a pipe or a file.
+
 `TARGET` is an alias from the profile (case-insensitive) or a number. Aliases of `BK7252`:
 
 | Alias | Where |
@@ -57,7 +60,7 @@ error reported before the emulator starts.
 | ----- | ----- |
 | CPU | Unicorn, ARM946 model (closest to ARM968E-S). SWI, undefined instruction, aborts, IRQ and FIQ are entered the way the core does. |
 | RAM | `RAM1`, `RAM2`. |
-| Flash | 2 MiB raw store and the CRC-decoded XIP window. A block with a bad CRC logs an `ALERT` line and raises a Data Abort while `conf.crc_en` is set. Controller commands: read ID, read status, write enable/disable, 32-byte read. Erase and program are logged and not performed. |
+| Flash | 2 MiB raw store and the CRC-decoded XIP window. A block with a bad CRC logs an `ALERT` line and raises a Data Abort while `conf.crc_en` is set. Controller commands: read ID, read and write status registers, write enable/disable, 32-byte read, 32-byte page program (clears bits only), sector, 32 KB and 64 KB block erase, chip erase. The write rules follow `docs/hardware/flash.md`: a command needs `WP#` released and a set write-enable latch (consumed by it); block-protection bits in the status register stop programs and erases (a rejected command logs a warning). Changes show up in the XIP window at once. So `tools/bkloader flash` and a reboot into the written app work. The contents live in memory only and are lost when the emulator exits. `--debug flash` prints every erase, program, status-register write and write-enable change, decoded (reads are not logged). |
 | SCTRL | `chip_id` and `device_id` (read-only, set in the profile); every other register reads back what was written, starting from the profile's `reset_words` (`warm_reset_words` after a chip reset). No analog or clock behaviour. |
 | GDMA | Six channels, memory to memory, with the byte-accumulator model of `docs/hardware/dma.md` (widths, +4 address steps, zero-padded tail) and its transfer times. The copy lands when the modelled time has passed; `enable` clears, the finish and half-finish flags and the interrupt follow. Channels with a peripheral request line stall and repeat mode runs once, both with a warning. A bus error aborts the channel with an error line. `--debug gdma` prints every configuration, start, completion and acknowledge decoded. |
 | GPIO | 40 pins in two banks. A pin drives its pad while its output driver is on; otherwise the pad follows the level forced from the host side, then the pull resistor, then reads 0. Interrupts: level low/high, rising/falling edge. Peripheral functions of a pin are not modelled. |
@@ -110,6 +113,6 @@ Booting a real image is a manual check.
 
 ## Limits
 
-One chip. Flash erase and program are not emulated. No WiFi, JPEG or camera sensor
+One chip. Flash is not saved between runs. No WiFi, JPEG or camera sensor
 modules yet, so DMA from the JPEG request line stalls. The GPIO module has a Python interface (`set_input`, `pad_level`, `watch`) for
 tests and scripts, but the command line does not expose it; firmware that needs them runs into the log lines above.

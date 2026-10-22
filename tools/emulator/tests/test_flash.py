@@ -1,3 +1,4 @@
+import logging
 import struct
 import unittest
 
@@ -146,6 +147,247 @@ class FlashTest(unittest.TestCase):
         self.flash.write("ctrl", OPERATE, 4, 0 | (5 << 24) | (1 << 29))
         words = [self.flash.read("ctrl", FIFO_READ, 4) for _ in range(8)]
         self.assertEqual(struct.pack("<8I", *words), raw[:32])
+
+
+START, WP = 1 << 29, 1 << 30
+WREN, WRDI, RDSR, WRSR, READ, RDSR2, WRSR2, PP, SE, BE1, BE2, CE = 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16
+FIFO_WRITE, SR_REG = 0x04, 0x14
+SR_WEL = 1 << 1
+
+
+class WriteTest(unittest.TestCase):
+    """Erase, program and the write-protection model of docs/hardware/flash.md."""
+
+    def setUp(self):
+        logger = logging.getLogger("emulator.flash")
+        quiet = logging.NullHandler()  # keeps expected warnings off the test output
+        logger.addHandler(quiet)
+        self.addCleanup(logger.removeHandler, quiet)
+        self.flash = FlashModule("FLASH", size=0x200000)
+        self.flash.load(0, b"\x00" * 0x1F * 34)  # a few programmed blocks to erase
+
+    def op(self, opcode, addr=0, wp=True):
+        self.flash.write("ctrl", OPERATE, 4, addr | opcode << 24 | START | (WP if wp else 0))
+
+    def sr(self):
+        self.op(RDSR)
+        return self.flash.read("ctrl", SR_REG, 4) & 0xFF
+
+    def raw(self, addr, size=32):
+        self.op(READ, addr & ~31)
+        words = [self.flash.read("ctrl", FIFO_READ, 4) for _ in range(8)]
+        return struct.pack("<8I", *words)[addr % 32:][:size]
+
+    def set_sr(self, value):
+        conf = self.flash.read("ctrl", CONF, 4) & ~(0xFFFF << 10)
+        self.flash.write("ctrl", CONF, 4, conf | value << 10)
+        self.op(WREN)
+        self.op(WRSR)
+
+    def fill_fifo(self, data32):
+        for word in struct.unpack("<8I", data32):
+            self.flash.write("ctrl", FIFO_WRITE, 4, word)
+
+    def test_wren_and_wrdi_toggle_the_write_enable_latch(self):
+        self.assertEqual(self.sr() & SR_WEL, 0)
+        self.op(WREN)
+        self.assertEqual(self.sr() & SR_WEL, SR_WEL)
+        self.op(WRDI)
+        self.assertEqual(self.sr() & SR_WEL, 0)
+
+    def test_sector_erase_sets_the_aligned_4k_to_ff(self):
+        self.flash.load(0x1012, b"\x11" * 34)  # first block boundary inside sector 1
+        self.assertEqual(self.raw(0x1020, 16), b"\x11" * 16)
+        self.op(WREN)
+        self.op(SE, 0x1234)
+        self.assertEqual(self.raw(0x1020, 16), b"\xff" * 16)
+        self.assertEqual(self.raw(0x0400, 16), b"\x00" * 16)  # sector 0 is untouched
+
+    def test_erase_needs_the_write_enable_latch_and_consumes_it(self):
+        self.op(SE, 0)
+        self.assertEqual(self.raw(0), b"\x00" * 32)
+        self.op(WREN)
+        self.op(SE, 0)
+        self.assertEqual(self.raw(0), b"\xff" * 32)
+        self.assertEqual(self.sr() & SR_WEL, 0)
+
+    def test_erase_needs_wp_released_and_keeps_the_latch(self):
+        self.op(WREN)
+        self.op(SE, 0, wp=False)
+        self.assertEqual(self.raw(0), b"\x00" * 32)
+        self.assertEqual(self.sr() & SR_WEL, SR_WEL)
+
+    def test_block_erases_and_chip_erase(self):
+        self.flash.load(0x10010, b"\x22" * 34)  # block boundaries inside each 32 KB block
+        self.flash.load(0x18018, b"\x22" * 34)
+        self.op(WREN)
+        self.op(BE1, 0x10123)
+        self.assertEqual(self.raw(0x10020, 16), b"\xff" * 16)
+        self.assertEqual(self.raw(0x18020, 16), b"\x22" * 16)  # the next 32 KB survives
+        self.op(WREN)
+        self.op(BE2, 0x18000)
+        self.assertEqual(self.raw(0x18020, 16), b"\xff" * 16)
+        self.op(WREN)
+        self.op(CE)
+        self.assertEqual(self.raw(0), b"\xff" * 32)
+
+    def test_page_program_writes_the_fifo_into_an_erased_block(self):
+        self.op(WREN)
+        self.op(SE, 0)
+        self.fill_fifo(bytes(range(32)))
+        self.op(WREN)
+        self.op(PP, 0x40)
+        self.assertEqual(self.raw(0x40), bytes(range(32)))
+        self.assertEqual(self.raw(0x20), b"\xff" * 32)
+
+    def test_page_program_can_only_clear_bits(self):
+        self.flash.load(0x1012, b"\xf0" * 34)  # raw bytes 0x1012..0x1033
+        self.fill_fifo(b"\x3c" * 32)
+        self.op(WREN)
+        self.op(PP, 0x1020)
+        self.assertEqual(self.raw(0x1020, 20), b"\x30" * 20)  # 0xf0 AND 0x3c
+        self.assertEqual(self.raw(0x1034, 12), b"\x3c" * 12)  # erased bytes take the data
+
+    def test_page_program_needs_the_latch_and_consumes_it(self):
+        self.op(WREN)
+        self.op(SE, 0)
+        self.fill_fifo(b"\x55" * 32)
+        self.op(PP, 0)
+        self.assertEqual(self.raw(0), b"\xff" * 32)
+        self.op(WREN)
+        self.op(PP, 0)
+        self.assertEqual(self.raw(0), b"\x55" * 32)
+        self.assertEqual(self.sr() & SR_WEL, 0)
+
+    def test_write_status_register_needs_the_latch_and_keeps_the_ro_bits(self):
+        conf = self.flash.read("ctrl", CONF, 4) & ~(0xFFFF << 10)
+        self.flash.write("ctrl", CONF, 4, conf | 0x7F << 10)
+        self.op(WRSR)  # no WREN: ignored
+        self.assertEqual(self.sr(), 0)
+        self.op(WREN)
+        self.op(WRSR)
+        self.assertEqual(self.sr(), 0x7C)  # bits 0 (WIP) and 1 (WEL) are read-only
+
+    def test_block_protection_suppresses_page_program_and_keeps_the_latch(self):
+        self.set_sr(0x7C)
+        self.op(WREN)
+        self.fill_fifo(b"\x55" * 32)
+        with self.assertLogs("emulator.flash", level="WARNING") as logs:
+            self.op(PP, 0x40)
+        self.assertIn("protect", logs.output[0])
+        self.assertEqual(self.raw(0x40), b"\x00" * 32)
+        self.assertEqual(self.sr() & SR_WEL, SR_WEL)
+        self.set_sr(0)  # WREN + WRSR(0) clears the protection
+        self.op(WREN)
+        self.op(PP, 0x40)
+        self.assertEqual(self.raw(0x40), b"\x00" * 32)  # 0x55 AND 0x00: nothing erased here
+        self.assertEqual(self.sr(), 0)
+
+    def test_block_protection_also_blocks_erase(self):
+        self.set_sr(0x7C)
+        self.op(WREN)
+        with self.assertLogs("emulator.flash", level="WARNING"):
+            self.op(SE, 0)
+        self.assertEqual(self.raw(0), b"\x00" * 32)
+
+    def test_wrsr2_stores_both_status_bytes(self):
+        conf = self.flash.read("ctrl", CONF, 4) & ~(0xFFFF << 10)
+        self.flash.write("ctrl", CONF, 4, conf | 0x0200 << 10)
+        self.op(WREN)
+        self.op(WRSR2)
+        self.op(RDSR2)
+        self.assertEqual(self.flash.read("ctrl", SR_REG, 4) & 0xFF, 0x02)
+
+    def test_programming_makes_an_xip_block_readable(self):
+        self.op(WREN)
+        self.op(SE, 0x11000)
+        good = wrap(bytes(range(32)))
+        self.fill_fifo(good[:32])
+        self.op(WREN)
+        self.op(PP, 0x11000)
+        self.fill_fifo(good[32:] + b"\xff" * 30)
+        self.op(WREN)
+        self.op(PP, 0x11020)
+        self.assertEqual(self.flash.read("xip", 0x10000, 4), 0x03020100)
+
+    def test_erase_makes_a_good_xip_block_bad_again(self):
+        self.flash.load(0x11000, image(block(7)))
+        self.assertEqual(self.flash.read("xip", 0x10000, 1), 7)
+        self.op(WREN)
+        self.op(SE, 0x11000)
+        with self.assertLogs("emulator.flash", level="ERROR"):
+            with self.assertRaises(Fault):
+                self.flash.read("xip", 0x10000, 1)
+
+    def test_changed_flash_invalidates_the_cached_pages(self):
+        calls = []
+        self.flash.invalidate = lambda *args: calls.append(args)
+        self.op(WREN)
+        self.op(SE, 0x11000)
+        self.assertEqual(len(calls), 1)
+        name, start, size = calls[0]
+        self.assertEqual(name, "xip")
+        self.assertLessEqual(start, 0x10000)
+        self.assertGreaterEqual(start + size, 0x10000 + 0x1000 * 32 // 34)
+
+    def debug(self):
+        return self.assertLogs("emulator.flash", level="DEBUG")
+
+    def test_erases_are_decoded(self):
+        with self.debug() as logs:
+            self.op(WREN)
+            self.op(SE, 0x11234)
+            self.op(WREN)
+            self.op(BE1, 0x10123)
+            self.op(WREN)
+            self.op(BE2, 0x18000)
+            self.op(WREN)
+            self.op(CE)
+        text = "\n".join(logs.output)
+        self.assertIn("erase 4 KiB sector 0x00011000-0x00011FFF (XIP blocks 2048-2168)", text)
+        self.assertIn("erase 32 KiB block 0x00010000-0x00017FFF", text)
+        self.assertIn("erase 64 KiB block 0x00010000-0x0001FFFF", text)
+        self.assertIn("erase whole chip", text)
+
+    def test_page_program_is_decoded_with_where_it_lands(self):
+        self.fill_fifo(bytes(range(32)))
+        self.op(WREN)
+        with self.debug() as logs:
+            self.op(PP, 0x11000)
+        self.assertIn("program 32 bytes at 0x00011000 (XIP block 2048 byte 0)", logs.output[0])
+        self.assertIn("00 01 02 03 04 05 06 07", logs.output[0])
+        self.fill_fifo(bytes(32))
+        self.op(WREN)
+        with self.debug() as logs:
+            self.op(PP, 0x11020)
+        self.assertIn("block 2048 crc byte 0", logs.output[0])
+
+    def test_status_register_writes_are_decoded(self):
+        with self.debug() as logs:
+            self.set_sr(0x7C)
+            self.set_sr(0)
+        text = "\n".join(logs.output)
+        self.assertIn("write status register 1 = 0x7C (BP2 BP1 BP0 TB 4KBL)", text)
+        self.assertIn("write status register 1 = 0x00 (no protection)", text)
+
+    def test_write_enable_and_disable_are_decoded(self):
+        with self.debug() as logs:
+            self.op(WREN)
+            self.op(WRDI)
+        text = "\n".join(logs.output)
+        self.assertIn("write enable latch set", text)
+        self.assertIn("write enable latch cleared", text)
+
+    def test_reads_are_not_logged(self):
+        self.raw(0)
+        with self.assertNoLogs("emulator.flash", level="DEBUG"):
+            self.raw(0)
+
+    def test_reset_clears_the_status_register_and_latch(self):
+        self.set_sr(0x7C)
+        self.op(WREN)
+        self.flash.reset()
+        self.assertEqual(self.sr(), 0)
 
 
 if __name__ == "__main__":

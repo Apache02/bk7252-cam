@@ -287,6 +287,15 @@ class DemandRangeTest(unittest.TestCase):
         self.assertEqual(len(logs.output), 1)
         self.assertEqual(cpu.mem_read(0x1000, 4), b"\x07\x07\x07\x07")
 
+    def test_invalidate_with_a_range_inside_a_page_drops_that_page(self):
+        module = DemandModule("W", {0x1000: bytes([7]) * 0x1000})
+        cpu, _ = make_demand_machine(module)
+        run_code(cpu, ldr_r1(cpu, 0x1000), LDR_R0_R1)
+        module.pages[0x1000] = bytes([9]) * 0x1000
+        module.invalidate("win", 0x1010, 8)
+        run_code(cpu, ldr_r1(cpu, 0x1000), LDR_R0_R1)
+        self.assertEqual(cpu.reg("r0"), 0x09090909)
+
     def test_invalidate_reloads_page(self):
         module = DemandModule("W", {0x1000: bytes([7]) * 0x1000})
         cpu, _ = make_demand_machine(module)
