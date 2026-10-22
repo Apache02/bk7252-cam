@@ -186,6 +186,21 @@ intc = "ICU"
 irq = 15
 bus_hz = 120000000
 
+# No sensor: a built-in picture is "captured" every frame_interval_ms and its frame ends
+# encode_ms later. The interrupt is FIQ source 29; dma_request 8 is the GDMA's JPEG line.
+[[module]]
+type = "jpeg"
+name = "JPEG"
+[module.bases]
+regs = 0x0080A000
+[module.params]
+intc = "ICU"
+irq = 29
+dma = "GDMA"
+dma_request = 8
+frame_interval_ms = 1000
+encode_ms = 150
+
 # Pin words read 0x28 at reset (output driver off, pull-down); GPIO 20-23 also have
 # function_enable set by the vendor ROM (docs/por_reset_state.md).
 [[module]]

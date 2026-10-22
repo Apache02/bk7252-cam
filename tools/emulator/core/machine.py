@@ -54,6 +54,9 @@ class Machine:
                 if isinstance(irq, dict)
                 else controller.line(irq)
             )
+        if "dma" in params:
+            controller = self._earlier(spec, params.pop("dma"))
+            params["dma"] = controller.request_line(params.pop("dma_request"))
         for key in [k for k in params if k.endswith("_signal")]:
             owner, _, signal = params.pop(key).partition(".")
             params[key[: -len("_signal")]] = self._earlier(spec, owner).signal(signal)

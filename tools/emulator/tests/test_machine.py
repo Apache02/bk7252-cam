@@ -80,6 +80,19 @@ class MachineTest(unittest.TestCase):
         machine = Machine(p, {"dummy": Dummy, "controller": Controller}, {})
         self.assertEqual(machine.modules["A"].params["irq"], ("line", 5))
 
+    def test_dma_param_resolved_to_a_request_line_of_the_named_controller(self):
+        class Dma(Controller):
+            def request_line(self, request):
+                return ("request", request)
+
+        p = profile(
+            ModuleSpec("dma", "GDMA", {"regs": 0x00809000}),
+            ModuleSpec("dummy", "A", {"regs": 0x00802100}, {"dma": "GDMA", "dma_request": 8}),
+        )
+        machine = Machine(p, {"dummy": Dummy, "dma": Dma}, {})
+        self.assertEqual(machine.modules["A"].params["dma"], ("request", 8))
+        self.assertNotIn("dma_request", machine.modules["A"].params)
+
     def test_controller_listed_after_user_rejected(self):
         p = profile(
             ModuleSpec("dummy", "A", {"regs": 0x00802100}, {"intc": "ICU", "irq": 5}),

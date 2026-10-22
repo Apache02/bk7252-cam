@@ -228,6 +228,64 @@ class ChannelTest(unittest.TestCase):
         self.assertTrue(reg(gdma, 0x00) & 1)
         self.assertIsNone(gdma.next_event_ns())
 
+    def paced(self, words, length, **params):
+        """A channel whose source is request line 8 (JPEG), fed from `words`."""
+        gdma, mem, clock, line = make(**params)
+        port = gdma.request_line(8)
+        queue = list(words)
+
+        def read():
+            word = queue.pop(0)
+            port.set(bool(queue))
+            return word
+
+        port.bind(read)
+        program(gdma, 0, 0x0080A014, BASE + 0x100, config(length, sinc=0), mux=8)
+        return gdma, mem, clock, line, port, queue
+
+    def test_a_request_line_source_waits_until_the_line_is_up(self):
+        gdma, mem, clock, line, port, _ = self.paced([b"\x01\x02\x03\x04"] * 4, 16)
+        advance(gdma, clock, MS)
+        self.assertEqual(mem.read(BASE + 0x100, 4), b"\x00" * 4)
+        self.assertTrue(reg(gdma, 0x00) & 1)
+        port.set(True)
+        advance(gdma, clock, 2 * MS)
+        self.assertEqual(mem.read(BASE + 0x100, 16), b"\x01\x02\x03\x04" * 4)
+        self.assertFalse(reg(gdma, 0x00) & 1)
+        self.assertTrue(line.level)
+
+    def test_a_source_that_runs_dry_pauses_the_channel_and_resumes(self):
+        gdma, mem, clock, _, port, queue = self.paced([b"\xAA" * 4, b"\xBB" * 4], 16)
+        port.set(True)
+        advance(gdma, clock, MS)
+        self.assertEqual(mem.read(BASE + 0x100, 8), b"\xAA" * 4 + b"\xBB" * 4)
+        self.assertTrue(reg(gdma, 0x00) & 1)
+        self.assertEqual(reg(gdma, 0x160), BASE + 0x108)
+        queue += [b"\xCC" * 4, b"\xDD" * 4]
+        port.set(True)
+        advance(gdma, clock, 2 * MS)
+        self.assertEqual(mem.read(BASE + 0x108, 8), b"\xCC" * 4 + b"\xDD" * 4)
+        self.assertFalse(reg(gdma, 0x00) & 1)
+
+    def test_words_move_at_the_dma_rate(self):
+        gdma, mem, clock, _, port, _ = self.paced([b"\x01" * 4] * 100, 400)
+        port.set(True)
+        advance(gdma, clock, 1000)
+        self.assertEqual(reg(gdma, 0x160), BASE + 0x100 + 4 * 16)
+
+    def test_the_write_position_survives_clearing_enable(self):
+        gdma, mem, clock, _, port, _ = self.paced([b"\x01" * 4] * 100, 400)
+        port.set(True)
+        advance(gdma, clock, 1000)
+        reg(gdma, 0x00, config(400, enable=0))
+        self.assertEqual(reg(gdma, 0x160), BASE + 0x100 + 4 * 16)
+
+    def test_remain_len_counts_down_with_the_words_taken(self):
+        gdma, mem, clock, _, port, _ = self.paced([b"\x01" * 4] * 100, 400)
+        port.set(True)
+        advance(gdma, clock, 1000)
+        self.assertEqual(reg(gdma, 0xC0) & 0xFFFFFF, 100 - 16)
+
     def test_repeat_mode_warns_and_runs_once(self):
         gdma, mem, clock, _ = make()
         with self.assertLogs("emulator.gdma", level="WARNING") as logs:

@@ -5,8 +5,10 @@ read fetches a 32-bit word and keeps its low 2**src_width bytes, each destinatio
 write drains 2**dst_width bytes into the low lanes of a 32-bit word. Addresses step
 by +4 per access when incrementing. An under-filled last write is zero padded.
 
-Only memory-to-memory channels run. A channel with a peripheral request line, or in
-repeat mode, is reported and not emulated (request lines stall, repeat runs once).
+Memory-to-memory channels run, and so do channels whose source is a peripheral that has
+a request line (`request_line()`): they move a word whenever the peripheral holds its
+line up and wait while it is down. Any other peripheral request line, or repeat mode, is
+reported and not emulated (the channel stalls, repeat runs once).
 
 The copy happens when the modeled transfer time has passed, so a firmware polling
 `enable` sees it set meanwhile. Run with `--debug gdma` for a decoded log of every
@@ -35,27 +37,72 @@ _REQUESTS = {
 log = logging.getLogger("emulator.gdma")
 
 
+class RequestLine:
+    """A peripheral's request line into the DMA: it holds the line up while it has a word
+    to give and supplies the word through `bind()`."""
+
+    def __init__(self):
+        self.level = False
+        self._read = None
+
+    def bind(self, read):
+        self._read = read
+
+    def set(self, level):
+        self.level = level
+
+    def read(self):
+        return self._read()
+
+
+class _Mover:
+    """One channel's data movement. It can stop in the middle when a request line source
+    has no word and carry on later."""
+
+    def __init__(self, memory, src, dst, length, sdw, ddw, sinc, dinc, port=None):
+        self._memory = memory
+        self._port = port
+        self.src, self.dst = src, dst
+        self._length = length
+        self._src_bytes, self._dst_bytes = 1 << sdw, 1 << ddw
+        self._sinc, self._dinc = sinc, dinc
+        self.writes_total = -(-length // self._dst_bytes)
+        self.writes = self.reads = self._taken = 0
+        self._accumulator = bytearray()
+
+    @property
+    def done(self):
+        return self.writes >= self.writes_total
+
+    def run(self, max_writes=None):
+        """Do up to `max_writes` destination writes; returns how many were done."""
+        done = 0
+        while not self.done and (max_writes is None or done < max_writes):
+            while len(self._accumulator) < self._dst_bytes and self._taken < self._length:
+                if self._port is not None and not self._port.level:
+                    return done
+                word = self._port.read() if self._port is not None else self._memory.read(self.src, 4)
+                take = min(self._src_bytes, self._length - self._taken)
+                self._accumulator += word[:take]
+                self._taken += take
+                self.reads += 1
+                if self._sinc:
+                    self.src += 4
+            chunk = bytes(self._accumulator[:self._dst_bytes]).ljust(self._dst_bytes, b"\x00")
+            del self._accumulator[:self._dst_bytes]
+            self._memory.write(self.dst, chunk)
+            if self._dinc:
+                self.dst += 4
+            self.writes += 1
+            done += 1
+        return done
+
+
 def transfer(memory, src, dst, length, sdw, ddw, sinc, dinc):
     """Run one channel's data movement; returns (reads, writes)."""
-    src_bytes, dst_bytes = 1 << sdw, 1 << ddw
-    writes = -(-length // dst_bytes)
-    accumulator = bytearray()
-    taken = reads = 0
-    for _ in range(writes):
-        while len(accumulator) < dst_bytes and taken < length:
-            word = memory.read(src, 4)
-            take = min(src_bytes, length - taken)
-            accumulator += word[:take]
-            taken += take
-            reads += 1
-            if sinc:
-                src += 4
-        chunk = bytes(accumulator[:dst_bytes]).ljust(dst_bytes, b"\x00")
-        del accumulator[:dst_bytes]
-        memory.write(dst, chunk)
-        if dinc:
-            dst += 4
-    return reads, writes
+    mover = _Mover(memory, src, dst, length, sdw, ddw, sinc, dinc)
+    mover.run()
+    return mover.reads, mover.writes
 
 
 def _timing(length, sdw, ddw, mux):
@@ -87,6 +134,10 @@ class _Channel:
         self.writes = 0
         self.half_pending = False
         self.fin_count = self.half_count = 0
+        self.mover = None  # kept after a stop: it holds the write position
+        self.paced = False  # a request line decides when words move
+        self.port = None
+        self.word_ns = self.last_ns = 0
 
 
 class GdmaModule(Module):
@@ -97,7 +148,13 @@ class GdmaModule(Module):
         self._memory = memory
         self._bus_hz = bus_hz
         self._channels = [_Channel() for _ in range(CHANNELS)]
+        self._ports = {}
         self.reset()
+
+    def request_line(self, request):
+        """The line of peripheral `request` (the numbers of the mux register's source field)."""
+        self._ports[request] = port = RequestLine()
+        return port
 
     def reset(self):
         for channel in self._channels:
@@ -145,6 +202,9 @@ class GdmaModule(Module):
         for index, channel in enumerate(self._channels):
             if not channel.running or channel.stalled:
                 continue
+            if channel.paced:
+                self._run_paced(index, channel, now_ns)
+                continue
             if channel.half_pending and now_ns >= channel.half_ns:
                 self._half_finished(index, channel)
             if now_ns >= channel.end_ns:
@@ -154,10 +214,33 @@ class GdmaModule(Module):
     def next_event_ns(self):
         events = []
         for channel in self._channels:
-            if channel.running and not channel.stalled:
+            if channel.running and channel.paced:
+                if channel.port.level:
+                    events.append(channel.last_ns + channel.word_ns)
+            elif channel.running and not channel.stalled:
                 events.append(channel.half_ns if channel.half_pending else channel.end_ns)
                 events.append(channel.end_ns)
         return min(events) if events else None
+
+    def _run_paced(self, index, channel, now_ns):
+        """Move the words the source has ready, at the DMA's word rate."""
+        mover = channel.mover
+        if not channel.port.level:
+            channel.last_ns = now_ns
+            return
+        allowed = (now_ns - channel.last_ns) // channel.word_ns
+        try:
+            done = mover.run(allowed)
+        except BusError as err:
+            log.error("ch%d aborted: %s (-> dst 0x%08X)", index, err, mover.dst)
+            channel.running = False
+            return
+        channel.last_ns = now_ns if done < allowed else channel.last_ns + done * channel.word_ns
+        if channel.half_pending and mover.writes * 2 >= mover.writes_total:
+            self._half_finished(index, channel)
+        if mover.done:
+            channel.running = False
+            self._flag_finished(index, channel)
 
     def _read_channel(self, channel, within):
         if within == _CONFIG:
@@ -215,7 +298,19 @@ class GdmaModule(Module):
         channel.half_ns = now + duration // 2
         channel.half_pending = bool(cfg & 4)
         log.debug("ch%d start: %s, est %s", index, self._describe(channel), _human(duration))
-        channel.stalled = bool(src_req or dst_req)
+        port = self._ports.get(src_req) if src_req and not dst_req else None
+        channel.paced = port is not None
+        if channel.paced:
+            channel.port = port
+            channel.mover = _Mover(
+                self._memory, channel.src, channel.dst, length, sdw, ddw,
+                bool(cfg & 0x100), bool(cfg & 0x200), port,
+            )
+            channel.word_ns = max(duration // max(writes, 1), 1)
+            channel.last_ns = now
+        else:
+            channel.mover = None
+        channel.stalled = not channel.paced and bool(src_req or dst_req)
         if channel.stalled:
             for side, req in (("source", src_req), ("destination", dst_req)):
                 if req:
@@ -248,7 +343,10 @@ class GdmaModule(Module):
             )
             return
         log.debug("ch%d done: %d bytes copied", index, length)
-        if cfg & 2:
+        self._flag_finished(index, channel)
+
+    def _flag_finished(self, index, channel):
+        if channel.config & 2:
             self._fin |= 1 << index
             channel.fin_count = (channel.fin_count + 1) & 0xF
             log.debug("ch%d finish flag set", index)
@@ -267,7 +365,9 @@ class GdmaModule(Module):
     def _int_counts(self, index):
         channel = self._channels[index]
         remain = 0
-        if channel.running:
+        if channel.paced and channel.mover is not None:
+            remain = channel.mover.writes_total - channel.mover.writes
+        elif channel.running:
             span = max(channel.end_ns - channel.start_ns, 1)
             now = self._clock.now_ns() if self._clock is not None else channel.start_ns
             done = channel.writes * min(max(now - channel.start_ns, 0), span) // span
@@ -276,6 +376,8 @@ class GdmaModule(Module):
 
     def _dst_wr_addr(self, index):
         channel = self._channels[index]
+        if channel.paced and channel.mover is not None:
+            return channel.mover.dst
         if not channel.running:
             return channel.dst
         span = max(channel.end_ns - channel.start_ns, 1)
