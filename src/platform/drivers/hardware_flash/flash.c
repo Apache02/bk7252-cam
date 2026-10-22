@@ -18,8 +18,8 @@ static inline void trigger(uint32_t addr, FLASH_OPCODE op) {
     wait_busy_bit();
 }
 
-/* Issue Write Enable (WREN). Required before every SE and PP — the BK7252
- * controller does not auto-issue WREN and suppresses PP/SE without it. */
+/* Issue Write Enable (WREN). The controller sends one itself before SE, PP and WRSR,
+ * so this one is not needed; it is kept as a harmless explicit step. */
 static void wren(void) { trigger(0, FLASH_OPCODE_WREN); }
 
 void flash_init(void) {
