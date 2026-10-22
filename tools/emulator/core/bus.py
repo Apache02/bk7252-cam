@@ -160,7 +160,7 @@ class Bus:
         page = addr & ~(PAGE - 1)
         if page not in self._bus_errors:
             self._bus_errors.add(page)
-            log.warning(
+            log.error(
                 "bus error: unmapped %s at 0x%08X",
                 "fetch" if fetch else "access",
                 addr,
@@ -172,7 +172,7 @@ class Bus:
         page = addr & ~(PAGE - 1)
         if page not in self._bus_errors:
             self._bus_errors.add(page)
-            log.warning("bus error: fetch from non-executable memory at 0x%08X", addr)
+            log.error("bus error: fetch from non-executable memory at 0x%08X", addr)
         self._deliver(Fault("pabt", addr))
         return False
 
