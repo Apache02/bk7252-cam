@@ -5,6 +5,7 @@ import logging
 from unicorn import (
     UC_HOOK_CODE,
     UC_HOOK_MEM_FETCH_UNMAPPED,
+    UC_HOOK_MEM_FETCH_PROT,
     UC_HOOK_MEM_READ,
     UC_HOOK_MEM_READ_UNMAPPED,
     UC_HOOK_MEM_WRITE_PROT,
@@ -114,10 +115,14 @@ class Bus:
     def set_fault_sink(self, fn):
         self._sink = fn
 
-    def add_memory(self, name, base, size):
+    def add_memory(self, name, base, size, executable=True):
         self._check_free("memory " + name, base, size)
-        self._cpu.map_ram(base, size)
+        self._cpu.map_ram(base, size, executable)
         self._memory.append((name, base, size))
+        if not executable:
+            self._cpu.unicorn.hook_add(
+                UC_HOOK_MEM_FETCH_PROT, self._on_fetch_protected, None, base, base + size - 1
+            )
 
     def add_module(self, module, bases):
         for range_name, size in module.ranges():
@@ -161,6 +166,14 @@ class Bus:
                 addr,
             )
         self._deliver(Fault("pabt" if fetch else "dabt", addr))
+        return False
+
+    def _on_fetch_protected(self, uc, access, addr, size, value, _):
+        page = addr & ~(PAGE - 1)
+        if page not in self._bus_errors:
+            self._bus_errors.add(page)
+            log.warning("bus error: fetch from non-executable memory at 0x%08X", addr)
+        self._deliver(Fault("pabt", addr))
         return False
 
     def _install_demand(self, base, size):

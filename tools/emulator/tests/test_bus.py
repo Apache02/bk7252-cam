@@ -246,6 +246,39 @@ class UnmappedTest(unittest.TestCase):
         self.assertEqual(cpu.reg("pc"), 0x0C)
 
 
+class NoExecuteTest(unittest.TestCase):
+    def machine(self):
+        cpu, bus = make_bus()
+        bus.add_memory("RAM1", 0x00400000, 0x1000, executable=False)
+        bus.add_memory("RAM2", 0x00900000, 0x1000)
+        bus.claim_unclaimed(*PERIPHERALS)
+        bus.set_fault_sink(lambda fault: cpu.post_fault(fault.kind))
+        return cpu
+
+    def test_fetch_from_a_non_executable_region_is_prefetch_abort(self):
+        cpu = self.machine()
+        with self.assertLogs("emulator.bus", level="WARNING") as logs:
+            run_code(cpu, 0xE3A00005)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x17)
+        self.assertEqual(cpu.reg("lr"), 0x00400000 + 4)
+        self.assertEqual(cpu.reg("pc"), 0x0C)
+        self.assertIn("0x00400000", logs.output[0])
+
+    def test_data_access_to_a_non_executable_region_works(self):
+        cpu = self.machine()
+        cpu.mem_write(0x00400000, b"\x01\x02\x03\x04")
+        self.assertEqual(cpu.mem_read(0x00400000, 4), b"\x01\x02\x03\x04")
+        cpu.mem_write(0x00900100, struct.pack("<I", 0x00400000))
+        run_code(cpu, 0xE59F10F8, 0xE5910000, at=0x00900000)  # ldr r1, [pc, #0xF8]; ldr r0, [r1]
+        self.assertEqual(cpu.reg("r0"), 0x04030201)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x13)
+
+    def test_other_regions_stay_executable(self):
+        cpu = self.machine()
+        run_code(cpu, 0xE3A00005, at=0x00900000)
+        self.assertEqual(cpu.reg("r0"), 5)
+
+
 MOV_R0_5, ADD_R0_7, B_SELF = 0xE3A00005, 0xE2800007, 0xEAFFFFFE
 LDR_R0_R1 = 0xE5910000
 STR_R2_R1 = 0xE5812000

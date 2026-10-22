@@ -24,7 +24,7 @@ class Machine:
         self._cpu_fiq = _CpuLine(self.cpu.raise_fiq)
 
         for region in profile.memory:
-            self.bus.add_memory(region.name, region.base, region.size)
+            self.bus.add_memory(region.name, region.base, region.size, region.executable)
         for spec in profile.modules:
             self._add_module(spec, registry, endpoints)
         self.bus.claim_unclaimed(*profile.peripheral_window)

@@ -10,11 +10,13 @@ peripheral_window = [0x00800000, 0x00100000]
 
 # reset_fill: the byte the region holds after a chip reset (watchdog expiry).
 # Without it the contents survive the reset.
+# executable = false: a fetch from the region is a Prefetch Abort (RAM1 cannot run code).
 [[memory]]
 name = "RAM1"
 base = 0x00400000
 size = 0x40000
 reset_fill = 0xAA
+executable = false
 
 [[memory]]
 name = "RAM2"

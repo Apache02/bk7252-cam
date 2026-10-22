@@ -15,6 +15,7 @@ class MemorySpec:
     base: int
     size: int
     reset_fill: int | None = None  # byte the region holds after a chip reset; None keeps it
+    executable: bool = True  # False: an instruction fetch raises a Prefetch Abort
 
 
 @dataclass
@@ -99,7 +100,7 @@ def _memory(raw):
         raise ProfileError(
             "memory %s: reset_fill must be a byte (0-255), got %r" % (raw["name"], fill)
         )
-    return MemorySpec(raw["name"], raw["base"], raw["size"], fill)
+    return MemorySpec(raw["name"], raw["base"], raw["size"], fill, raw.get("executable", True))
 
 
 def _alias(key, value):

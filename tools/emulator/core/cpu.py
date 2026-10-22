@@ -17,6 +17,8 @@ from unicorn import (
     UC_HOOK_INTR,
     UC_MODE_ARM,
     UC_PROT_ALL,
+    UC_PROT_READ,
+    UC_PROT_WRITE,
     Uc,
     UcError,
 )
@@ -70,8 +72,8 @@ class Cpu:
     def unicorn(self):
         return self._uc
 
-    def map_ram(self, base, size):
-        self._uc.mem_map(base, size, UC_PROT_ALL)
+    def map_ram(self, base, size, executable=True):
+        self._uc.mem_map(base, size, UC_PROT_ALL if executable else UC_PROT_READ | UC_PROT_WRITE)
 
     def mem_write(self, addr, data):
         self._uc.mem_write(addr, bytes(data))

@@ -183,24 +183,40 @@ class Bk7252ProfileTest(unittest.TestCase):
         cpu = machine.cpu
         for address in (0x01000000, 0x01000800, 0x01002000, 0x01050000, 0x10910000,
                         0x10A00000, 0x10E00000, 0xC0000000, 0xC0008000, 0xC0010000):
-            cpu.mem_write(0x00400100, struct.pack("<I", address))
-            cpu.mem_write(0x00400000, struct.pack("<2I", 0xE59F10F8, 0xE5910000))
+            cpu.mem_write(0x00900100, struct.pack("<I", address))
+            cpu.mem_write(0x00900000, struct.pack("<2I", 0xE59F10F8, 0xE5910000))
             cpu.unicorn.ctl_flush_tb()
-            cpu.reset(0x00400000)
+            cpu.reset(0x00900000)
             cpu.run(2)
             self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x13, hex(address))
 
     def test_mac_counters_run_once_the_mac_is_powered(self):
         machine = self.machine()
         counter_lo = lambda: machine.modules["MAC_CORE"].read("regs", 0x120, 4)
-        machine.cpu.mem_write(0x00400000, struct.pack("<I", 0xEAFFFFFE))  # b .
-        machine.cpu.reset(0x00400000)
+        machine.cpu.mem_write(0x00900000, struct.pack("<I", 0xEAFFFFFE))  # b .
+        machine.cpu.reset(0x00900000)
         machine.scheduler.step()
         self.assertEqual(counter_lo(), 0)  # powered down at reset
         machine.modules["SCTRL"].write("regs", 0x10C, 4, 0x0001 << 16)
         machine.scheduler.step()
         machine.scheduler.step()
         self.assertGreater(counter_lo(), 0)
+
+    def run_mov_at(self, base):
+        cpu = self.machine().cpu
+        cpu.mem_write(base, struct.pack("<I", 0xE3A00005))  # mov r0, #5
+        cpu.reset(base)
+        cpu.run(1)
+        return cpu
+
+    def test_code_in_ram1_is_a_prefetch_abort(self):
+        with self.assertLogs("emulator.bus", level="WARNING"):
+            cpu = self.run_mov_at(0x00400000)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x17)
+
+    def test_code_in_ram2_runs(self):
+        cpu = self.run_mov_at(0x00900000)
+        self.assertEqual(cpu.reg("r0"), 5)
 
     def test_a_chip_reset_powers_the_mac_down_again(self):
         machine = self.machine()
