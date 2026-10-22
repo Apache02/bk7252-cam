@@ -40,6 +40,79 @@ def reg(uart, offset, value=None):
     uart.write("regs", offset, 4, value)
 
 
+RX_STOP_END = 1 << 6
+DELAY = 1_000_000  # ns from the last byte to rx_stop_end
+
+
+class StopEndTest(unittest.TestCase):
+    """rx_stop_end: a short while after the last byte arrived."""
+
+    def setUp(self):
+        self.uart, self.endpoint, self.line = make()
+        reg(self.uart, FIFO_CONFIG, 16 << 8)  # threshold 16
+        reg(self.uart, IRQ_ENABLE, RX_NEED_READ | RX_STOP_END)
+
+    def receive(self, data, at):
+        self.endpoint.inbox = data
+        self.uart.tick(at)
+
+    def test_it_fires_a_short_while_after_the_last_byte_even_below_the_threshold(self):
+        self.receive(b"A", 1000)
+        self.assertFalse(self.line.level)
+        self.uart.tick(1000 + DELAY - 1)
+        self.assertFalse(self.line.level)
+        self.uart.tick(1000 + DELAY)
+        self.assertTrue(self.line.level)
+        self.assertEqual(reg(self.uart, IRQ_STATUS), RX_STOP_END)
+        self.assertEqual((reg(self.uart, FIFO_STATUS) >> 8) & 0xFF, 1)
+
+    def test_a_later_byte_pushes_the_deadline_out(self):
+        self.receive(b"A", 1000)
+        self.receive(b"B", 1000 + DELAY // 2)
+        self.uart.tick(1000 + DELAY)
+        self.assertFalse(self.line.level)
+        self.uart.tick(1000 + DELAY // 2 + DELAY)
+        self.assertTrue(self.line.level)
+
+    def test_it_stays_latched_until_cleared_and_fires_once_per_burst(self):
+        self.receive(b"A", 0)
+        self.uart.tick(DELAY)
+        reg(self.uart, FIFO_DATA)
+        self.assertTrue(self.line.level)
+        reg(self.uart, IRQ_STATUS, RX_STOP_END)
+        self.assertFalse(self.line.level)
+        self.uart.tick(10 * DELAY)
+        self.assertFalse(self.line.level)
+        self.receive(b"B", 11 * DELAY)
+        self.uart.tick(12 * DELAY)
+        self.assertTrue(self.line.level)
+
+    def test_it_is_masked_without_its_enable_bit(self):
+        reg(self.uart, IRQ_ENABLE, 0)
+        self.receive(b"A", 0)
+        self.uart.tick(DELAY)
+        self.assertFalse(self.line.level)
+        self.assertEqual(reg(self.uart, IRQ_STATUS), 0)
+
+    def test_the_deadline_is_a_device_event_so_an_idle_cpu_wakes_for_it(self):
+        self.assertIsNone(self.uart.next_event_ns())
+        self.receive(b"A", 1000)
+        self.assertEqual(self.uart.next_event_ns(), 1000 + DELAY)
+        self.uart.tick(1000 + DELAY)
+        self.assertIsNone(self.uart.next_event_ns())
+
+    def test_a_reset_forgets_a_pending_deadline(self):
+        self.receive(b"A", 0)
+        self.uart.reset()
+        self.assertIsNone(self.uart.next_event_ns())
+
+    def test_the_threshold_still_decides_need_read(self):
+        self.receive(b"A" * 15, 0)
+        self.assertEqual(reg(self.uart, IRQ_STATUS) & RX_NEED_READ, 0)
+        self.receive(b"A", 1)
+        self.assertEqual(reg(self.uart, IRQ_STATUS) & RX_NEED_READ, RX_NEED_READ)
+
+
 class UartTest(unittest.TestCase):
     def test_tx_reaches_endpoint(self):
         uart, endpoint, _ = make()

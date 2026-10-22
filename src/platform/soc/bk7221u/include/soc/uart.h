@@ -66,7 +66,7 @@ typedef volatile struct {
             uint32_t rx_parity_error: 1; // [3]
             uint32_t rx_stop_error: 1;   // [4]
             uint32_t tx_stop_end: 1;     // [5]  fires once when TX FIFO becomes empty, edge not level (confirmed on hardware)
-            uint32_t rx_stop_end: 1;     // [6]
+            uint32_t rx_stop_end: 1;     // [6]  fires once when RX has been idle for rx_stop_detect_time bit times after data
             uint32_t rxd_wakeup: 1;      // [7]
             uint32_t reserved_8_31: 24;  // [31:8]
         };
@@ -81,7 +81,7 @@ typedef volatile struct {
             uint32_t rx_parity_error: 1; // [3]
             uint32_t rx_stop_error: 1;   // [4]
             uint32_t tx_stop_end: 1;     // [5]  fires once when TX FIFO becomes empty, edge not level (confirmed on hardware)
-            uint32_t rx_stop_end: 1;     // [6]
+            uint32_t rx_stop_end: 1;     // [6]  fires once when RX has been idle for rx_stop_detect_time bit times after data
             uint32_t rxd_wakeup: 1;      // [7]
             uint32_t reserved_8_31: 24;  // [31:8]
         };

@@ -2,6 +2,10 @@
 
 TX drains instantly to the host endpoint. RX bytes arrive from the endpoint on
 tick() and wait in a 128-byte FIFO; the rest wait in the module.
+
+`rx_stop_end` is latched a fixed 1 ms after the last byte arrived. The chip waits
+`rx_stop_detect_time` bit times of silence; there is no baud rate here, so that field is
+ignored.
 """
 
 from core.module import Module
@@ -15,6 +19,8 @@ _FIFO_DEPTH = 128
 _TX_NEED_WRITE = 1 << 0
 _RX_NEED_READ = 1 << 1
 _TX_STOP_END = 1 << 5
+_RX_STOP_END = 1 << 6
+_STOP_END_DELAY_NS = 1_000_000
 
 _TX_EMPTY = 1 << 17
 _RX_FULL = 1 << 18
@@ -31,6 +37,8 @@ class UartModule(Module):
         self.reset()
 
     def reset(self):
+        self._now_ns = 0
+        self._stop_deadline = None  # when rx_stop_end fires, while a burst is pending
         self._rx = bytearray()
         self._backlog = bytearray()
         self._latched = 0
@@ -46,10 +54,20 @@ class UartModule(Module):
         self._endpoint = endpoint
 
     def tick(self, now_ns):
+        self._now_ns = now_ns
         if self._endpoint is not None:
             self._backlog += self._endpoint.read_nowait()
         self._refill()
+        if self._stop_deadline is not None and now_ns >= self._stop_deadline:
+            self._stop_deadline = None
+            self._latched |= _RX_STOP_END
         self._update_irq()
+
+    def next_event_ns(self):
+        return self._stop_deadline
+
+    def _arm_stop_end(self):
+        self._stop_deadline = self._now_ns + _STOP_END_DELAY_NS
 
     def read(self, range_name, offset, size):
         if offset == _FIFO_STATUS:
@@ -90,6 +108,7 @@ class UartModule(Module):
         if room > 0 and self._backlog:
             self._rx += self._backlog[:room]
             del self._backlog[:room]
+            self._arm_stop_end()
 
     def _fifo_status(self):
         count = len(self._rx)
