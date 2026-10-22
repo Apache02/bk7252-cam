@@ -96,9 +96,9 @@ class FlashModule(Module):
         return bool(self._conf & _CRC_EN)
 
     def check_load(self, offset, size):
-        if offset % BLOCK or size % BLOCK:
+        if offset % BLOCK:
             raise ValueError(
-                "flash load of %d bytes at 0x%X must be a multiple of %d and block aligned"
+                "flash load of %d bytes at 0x%X must start on a %d-byte block boundary"
                 % (size, offset, BLOCK)
             )
         if offset + size > self._blocks * BLOCK:

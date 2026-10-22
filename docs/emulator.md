@@ -52,7 +52,8 @@ turns the colour off and `FORCE_COLOR=1` turns it on for a pipe or a file.
 | `bootloader`, `app` | Raw flash offsets `0x0` and `0x11000` |
 
 Flash aliases point at **raw physical** flash, so a `*_crc.bin` file is loaded as it is. A
-flash load must start on a 34-byte block boundary and be a multiple of 34 bytes. Numeric
+flash load must start on a 34-byte block boundary; it can be any length, and the rest of the
+flash stays erased (`0xFF`). Numeric
 addresses are accepted only inside RAM; loading into a module's range or outside memory is an
 error reported before the emulator starts.
 

@@ -118,9 +118,11 @@ class FlashTest(unittest.TestCase):
             with self.assertRaises(Fault):
                 self.flash.read("xip", 0x1E1E00, 4)
 
-    def test_load_size_not_multiple_of_34_rejected_naming_size(self):
-        with self.assertRaisesRegex(ValueError, "100"):
-            self.flash.load(0, b"\x00" * 100)
+    def test_load_of_any_size_overwrites_only_its_bytes_and_leaves_the_rest_erased(self):
+        self.flash.load(0x11000, b"\x00" * 100)
+        raw = self.flash._raw
+        self.assertEqual(bytes(raw[0x11000:0x11064]), b"\x00" * 100)
+        self.assertEqual(bytes(raw[0x11064:0x11068]), b"\xff" * 4)
 
     def test_load_offset_not_block_aligned_rejected(self):
         with self.assertRaisesRegex(ValueError, "34"):

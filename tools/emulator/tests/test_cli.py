@@ -105,10 +105,10 @@ class CliTest(unittest.TestCase):
         self.assertEqual(made, [])
         self.assertEqual(out, "")
 
-    def test_flash_load_with_bad_size_reports_error(self):
-        code, _, err, _ = run_cli("BK7252", "--load", "app:" + tmp_image(b"\x00" * 100))
+    def test_flash_load_that_does_not_fit_reports_error(self):
+        code, _, err, _ = run_cli("BK7252", "--load", "app:" + tmp_image(b"\x00" * 0x200000))
         self.assertNotEqual(code, 0)
-        self.assertIn("100", err)
+        self.assertIn("2097152", err)
 
     def test_sigint_stops_run_loop_cleanly_and_closes_endpoints(self):
         timer = threading.Timer(0.3, os.kill, (os.getpid(), signal.SIGINT))
