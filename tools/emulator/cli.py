@@ -25,8 +25,8 @@ def _parser():
         help="load FILE at an alias or address; repeatable",
     )
     parser.add_argument(
-        "--debug", action="append", default=[], metavar="MODULE",
-        help="print the debug log of a module, decoded (for example gdma); repeatable",
+        "-d", "--debug", action="append", default=[], metavar="MODULE[,MODULE...]",
+        help="print the debug log of modules, decoded (for example gdma,wifi); repeatable",
     )
     for number in (1, 2):
         parser.add_argument(
@@ -44,7 +44,7 @@ def _fail(message):
 def main(argv=None, make_endpoint=default_make_endpoint, profile_dir=PROFILES, registry=REGISTRY):
     args = _parser().parse_args(argv)
     configure_logging(sys.stderr, os.environ)
-    for module in args.debug:
+    for module in (name for arg in args.debug for name in arg.split(",") if name):
         logging.getLogger("emulator." + module).setLevel(logging.DEBUG)
 
     try:

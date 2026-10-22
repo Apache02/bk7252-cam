@@ -36,7 +36,7 @@ Options:
 | ------ | ------- |
 | `PROFILE` | Profile name, upper case: `profiles/PROFILE.toml`. |
 | `--load TARGET:FILE` | Copy FILE byte for byte to TARGET. Repeatable, at least one is required. |
-| `--debug MODULE` | Print a module's debug log (`gdma`, `flash`, `wifi`, or `wifi.rc` for one WiFi block). Repeatable. |
+| `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. |
 | `--uart1 SPEC`, `--uart2 SPEC` | Host end of the UART: `pty` (default), `stdio`, or a serial device path. |
 
 Log lines go to stderr. When stderr is a terminal, warnings are yellow and errors red; `NO_COLOR=1`

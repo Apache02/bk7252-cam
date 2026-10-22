@@ -97,6 +97,17 @@ class CliTest(unittest.TestCase):
         self.assertEqual(logger.level, logging.DEBUG)
         self.assertEqual(logging.getLogger("emulator.uart").level, logging.NOTSET)
 
+    def test_short_debug_option_takes_a_comma_separated_list(self):
+        names = ("gdma", "wifi", "flash")
+        for name in names:
+            self.addCleanup(logging.getLogger("emulator." + name).setLevel, logging.NOTSET)
+        timer = threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGINT))
+        timer.start()
+        self.addCleanup(timer.cancel)
+        run_cli("BK7252", "--load", "iram:" + tmp_image(), "-d", "gdma,wifi", "-d", "flash")
+        for name in names:
+            self.assertEqual(logging.getLogger("emulator." + name).level, logging.DEBUG, name)
+
     def test_uart_options_default_to_pty(self):
         timer = threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGINT))
         timer.start()
