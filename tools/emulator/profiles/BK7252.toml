@@ -126,6 +126,26 @@ name = "AGC"
 [module.bases]
 regs = 0x01002000
 
+# Not in the SDK. Every access is logged at INFO with the instruction that made it; the
+# start values are what a running chip reads there.
+[[module]]
+type = "unknown"
+name = "MDM_3000"
+[module.bases]
+regs = 0x01003000
+[module.params]
+size = 0x100
+[module.params.reset_words]
+"0x00" = 0x00274c10
+"0x08" = 0x00010022
+"0x0c" = 0x00006236
+"0x10" = 0x00006236
+"0x14" = 0x00005555
+"0x18" = 0x0000192a
+"0x1c" = 0x00000030
+"0x20" = 0x0fff0001
+"0x24" = 0x00381205
+
 [[module]]
 type = "wifi_agc_ram"
 name = "AGC_RAM"

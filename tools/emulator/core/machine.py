@@ -41,6 +41,7 @@ class Machine:
             clock=self.scheduler,
             cpu_irq=self._cpu_irq,
             cpu_fiq=self._cpu_fiq,
+            cpu_instruction=self.cpu.instruction,
             reset_chip=self.reset,
             memory=self.bus.memory(),
         )

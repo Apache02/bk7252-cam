@@ -10,6 +10,7 @@ from modules.sctrl import SctrlModule
 from modules.timer import TimerModule
 from modules.trng import TrngModule
 from modules.uart import UartModule
+from modules.unknown import UnknownModule
 from modules.wdt import WdtModule
 from modules.wifi import WIFI_MODULES
 
@@ -25,5 +26,6 @@ REGISTRY = {
     "timer": TimerModule,
     "trng": TrngModule,
     "uart": UartModule,
+    "unknown": UnknownModule,
     "wdt": WdtModule,
 }

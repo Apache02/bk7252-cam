@@ -169,6 +169,19 @@ class CpuTest(unittest.TestCase):
         cpu.run(1)
         self.assertEqual(cpu.reg("cpsr") & 0x1F, MODE_SVC)
 
+    def test_instruction_is_the_word_at_pc_in_arm_state(self):
+        cpu = make_cpu(MOV_R0_5, ADD_R0_7, B_SELF)
+        cpu.run(1)
+        self.assertEqual(cpu.instruction(), (RAM + 4, ADD_R0_7, 4))
+
+    def test_instruction_is_the_halfword_at_pc_in_thumb_state(self):
+        cpu = Cpu()
+        cpu.map_ram(RAM, 0x1000)
+        cpu.mem_write(RAM, struct.pack("<HH", 0x4770, 0xE7FE))
+        cpu.reset(RAM)
+        cpu.set_reg("pc", RAM + 2 | 1)  # Unicorn takes Thumb state from bit 0 of PC
+        self.assertEqual(cpu.instruction(), (RAM + 2, 0xE7FE, 2))
+
     def test_irq_ignored_when_masked(self):
         cpu = make_cpu(B_SELF)
         cpu.set_reg("cpsr", MODE_SVC | I_BIT)

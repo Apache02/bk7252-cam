@@ -88,6 +88,13 @@ class Cpu:
     def set_reg(self, name, value):
         self._uc.reg_write(_REGS[name], value)
 
+    def instruction(self):
+        """(address, opcode, width in bytes) of the instruction at PC. Inside a memory
+        callback that is the instruction making the access."""
+        pc = self.reg("pc")
+        width = 2 if self.reg("cpsr") & T_BIT else 4
+        return pc, int.from_bytes(self.mem_read(pc, width), "little"), width
+
     def reset(self, pc=0):
         self.set_reg("cpsr", MODE_SVC | I_BIT | F_BIT)
         for name in [*("r%d" % i for i in range(13)), "sp", "lr"]:

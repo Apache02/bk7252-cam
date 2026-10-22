@@ -93,6 +93,19 @@ class MachineTest(unittest.TestCase):
         self.assertEqual(machine.modules["A"].params["dma"], ("request", 8))
         self.assertNotIn("dma_request", machine.modules["A"].params)
 
+    def test_an_unknown_block_logs_the_instruction_that_touched_it(self):
+        from modules.unknown import UnknownModule
+
+        p = profile(ModuleSpec("unknown", "MYSTERY", {"regs": 0x01003000}, {"size": 0x100}))
+        machine = Machine(p, {"unknown": UnknownModule}, {})
+        words = [0xE59F1004, 0xE5910000, 0xEAFFFFFE, 0x01003000]  # ldr r1,=0x01003000 ; ldr r0,[r1]
+        machine.cpu.mem_write(0x00400000, struct.pack("<4I", *words))
+        machine.cpu.reset(0x00400000)
+        with self.assertLogs("emulator.unknown", level="INFO") as logs:
+            machine.cpu.run(2)
+        self.assertIn("pc 0x00400004", logs.output[0])
+        self.assertIn("E5910000", logs.output[0])
+
     def test_controller_listed_after_user_rejected(self):
         p = profile(
             ModuleSpec("dummy", "A", {"regs": 0x00802100}, {"intc": "ICU", "irq": 5}),
