@@ -200,18 +200,20 @@ succeed:
 1. **Flash SR Write Enable Latch (WEL).** The flash chip requires a WREN
    command before every PP, SE, or WRSR. WEL is cleared by the flash chip
    after each such operation completes — including after a rejected attempt.
-   **For PP and SE the controller does not issue WREN automatically: every
-   erase or program sequence must begin with an explicit WREN operation.**
-   WRSR and WRSR2 are the exception: a status register write without a
-   preceding WREN takes effect (block protection gets set that way).
+   **The controller sends the WREN itself:** with WEL clear (after WRDI), SE
+   and PP erase and program, and a WRSR changes the status register (block
+   protection gets set that way), and WEL reads 0 afterwards. An explicit
+   WREN is not needed; if one was issued, the operation uses it up. Confirmed
+   on hardware for SE, PP and WRSR; BE1, BE2, CE and WRSR2 were not tried
+   separately.
 
 2. **Controller BP check.** The controller reads the flash SR block-protection
    (BP) bits before issuing PP. **If any BP bit is non-zero the controller
    suppresses PP entirely — the command is not put on the SPI bus and WEL is
    not consumed — regardless of whether the target address falls within the
    flash chip's actual protected range.** SE behavior under active BP
-   protection is uncharacterised. Clear protection via WREN + WRSR before
-   erasing or programming.
+   protection is uncharacterised. Clear protection via WRSR before erasing
+   or programming.
 
 ### Flash chip status register
 
@@ -238,7 +240,7 @@ bootloader ROM during its initialisation to protect the lower 32 KB
 
 Because the BK7252 controller BP check is address-agnostic, PP to any address
 (including sectors outside the protected range) is suppressed while any BP bit
-is set. Issue WREN + WRSR(`0x00`) to clear all protection before programming.
+is set. Issue WRSR(`0x00`) to clear all protection before programming.
 
 ---
 
@@ -282,13 +284,12 @@ or the SPI line mode misconfigured.
 ### Erase 4 KB sector
 
 1. Poll `operate_sw.busy` until 0.
-2. Issue WREN: write `operate_sw = (WREN << 24) | (1 << 29) | (1 << 30)`.
-   Poll `busy` until 0.
-3. Write `operate_sw` atomically:
+2. Write `operate_sw` atomically:
    `(addr & 0xFFFFF000) | (SE << 24) | (1 << 29) | (1 << 30)`.
-4. Poll `operate_sw.busy` until 0.
+3. Poll `operate_sw.busy` until 0.
 
-The controller aligns `addr` down to the nearest 4 KB boundary internally.
+No WREN is needed first (the controller sends it). The controller aligns
+`addr` down to the nearest 4 KB boundary internally.
 Sector erase takes up to 300 ms (t_SE max at 2.7–3.6 V on EN25QH16B).
 
 ### Program 32 bytes
@@ -297,13 +298,11 @@ The target sector must be in the erased state (all `0xFF`). PP can only clear
 bits (write 1→0); erased bits that fall outside the written range survive
 unmodified only if a read-modify-write is used.
 
-1. Issue WREN: write `operate_sw = (WREN << 24) | (1 << 29) | (1 << 30)`.
-   Poll `busy` until 0.
-2. Write 8 words to `data_sw_flash`; `words[0]` holds bytes for
+1. Write 8 words to `data_sw_flash`; `words[0]` holds bytes for
    `aligned_addr+0..+3`.
-3. Write `operate_sw` atomically:
+2. Write `operate_sw` atomically:
    `(aligned_addr & 0xFFFFFF) | (PP << 24) | (1 << 29) | (1 << 30)`.
-4. Poll `operate_sw.busy` until 0. Page program completes in up to 3 ms
+3. Poll `operate_sw.busy` until 0. Page program completes in up to 3 ms
    (t_PP); polling `busy` covers the wait.
 
 `aligned_addr` must satisfy `addr & 0x1F == 0`.
@@ -349,9 +348,8 @@ Use RDSR2 (opcode 6) for SR2 on chips with two status register bytes.
   completes. Do not clear it manually.
 
 - **`wp` (bit 30) controls the WP# pin only.** Setting `wp = 1` de-asserts
-  the physical WP# line. It does not issue WREN and does not bypass SR write
-  protection. Both `wp = 1` and an explicit prior WREN are required for PP and
-  SE to proceed.
+  the physical WP# line. It does not bypass SR write protection. PP and SE
+  need `wp = 1` to proceed; no explicit WREN is needed.
 
 - **`cpu_data_wr` (conf bit 9) — not investigated.** SDK name is
   `FWREN_FLASH_CPU`; no SDK driver uses it. Exact function unknown.
@@ -376,7 +374,8 @@ Use RDSR2 (opcode 6) for SR2 on chips with two status register bytes.
   correct physical positions; raw writes without CRC will cause Data Abort on
   any XIP fetch of those blocks.
 
-- **BE1, BE2** follow the same WREN-required pattern as SE. Controller BP
+- **BE1, BE2** are assumed to follow the same pattern as SE (only SE was
+  tried without an explicit WREN). Controller BP
   suppression behaviour for these opcodes under active SR protection is not
   characterised.
 
@@ -415,5 +414,5 @@ Use RDSR2 (opcode 6) for SR2 on chips with two status register bytes.
   Status Register Write Enable command that allows writing SR without consuming
   non-volatile bit endurance — useful for temporarily clearing BP bits. The
   change is lost on power-cycle or software reset. The BK7252 controller does
-  not expose this opcode; use WREN (`0x06`) + WRSR (`0x01`) for all SR writes
-  through the OPERATE_SW path.
+  not expose this opcode; use WRSR (`0x01`) for all SR writes through the
+  OPERATE_SW path.

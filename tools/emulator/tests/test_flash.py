@@ -209,13 +209,25 @@ class WriteTest(unittest.TestCase):
         self.assertEqual(self.raw(0x1020, 16), b"\xff" * 16)
         self.assertEqual(self.raw(0x0400, 16), b"\x00" * 16)  # sector 0 is untouched
 
-    def test_erase_needs_the_write_enable_latch_and_consumes_it(self):
-        self.op(SE, 0)
-        self.assertEqual(self.raw(0), b"\x00" * 32)
-        self.op(WREN)
+    def test_erase_needs_no_explicit_write_enable(self):
         self.op(SE, 0)
         self.assertEqual(self.raw(0), b"\xff" * 32)
         self.assertEqual(self.sr() & SR_WEL, 0)
+
+    def test_an_explicit_write_enable_is_consumed_by_the_erase(self):
+        self.op(WREN)
+        self.assertEqual(self.sr() & SR_WEL, SR_WEL)
+        self.op(SE, 0)
+        self.assertEqual(self.raw(0), b"\xff" * 32)
+        self.assertEqual(self.sr() & SR_WEL, 0)
+
+    def test_block_and_chip_erases_need_no_explicit_write_enable(self):
+        for op, addr, checked in ((BE1, 0x10123, 0x10020), (BE2, 0x18000, 0x18020), (CE, 0, 0x10020)):
+            with self.subTest(op=op):
+                self.flash.load(0x10010, b"\x22" * 34)
+                self.flash.load(0x18018, b"\x22" * 34)
+                self.op(op, addr)
+                self.assertEqual(self.raw(checked, 16), b"\xff" * 16)
 
     def test_erase_needs_wp_released_and_keeps_the_latch(self):
         self.op(WREN)
@@ -254,12 +266,16 @@ class WriteTest(unittest.TestCase):
         self.assertEqual(self.raw(0x1020, 20), b"\x30" * 20)  # 0xf0 AND 0x3c
         self.assertEqual(self.raw(0x1034, 12), b"\x3c" * 12)  # erased bytes take the data
 
-    def test_page_program_needs_the_latch_and_consumes_it(self):
-        self.op(WREN)
+    def test_page_program_needs_no_explicit_write_enable(self):
         self.op(SE, 0)
         self.fill_fifo(b"\x55" * 32)
         self.op(PP, 0)
-        self.assertEqual(self.raw(0), b"\xff" * 32)
+        self.assertEqual(self.raw(0), b"\x55" * 32)
+        self.assertEqual(self.sr() & SR_WEL, 0)
+
+    def test_an_explicit_write_enable_is_consumed_by_the_program(self):
+        self.op(SE, 0)
+        self.fill_fifo(b"\x55" * 32)
         self.op(WREN)
         self.op(PP, 0)
         self.assertEqual(self.raw(0), b"\x55" * 32)
@@ -285,14 +301,6 @@ class WriteTest(unittest.TestCase):
         self.op(WRSR2)
         self.op(RDSR2)
         self.assertEqual(self.flash.read("ctrl", SR_REG, 4) & 0xFF, 0x02)
-
-    def test_page_program_still_needs_an_explicit_write_enable(self):
-        self.op(WREN)
-        self.op(SE, 0)
-        self.fill_fifo(b"\x55" * 32)
-        with self.assertLogs("emulator.flash", level="WARNING"):
-            self.op(PP, 0)
-        self.assertEqual(self.raw(0), b"\xff" * 32)
 
     def test_block_protection_suppresses_page_program_and_keeps_the_latch(self):
         self.set_sr(0x7C)

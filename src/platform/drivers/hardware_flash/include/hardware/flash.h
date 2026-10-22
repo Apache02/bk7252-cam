@@ -23,7 +23,7 @@ uint8_t flash_read_sr1(void);
 
 uint8_t flash_read_sr2(void);
 
-/* Write flash Status Register 1 (SR1) via WREN + WRSR.
+/* Write flash Status Register 1 (SR1) via WRSR.
  * Use to set or clear BP (Block Protect) bits. */
 void flash_write_sr1(uint8_t sr1);
 
