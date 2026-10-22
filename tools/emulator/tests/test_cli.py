@@ -173,6 +173,25 @@ class CliTest(unittest.TestCase):
         self.assertIn("tcp 127.0.0.1:8080 -> guest port 80", out)
         self.assertIn("udp 127.0.0.1:5000 -> guest port 5000", out)
 
+    def test_i2c1_devices_are_accepted(self):
+        self.interrupt_soon()
+        code, _, err, _ = run_cli("BK7252", "--load", "iram:" + tmp_image(), "--i2c1", "hi704", "--i2c1", "hi704@0x31")
+        self.assertEqual(code, 0)
+        self.assertNotIn("--i2c1", err)
+
+    def test_two_i2c1_devices_at_one_address_are_an_error(self):
+        code, _, err, made = run_cli("BK7252", "--load", "iram:" + tmp_image(), "--i2c1", "hi704", "--i2c1", "hi704")
+        self.assertEqual(code, 2)
+        self.assertIn("0x30", err)
+        self.assertEqual(made, [])
+
+    def test_a_bad_i2c1_device_is_an_error(self):
+        for spec in ("nope", "hi704@0x99"):
+            with self.subTest(spec=spec):
+                code, _, err, _ = run_cli("BK7252", "--load", "iram:" + tmp_image(), "--i2c1", spec)
+                self.assertEqual(code, 2)
+                self.assertIn("--i2c1", err)
+
     def test_without_publish_there_is_no_network(self):
         self.interrupt_soon()
         networks = []

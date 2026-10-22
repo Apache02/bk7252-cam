@@ -48,6 +48,7 @@ _WFI_ARM = 0xEE070F90
 _WFI_THUMB = (0xEE07, 0x0F90)
 _NEVER = 0xFFFFFFFF
 _INTNO_SWI = 2
+_EXCEPTION_COST = 50
 
 
 class RunResult(enum.Enum):
@@ -137,11 +138,12 @@ class Cpu:
         if self._stop:
             return RunResult.STOPPED, 0
         self._take_pending()
+        remaining = insn_budget
         while True:
             cpsr = self.reg("cpsr")
             start = self.reg("pc") | (1 if cpsr & T_BIT else 0)
             try:
-                self._uc.emu_start(start, _NEVER, count=insn_budget)
+                self._uc.emu_start(start, _NEVER, count=remaining)
             except UcError as err:
                 if err.errno == UC_ERR_INSN_INVALID and self._fault is None:
                     self._fault = ("undef", self.reg("pc"))
@@ -149,18 +151,28 @@ class Cpu:
                     raise
             if self._bad_interrupt is not None:
                 raise RuntimeError("unhandled CPU exception %d" % self._bad_interrupt)
-            if not self._restart or self._fault is not None or self._stop:
+            if self._stop:
+                return RunResult.STOPPED, 0
+            if self._fault is not None:
+                kind, fault_pc = self._fault
+                self._fault = None
+                # An interrupt that is pending and unmasked comes before the instruction: a
+                # SWI that was about to run runs again after the interrupt returns. Without
+                # this a task that yields in a loop, whose every slice ends at a SWI with I
+                # set, would never see an interrupt.
+                if kind != "swi" or not self._take_pending(fault_pc):
+                    self.enter_exception(kind, fault_pc)
+                # Unicorn does not say how many instructions ran before the exception, so each
+                # one is charged a fixed share of the slice.
+                remaining -= _EXCEPTION_COST
+                if remaining <= 0:
+                    return RunResult.BUDGET, insn_budget
+                continue
+            if not self._restart:
                 break
             self._restart = False
             # Cached blocks were translated without the new hooks.
             self._uc.ctl_flush_tb()
-        if self._stop:
-            return RunResult.STOPPED, 0
-        if self._fault is not None:
-            kind, fault_pc = self._fault
-            self._fault = None
-            self.enter_exception(kind, fault_pc)
-            return RunResult.BUDGET, 1
         if self._at_wfi():
             return RunResult.IDLE, 1
         return RunResult.BUDGET, insn_budget
@@ -172,13 +184,18 @@ class Cpu:
         self.set_reg("lr", lr)
         self.set_reg("pc", vector)
 
-    def _take_pending(self):
+    def _take_pending(self, pc=None):
+        """Enter the FIQ or IRQ handler if one is pending and unmasked; `pc` is the
+        instruction the interrupt comes before. Returns whether one was taken."""
         cpsr = self.reg("cpsr")
-        pc = self.reg("pc")
+        pc = self.reg("pc") if pc is None else pc
         if self._fiq and not cpsr & F_BIT:
             self._enter(MODE_FIQ, 0x1C, pc + 4, I_BIT | F_BIT)
-        elif self._irq and not cpsr & I_BIT:
+            return True
+        if self._irq and not cpsr & I_BIT:
             self._enter(MODE_IRQ, 0x18, pc + 4, I_BIT)
+            return True
+        return False
 
     def _at_wfi(self):
         pc = self.reg("pc") & ~1

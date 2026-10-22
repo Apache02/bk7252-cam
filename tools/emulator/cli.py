@@ -11,6 +11,7 @@ from core.loader import LoadError, apply_loads, parse_load
 from core.machine import Machine
 from core.profile import ProfileError, load_profile
 from host.endpoint import make_endpoint as default_make_endpoint
+from i2c_devices import parse_device_spec
 from host.log_format import configure_logging
 from host.net.forward import ForwardError, parse_publish
 from host.network import Network
@@ -30,6 +31,11 @@ def _parser():
         "-p", "--publish", action="append", default=[], metavar="[HOST_IP:]HOST_PORT:GUEST_PORT[/tcp|/udp]",
         help="forward a host port to a port of the firmware, as in Docker; repeatable "
         "(default host address 127.0.0.1, default protocol tcp)",
+    )
+    parser.add_argument(
+        "--i2c1", action="append", default=[], metavar="TYPE[@ADDRESS]",
+        help="put a device on the I2C1 bus, for example hi704 (a camera sensor, address 0x30) "
+        "or hi704@0x31; repeatable",
     )
     parser.add_argument(
         "-d", "--debug", action="append", default=[], metavar="MODULE[,MODULE...]",
@@ -68,8 +74,14 @@ def main(
             return _fail("at least one --load is required")
         specs = [parse_load(arg) for arg in args.load]
         publishes = [parse_publish(arg) for arg in args.publish]
+        i2c_devices = [parse_device_spec(arg) for arg in args.i2c1]
         machine = Machine(profile, registry, {})
         apply_loads(specs, profile, machine.bus, machine.cpu, machine.modules)
+        if i2c_devices:
+            if "I2C1" not in machine.modules:
+                return _fail("--i2c1 needs a profile with an I2C1 module")
+            for device in i2c_devices:
+                machine.modules["I2C1"].attach(device)
         if publishes:
             if "MAC" not in machine.modules:
                 return _fail("--publish needs a profile with a WiFi MAC module named MAC")

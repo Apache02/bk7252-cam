@@ -3,6 +3,7 @@
 from modules.flash import FlashModule
 from modules.gdma import GdmaModule
 from modules.gpio import GpioModule
+from modules.i2c1 import I2c1Module
 from modules.intc import IntcModule
 from modules.sctrl import SctrlModule
 from modules.timer import TimerModule
@@ -16,6 +17,7 @@ REGISTRY = {
     "flash": FlashModule,
     "gdma": GdmaModule,
     "gpio": GpioModule,
+    "i2c1": I2c1Module,
     "intc": IntcModule,
     "sctrl": SctrlModule,
     "timer": TimerModule,

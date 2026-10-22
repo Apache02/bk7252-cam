@@ -36,6 +36,7 @@ Options:
 | ------ | ------- |
 | `PROFILE` | Profile name, upper case: `profiles/PROFILE.toml`. |
 | `--load TARGET:FILE` | Copy FILE byte for byte to TARGET. Repeatable, at least one is required. |
+| `--i2c1 TYPE[@ADDRESS]` | Put a device on the I2C1 bus. Repeatable. `TYPE` is a name from `tools/emulator/i2c_devices/`: `hi704`, the camera sensor, 256 registers, id `0x96` in register `0x04`, address `0x30`. `ADDRESS` is a 7-bit number, `0x08`-`0x77`. A device is a 256-byte memory: the first byte of a write sets the offset, every further byte is stored there, and each byte written or read moves the offset on by one. The offset survives a STOP. |
 | `-p`, `--publish [HOST_IP:]HOST_PORT:GUEST_PORT[/tcp\|/udp]` | Forward a host port to a port of the firmware, written like Docker's `-p`. Repeatable. See [Network](#network). |
 | `-d`, `--debug MODULE[,MODULE...]` | Print debug logs (`gdma`, `flash`, `wdt`, `net`, `wifi`, or `wifi.rc` for one WiFi block). Several names with commas, or repeat the option: `-d gdma,wifi`. `-d all` turns on every module. |
 | `--uart1 SPEC`, `--uart2 SPEC` | Host end of the UART: `pty` (default), `stdio`, or a serial device path. |
@@ -95,6 +96,7 @@ clear; encryption is not modelled.
 | WiFi blocks | The register banks of `src/platform/soc/include/rwnx`, one module each in `modules/wifi/`: MAC (core and PL blocks together), MAC PTA, modem config and status, AGC, AGC microcode RAM (`0x0100A000`, 2 KiB), RC, NX interrupt controller, NX DMA, LA. Most are plain memory (what is written reads back, bytes and halfwords included) with no behaviour, so status bits that hardware would clear stay as written. The MAC has behaviour, modelled after the RivieraWaves interface the firmware drives: the state register (`state_cntrl`; leaving a state for IDLE raises the IDLE interrupt, which the firmware waits for before it starts an AP), the general and TX/RX interrupt registers and their six ICU FIQ lines (17-22), the ten ABS timers, the TSF, the TBTT interrupt, the key storage RAM and the time-on-air calculator. The monotonic counters (`monotonic_counter_1` at 40 MHz, `monotonic_counter_2_lo/_hi` in microseconds) run while the MAC is powered (the SCTRL power register holds the wake key) and read 0 otherwise. The MAC PL soft-reset bit (`mac_cntrl_2`, +0x50) clears itself at the next tick. Frames: a TX queue kick walks the descriptor chain and hands each frame to the air, and a little later marks it done and raises the queue's trigger; the receive chain takes frames from the air, with the TSF and the sender's key index, while the MAC is ACTIVE. The air is the virtual station of [Network](#network); without `-p` nobody answers. `--debug wifi` logs every read and write of every WiFi block; `--debug wifi.mac_core` picks one block. |
 | GPIO | 40 pins in two banks. A pin drives its pad while its output driver is on; otherwise the pad follows the level forced from the host side, then the pull resistor, then reads 0. Interrupts: level low/high, rising/falling edge. Peripheral functions of a pin are not modelled. |
 | TRNG | Not random, so runs are repeatable: `data` returns a read counter (0, 1, 2, ...) and `ctrl.enable` is 1 from the start and after a chip reset. While disabled, `data` is a plain latch, as in `docs/hardware/random.md`. |
+| I2C1 | The controller of `docs/hardware/i2c.md`: one byte per bus phase, `si` and the ICU line (bit 2) come up after nine bit times of the programmed bus clock, `busy` follows START and STOP. `sto` is a one-shot command here and reads back 0 (the doc describes it as latched). The devices on the bus are chosen with `--i2c1 TYPE[@ADDRESS]`; with none, every address is a NACK. I2C2 is not emulated. `-d i2c` logs each register write and bus phase. |
 | ICU | Interrupt enable, status, global IRQ/FIQ enables. |
 | UART1, UART2 | 128-byte RX FIFO, instant TX, level and latched interrupts. |
 | Timers | Two banks (26 MHz and 32 kHz), three periodic timers each. |
@@ -122,6 +124,13 @@ controller must be listed first. A module that watches a register bit of another
 param ending in `_signal`, such as `clock_off_signal = "ICU.arm_wdt_pwd"`; the owner declares the
 bit under its own `signals` param. Every module also gets `clock` and `reset_chip` constructor
 arguments.
+
+## Adding an I2C device
+
+1. Write `tools/emulator/i2c_devices/<name>.py`: subclass `I2cDevice` (`device.py`), or
+   `RegisterDevice` (`register_device.py`) for a device that is a block of registers. Set
+   `NAME` and `DEFAULT_ADDRESS`.
+2. Add the class to `DEVICES` in `i2c_devices/__init__.py`.
 
 ## Adding a module
 

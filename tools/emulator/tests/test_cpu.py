@@ -94,6 +94,35 @@ class CpuTest(unittest.TestCase):
         self.assertEqual(cpu.reg("pc"), 0x08)
         self.assertEqual(cpu.reg("spsr"), old)
 
+    def swi_loop(self):
+        """A task that yields forever: swi, then jump back; the SWI handler returns at once."""
+        cpu = make_cpu(0xEF000000, 0xEAFFFFFD)  # swi 0 ; b RAM
+        cpu.map_ram(0, 0x1000)
+        cpu.mem_write(0x08, program(0xE1B0F00E))  # movs pc, lr
+        cpu.mem_write(0x18, program(B_SELF))
+        cpu.set_reg("cpsr", MODE_SVC)  # I bit clear
+        return cpu
+
+    def test_an_irq_is_taken_even_when_every_slice_ends_in_a_swi(self):
+        cpu = self.swi_loop()
+        cpu.run(1000)  # the loop is under way; the line rises later
+        cpu.raise_irq(True)
+        for _ in range(20):
+            cpu.run(1000)
+            if cpu.reg("cpsr") & 0x1F == 0x12:
+                break
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, 0x12)
+
+    def test_a_slice_that_ends_in_an_exception_still_counts_as_a_full_slice(self):
+        cpu = self.swi_loop()
+        self.assertEqual(cpu.run(1000), (RunResult.BUDGET, 1000))
+
+    def test_the_swi_loop_keeps_running_with_no_interrupt_pending(self):
+        cpu = self.swi_loop()
+        for _ in range(5):
+            self.assertEqual(cpu.run(1000)[0], RunResult.BUDGET)
+        self.assertEqual(cpu.reg("cpsr") & 0x1F, MODE_SVC)
+
     def test_undefined_instruction_enters_und_vector(self):
         cpu = make_cpu(0xE7F000F0, B_SELF)  # permanently undefined
         cpu.map_ram(0, 0x1000)

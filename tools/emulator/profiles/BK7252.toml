@@ -205,6 +205,18 @@ pin_reset = 0x28
 "0x09c" = 0x02  # detect: is_usb_plug_in
 "0x0b8" = 0x5500  # func_mux_2: GPIO 20-23 in peripheral mode 2
 
+# I2C1 on GPIO20/21. Devices on the bus are chosen on the command line (--i2c1).
+# ref_hz: the clock source the bus divider divides (26 MHz crystal).
+[[module]]
+type = "i2c1"
+name = "I2C1"
+[module.bases]
+regs = 0x00802300
+[module.params]
+intc = "ICU"
+irq = 2
+ref_hz = 26000000
+
 # Not random: data reads count 0, 1, 2, ... and the generator starts enabled.
 [[module]]
 type = "trng"
