@@ -6,6 +6,7 @@ from modules.gpio import GpioModule
 from modules.i2c1 import I2c1Module
 from modules.intc import IntcModule
 from modules.jpeg import JpegModule
+from modules.saradc import SaradcModule
 from modules.sctrl import SctrlModule
 from modules.timer import TimerModule
 from modules.trng import TrngModule
@@ -22,6 +23,7 @@ REGISTRY = {
     "i2c1": I2c1Module,
     "intc": IntcModule,
     "jpeg": JpegModule,
+    "saradc": SaradcModule,
     "sctrl": SctrlModule,
     "timer": TimerModule,
     "trng": TrngModule,

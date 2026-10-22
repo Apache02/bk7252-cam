@@ -164,6 +164,17 @@ size = 192
 "0x38" = 0x0000f000
 "0x3C" = 0x00001836
 
+# No analog input: every sample reads `sample`. The interrupt is ICU source 11.
+[[module]]
+type = "saradc"
+name = "SAR_ADC"
+[module.bases]
+regs = 0x00802C00
+[module.params]
+intc = "ICU"
+irq = 11
+sample = 330
+
 [[module]]
 type = "wifi_agc_ram"
 name = "AGC_RAM"
