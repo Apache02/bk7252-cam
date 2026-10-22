@@ -96,6 +96,25 @@ regs = 0x00802900
 [module.params]
 clock_off_signal = "ICU.arm_wdt_pwd"
 
+# Pin words read 0x28 at reset (output driver off, pull-down); GPIO 20-23 also have
+# function_enable set by the vendor ROM (docs/por_reset_state.md).
+[[module]]
+type = "gpio"
+name = "GPIO"
+[module.bases]
+regs = 0x00802800
+[module.params]
+intc = "ICU"
+irq = 7
+pin_reset = 0x28
+[module.params.reset_words]
+"0x050" = 0x68  # GPIO20
+"0x054" = 0x68  # GPIO21
+"0x058" = 0x68  # GPIO22
+"0x05c" = 0x68  # GPIO23
+"0x09c" = 0x02  # detect: is_usb_plug_in
+"0x0b8" = 0x5500  # func_mux_2: GPIO 20-23 in peripheral mode 2
+
 [[module]]
 type = "timer"
 name = "TIMER0"

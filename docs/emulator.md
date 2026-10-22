@@ -58,6 +58,7 @@ error reported before the emulator starts.
 | RAM | `RAM1`, `RAM2`. |
 | Flash | 2 MiB raw store and the CRC-decoded XIP window. A block with a bad CRC logs an `ALERT` line and raises a Data Abort while `conf.crc_en` is set. Controller commands: read ID, read status, write enable/disable, 32-byte read. Erase and program are logged and not performed. |
 | SCTRL | `chip_id` and `device_id` (read-only, set in the profile); every other register reads back what was written, starting from the profile's `reset_words` (`warm_reset_words` after a chip reset). No analog or clock behaviour. |
+| GPIO | 40 pins in two banks. A pin drives its pad while its output driver is on; otherwise the pad follows the level forced from the host side, then the pull resistor, then reads 0. Interrupts: level low/high, rising/falling edge. Peripheral functions of a pin are not modelled. |
 | ICU | Interrupt enable, status, global IRQ/FIQ enables. |
 | UART1, UART2 | 128-byte RX FIFO, instant TX, level and latched interrupts. |
 | Timers | Two banks (26 MHz and 32 kHz), three periodic timers each. |
@@ -107,5 +108,6 @@ Booting a real image is a manual check.
 
 ## Limits
 
-One chip. Flash erase and program are not emulated. No WiFi, JPEG, camera sensor, GPIO or DMA
-modules yet; firmware that needs them runs into the log lines above.
+One chip. Flash erase and program are not emulated. No WiFi, JPEG, camera sensor or DMA
+modules yet. The GPIO module has a Python interface (`set_input`, `pad_level`, `watch`) for
+tests and scripts, but the command line does not expose it; firmware that needs them runs into the log lines above.
