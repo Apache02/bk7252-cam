@@ -45,6 +45,8 @@ const Shell::Handler shell_handlers[] = {
     {"config_reset", command_config_reset, "reset the camera settings to defaults"},
     {"wifi", command_wifi, "Wi-Fi control; see wifi help"},
     {"ping", command_ping, "ICMP echo: <ip> [-c N] [-W ms]"},
+    {"nslookup", command_nslookup, "DNS lookup: <name>"},
+    {"connect", command_connect, "TCP client: <ip>:<port> [text]"},
     {"exit", command_telnet_exit, "close the Telnet session"},
     {"i2c", command_i2c, "I2C control; see i2c --help"},
     {"gpio", command_gpio, "GPIO control; run gpio for usage"},

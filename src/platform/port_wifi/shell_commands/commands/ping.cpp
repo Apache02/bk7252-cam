@@ -1,5 +1,5 @@
-// ICMP echo, from the shell. Numeric addresses only: DNS is off in this
-// build's lwipopts.h, so there is no name to resolve.
+// ICMP echo, from the shell. Numeric addresses only; nslookup turns a name
+// into one.
 
 #include <new>
 #include <stdio.h>
@@ -27,7 +27,7 @@ static void usage(const char *command) {
     printf("usage: %s <ip> [-c N] [-W ms]\r\n", command);
     printf("  -c    how many echoes to send (default 4)\r\n");
     printf("  -W    how long to wait for each reply, in ms (default 1000)\r\n");
-    printf("\r\n  <ip> is a numeric address; there is no DNS here.\r\n");
+    printf("\r\n  <ip> is a numeric address; see nslookup.\r\n");
 }
 
 

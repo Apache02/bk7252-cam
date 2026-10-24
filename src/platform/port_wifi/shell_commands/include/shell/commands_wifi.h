@@ -6,6 +6,8 @@ extern "C" {
 
 int command_wifi(int argc, const char *argv[]);
 int command_ping(int argc, const char *argv[]);
+int command_nslookup(int argc, const char *argv[]);
+int command_connect(int argc, const char *argv[]);
 
 #ifdef __cplusplus
 }

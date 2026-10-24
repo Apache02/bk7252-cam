@@ -27,8 +27,17 @@
 #define DEFAULT_RAW_RECVMBOX_SIZE 1
 #define LWIP_UDP                  1
 #define LWIP_TCP                  1
-#define LWIP_DNS                  0
+#define LWIP_DNS                  1
 #define LWIP_DHCP                 1
+
+/* ---- DNS ---- */
+/* The servers come from the DHCP lease. The table is the cache; every slot holds
+   a whole name buffer, so both are cut down from the defaults. */
+#define DNS_TABLE_SIZE      2
+#define DNS_MAX_NAME_LENGTH 128
+/* No random source port: that one opens a UDP PCB per query, and there are only
+   four of them. */
+#define LWIP_DNS_SECURE (LWIP_DNS_SECURE_RAND_XID | LWIP_DNS_SECURE_NO_MULTIPLE_OUTSTANDING)
 
 /* ---- Loopback ---- */
 #define LWIP_HAVE_LOOPIF        1
