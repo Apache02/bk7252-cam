@@ -18,13 +18,6 @@
 #include "wifi/ap.h"
 #include "wifi/sta.h"
 
-// #define BACKOFF_MIN_MS  2000
-// #define BACKOFF_MAX_MS  30000
-// #define MAX_FAILURES    5
-// #define ADDRESS_WAIT_MS 15000
-// #define AP_RETRY_MS     5000
-// #define POLL_MS         200
-// #define MONITOR_MS      500
 
 // The task starts above everything so the bring-up is not interrupted, then steps down: joining a
 // network hashes the passphrase for half a second, which must not starve the shell and the stream.
@@ -292,6 +285,13 @@ void main_task_start() {
 }
 
 bool main_task_ready() { return s_ready; }
+
+bool await_main_task_ready(uint32_t timeout_ms) {
+    for (uint32_t t = 0; t < timeout_ms && !main_task_ready(); t += 100) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    return main_task_ready();
+}
 
 void main_task_config_changed() {
     s_config_changed = true;

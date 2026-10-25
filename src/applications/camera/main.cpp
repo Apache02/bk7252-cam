@@ -10,6 +10,8 @@
 #include "utils/ring_buffer.h"
 
 #include "app/main_task.h"
+#include "app/keys.h"
+#include "app/status_led.h"
 #include "shell_handlers.h"
 #include "app/version.h"
 
@@ -51,9 +53,7 @@ static inline bool is_connected() { return true; }
 static __dead2 void vTaskShell(void *pvParams) {
     auto *shell = static_cast<Shell *>(pvParams);
 
-    for (int i=0; i<5 && !main_task_ready(); i++) {
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
+    await_main_task_ready(1000);
 
     for (;;) {
         print_welcome();
@@ -109,6 +109,8 @@ int main() {
     // clang-format on
 
     main_task_start();
+    status_led_start();
+    keys_start();
 
     // clang-format off
     xTaskCreateStatic(

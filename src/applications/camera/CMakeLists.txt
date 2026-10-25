@@ -6,6 +6,8 @@ add_executable(
         main_task.cpp
         shell_handlers.cpp
         telnet_console.cpp
+        keys.cpp
+        status_led.cpp
         web/camera_web.cpp
         web/config_json.cpp
 )
@@ -47,6 +49,7 @@ target_include_directories(
 
 target_link_libraries(
         camera PRIVATE
+        board_config
         platform_stdio_uart2
         platform_freertos
         platform_port_lwip
