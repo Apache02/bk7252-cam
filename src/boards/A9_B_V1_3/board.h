@@ -5,9 +5,11 @@
 
 #define BOARD_SOC_CHIP bk7221u
 
-#define LED_PIN      (26)
-#define KEY_PWR_PIN  (2)
-#define KEY_MODE_PIN (7)
+#define LED_PIN                 (26)
+#define FLASHLIGHT_PIN          (12)
+#define FLASHLIGHT_PIN_INVERTED (1)
+#define KEY_PWR_PIN             (2)
+#define KEY_MODE_PIN            (7)
 
 
 // How the sensor is powered:
