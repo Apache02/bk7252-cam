@@ -1,14 +1,14 @@
 # BK7252 General DMA
 
-The general DMA controller at `0x00809000` (`GDMA_BASE_ADDR`) provides six
-independent channels. Each channel transfers a specified number of bytes between
-two endpoints, reading source words and writing destination words through an
-internal byte accumulator that adapts between the source and destination widths.
-End-of-transfer events are signalled through `IRQ_SOURCE_GDMA`.
+The general DMA controller at `0x00809000` provides six independent channels. Each channel transfers a
+specified number of bytes between two endpoints, reading source words and writing destination words through an
+internal byte accumulator that adapts between the source and destination widths. A channel can run once, wrap its
+addresses inside a loop window, or restart itself in repeat mode. End-of-transfer events are signalled through
+`IRQ_SOURCE_GDMA`.
 
 Endpoints can be plain DTCM memory (`mode = DTCM`) or a peripheral request line
-(HSSPI, AUDIO, SDIO, UART1/2, I2S, GSPI, JPEG, PSRAM); only `DTCM` has been
-characterised in detail.
+(HSSPI, AUDIO, SDIO, UART1/2, I2S, GSPI, JPEG, PSRAM). `DTCM`, `JPEG` (source) and `UART1` (destination)
+have been characterised.
 
 ## Register map
 
@@ -16,12 +16,12 @@ characterised in detail.
 
 | Offset (words) | Name                   | Purpose                                |
 | -------------- | ---------------------- | -------------------------------------- |
-| `0x00`         | `config`               | enable / int-enable / widths / increments / loop / priority / `transfer_length` |
+| `0x00`         | `config`               | enable / int-enable / repeat / widths / increments / loop / priority / `transfer_length` |
 | `0x01`         | `dst_start_addr`       | Destination start address              |
 | `0x02`         | `src_start_addr`       | Source start address                   |
-| `0x03`         | `dst_loop_end_addr`    | Destination loop end (loop mode only)  |
+| `0x03`         | `dst_loop_end_addr`    | Destination loop end (exclusive)       |
 | `0x04`         | `dst_loop_start_addr`  | Destination loop start                 |
-| `0x05`         | `src_loop_end_addr`    | Source loop end                        |
+| `0x05`         | `src_loop_end_addr`    | Source loop end (exclusive)            |
 | `0x06`         | `src_loop_start_addr`  | Source loop start                      |
 | `0x07`         | `mux_reqs`             | `src_req` / `dst_req` peripheral lines / read-write intervals |
 
@@ -29,29 +29,29 @@ characterised in detail.
 
 | Offset (words) | Name                | Purpose                                  |
 | -------------- | ------------------- | ---------------------------------------- |
-| `0x30..0x35`   | `int_counts[6]`     | Per-channel `remain_len`, sticky `fin_count` / `half_fin_count` |
+| `0x30..0x35`   | `int_counts[6]`     | Per-channel `remain_len` (bytes), sticky `fin_count` / `half_fin_count` |
 | `0x37`         | `prio_mode`         | `bit0`: 0 = round-robin, 1 = fixed priority |
 | `0x38`         | `int_status`        | `bits0..5`: per-channel fin flags, `bits8..13`: half-fin (write 1 to clear) |
-| `0x40..0x45`   | `src_pause_addr[6]` | Pause-point capture (telemetry)          |
-| `0x48..0x4D`   | `dst_pause_addr[6]` | Pause-point capture (telemetry)          |
+| `0x40..0x45`   | `src_pause_addr[6]` | Pause-point capture (telemetry, reads 0)  |
+| `0x48..0x4D`   | `dst_pause_addr[6]` | Pause-point capture (telemetry, reads 0)  |
 | `0x50..0x55`   | `src_rd_addr[6]`    | Internal source read counter (telemetry) |
-| `0x58..0x5D`   | `dst_wr_addr[6]`    | Internal destination write counter (telemetry) |
+| `0x58..0x5D`   | `dst_wr_addr[6]`    | Address of the next destination write    |
 
 ### `config` bits
 
 | Bits      | Name                  | Purpose                                 |
 | --------- | --------------------- | --------------------------------------- |
-| `[0]`     | `enable`              | 1 = channel runs; hw clears at completion |
+| `[0]`     | `enable`              | 1 = channel runs; hw clears at completion of a single-shot transfer |
 | `[1]`     | `fin_int_enable`      | Generate IRQ on finish                  |
 | `[2]`     | `half_fin_int_enable` | Generate IRQ at half-finish             |
-| `[3]`     | `repeat_mode`         | 0 = single-shot, 1 = loop (loop addresses) |
+| `[3]`     | `repeat_mode`         | 0 = single-shot, 1 = restart after every finish (see "Repeat mode") |
 | `[5:4]`   | `src_data_width`      | `0=8b`, `1=16b`, `2=32b` (useful bytes per src read) |
 | `[7:6]`   | `dst_data_width`      | `0=8b`, `1=16b`, `2=32b` (useful bytes per dst write) |
 | `[8]`     | `src_addr_inc`        | Advance source address by +4 per read   |
 | `[9]`     | `dst_addr_inc`        | Advance destination address by +4 per write |
-| `[10]`    | `src_addr_loop`       | Enable source loop wrap                 |
-| `[11]`    | `dst_addr_loop`       | Enable destination loop wrap            |
-| `[13:12]` | `channel_priority`    | 0..3, consulted only when `prio_mode.fixed_priority = 1` |
+| `[10]`    | `src_addr_loop`       | Wrap the source address inside the source loop window |
+| `[11]`    | `dst_addr_loop`       | Wrap the destination address inside the destination loop window |
+| `[13:12]` | `channel_priority`    | 0..3, consulted only when `prio_mode.fixed_priority = 1` (see "Arbitration") |
 | `[31:16]` | `transfer_length`     | Total bytes to transfer minus 1; hw transfers `transfer_length + 1` bytes |
 
 ### `mux_reqs` bits
@@ -78,7 +78,7 @@ characterised in detail.
 ## Transfer model
 
 **This is not described in the SDK — without it, hardware behaviour appears
-random. The model below was derived empirically and matches every test case.**
+random.**
 
 A channel transfers exactly **`config.transfer_length + 1` bytes**. The value
 `transfer_length = 0` therefore transfers one byte, not zero — there is no way
@@ -87,6 +87,9 @@ to express "zero bytes" in hardware.
 **`transfer_length` counts bytes, not reads or writes.** The number of dst
 writes is `ceil((transfer_length + 1) / 2^dst_data_width)`; the number of src
 reads is `ceil((transfer_length + 1) / 2^src_data_width)`.
+
+**`int_counts[n].remain_len` counts bytes as well**, for every width. It is
+`transfer_length + 1` minus the bytes moved so far.
 
 ### Source reads
 
@@ -106,6 +109,7 @@ upper bytes are discarded. The src address always advances by +4 per read when
 Each dst write drains `2^dst_data_width` bytes from the accumulator and commits
 them via byte-enable mask into the low lanes of a 32-bit word at the dst
 address. The dst address always advances by +4 per write when `dst_addr_inc = 1`.
+The lanes above the written bytes keep their previous content.
 
 | `dst_dw` | BE mask  | Useful bytes per write |
 | -------- | -------- | ---------------------- |
@@ -180,64 +184,146 @@ For some sizes the last dst write contains a trailing zero byte — e.g.
 the DMA always issues a full-width write with the available BE mask
 (0001/0011/1111), so unfilled accumulator bytes are committed as 0x00.
 
-
-
 ### Address alignment
 
 Behaviour with unaligned src / dst addresses at `dw = 2` (32-bit) is not
 characterised — hardware may mask the low address bits, write to unintended
 bytes, or behave unpredictably. Use 4-byte-aligned buffers.
 
+## Address loop
+
+`src_addr_loop` / `dst_addr_loop` turn the corresponding address into a ring.
+The window is `[loop_start_addr, loop_end_addr)`: **the end address is exclusive.**
+After the last word below `loop_end_addr` the address returns to `loop_start_addr`.
+
+- The transfer start address (`src_start_addr` / `dst_start_addr`) is independent of the loop start. It may lie
+  anywhere inside the window; the first wrap goes to `loop_start_addr`, not back to the start address.
+  Start = loop + 32 B, window 64 B, 128 B transferred: the first 8 words fill the upper half of the window, then
+  the writes wrap to the window start and the buffer ends up holding the last 16 words written.
+- The transfer size is not tied to the window size. A 96 B transfer through a 64 B window overwrites the first
+  16 B of the window with the last 16 B of the data.
+- Source and destination loops are independent. A 16 B source window with a linear 64 B destination repeats the
+  16 B pattern four times.
+- Loops work with every width. The address still advances +4 per transaction, so with `dst_dw = 0` the 32 byte
+  writes of a 32 B transfer span 128 B of address space and wrap a 64 B window twice; only the low byte of each
+  word is written.
+- Loop addresses are absolute. A loop address register left at `0` means no loop on that side.
+- `dst_wr_addr` returns to the window start after a whole number of window turns.
+
+## Repeat mode
+
+With `repeat_mode = 1` the channel does not clear `enable` when the transfer finishes. It starts the next cycle
+of `transfer_length + 1` bytes immediately and runs until software writes `enable = 0`.
+
+- **Addresses are not reloaded between cycles.** The next cycle continues from the current source and destination
+  address; the loop windows are what keep the addresses bounded. With a 64 B source window, a 64 B destination
+  window and a 40 B transfer, the cycles walk around the window: all 16 destination words get written, not
+  only the first 10.
+- **Repeat mode without a loop window and with incrementing addresses runs off the buffer.** The addresses grow
+  until the channel overwrites RAM (including the stack) and the CPU hangs. Use repeat with a loop window on every
+  incrementing side, or with `*_addr_inc = 0`.
+- With fixed addresses (`*_addr_inc = 0`) every cycle reads the same source and rewrites the same destination;
+  a destination wiped while the channel runs is rewritten by the next cycle.
+- `remain_len` reloads at every cycle start.
+- Each cycle raises one finish and one half-finish interrupt (when enabled).
+
+## Stop, resume and restart
+
+The channel keeps an internal progress counter, compared against `transfer_length`. `remain_len` reads
+`transfer_length + 1` minus progress.
+
+- Clearing `enable` mid-transfer keeps the progress counter, both address pointers and the accumulator.
+- **Setting `enable = 1` again with no other write to the channel in between resumes the transfer.** Stopped at
+  `remain_len = 88` of 256, the next enable copies exactly the missing 88 bytes, continuing at the same source
+  and destination addresses.
+- Rewriting `transfer_length` while stopped does not reload the progress counter. A new
+  `transfer_length` below the bytes already moved ends the transfer at once without copying anything.
+- **Any other write to a register of the channel while `enable = 0` resets the progress counter**, so the next
+  enable starts a new transfer from `src_start_addr` / `dst_start_addr`. Observed for `dst_start_addr`,
+  `src_start_addr`, `mux_reqs`, `dst_loop_start_addr` and a `config` write with `enable = 0`, including a rewrite
+  of the same value. A single `config` write that sets `enable = 1` together with new fields does not reset it.
+- After a transfer finishes normally (`enable` cleared by hardware), setting `enable = 1` with no other write
+  starts a new transfer from the start addresses. This differs from repeat mode, which continues the addresses.
+
+## Arbitration
+
+`prio_mode.fixed_priority` selects the arbiter.
+
+**Round-robin (`0`).** `channel_priority` is ignored and all busy channels share the bus equally. Six channels
+each copying 8 KB between DTCM windows all finish at the same time (about 510 us).
+
+**Fixed priority (`1`).**
+
+- **A channel with `channel_priority = 0` is never granted the bus.** It does not move any data, not when
+  running alone, not after the other channels finish, and not after switching back to round-robin. Clearing
+  `enable` is the only way out. While a channel is stuck like this, `int_status` reads reserved bits 16 and 18
+  set (`0x00050000`); their meaning is not characterised.
+- Priorities `1..3`: the higher value is served first. With equal values the higher channel number is served
+  first.
+- Six channels, 8 KB each, `channel_priority = 1 1 2 2 3 3` for channels 0..5: channels 4 and 5 finish at
+  about 174 us, channels 2 and 3 at about 344 us, channels 0 and 1 at about 513 us. With `3 3 2 2 1 1` the order
+  reverses. With all priorities equal the order is the same as with the ascending ramp.
+- Two DTCM-to-DTCM channels barely contend (1 KB each: 22 us together against 16 us alone), so the priority
+  order only becomes visible with several busy channels.
+
+## Peripheral request lines
+
+A non-zero `src_req` / `dst_req` makes the channel wait for the peripheral before each access. A zero request
+line does not wait.
+
+- **UART1 TX as destination** (`dst_req = 4`, destination address = UART1 data register, `dst_addr_inc = 0`,
+  8-bit widths, 300 B at 115200 baud, TX FIFO depth 128): the first 128 bytes are written at once, then the
+  channel advances only as the FIFO drains. `remain_len` falls at 11.5 B/ms, matching the baud rate, and the
+  transfer ends after 14.5 ms.
+- The same copy with `dst_req = 0` ends in tens of microseconds and leaves the FIFO full; the channel does not
+  wait for room.
+- JPEG as source (`src_req = 8`) works with `src_addr_inc = 0` and a destination in DTCM.
+
 ## Operation sequence
 
 1. Reserve a channel index `n` in `0..5`.
-2. Optionally write `config = 0` to drop any residual enable.
+2. Write `config = 0` to drop any residual enable and reset the progress counter.
 3. Write `src_start_addr` and `dst_start_addr`.
-   Loop addresses can be left at `0` for single-shot mode.
+   For a ring on either side, also write that side's `*_loop_start_addr` and `*_loop_end_addr`.
 4. Write `mux_reqs` with `src_req` / `dst_req` (use `0` for DTCM on either
    side).
-5. Write `config` with desired widths, increments, `fin_int_enable`,
+5. Write `config` with desired widths, increments, `fin_int_enable`, `repeat_mode`, `*_addr_loop`,
    `transfer_length = byte_count - 1`, and `enable = 1` to start the transfer.
    Alternatively write `config` with `enable = 0` to program without starting,
    then write `enable = 1` separately to trigger.
-6. Wait for completion — two equivalent ways:
+6. Wait for completion — two equivalent ways (single-shot only):
     - Poll `channels[n].config.enable` — hw clears it to `0` on the final write.
     - Wait for the channel's bit in `int_status.fin_status` and write 1 to clear.
+7. Repeat mode: poll `remain_len` or count finish interrupts; write `enable = 0` to stop.
 
 ## Interrupts
 
 `IRQ_SOURCE_GDMA` is a single shared line for all six channels. The ISR must
 read `int_status` to discover which channels finished:
 
-- `int_status.fin_status[n]` — channel `n` completed its transfer. Write 1
+- `int_status.fin_status[n]` — channel `n` completed its transfer (in repeat mode: completed a cycle). Write 1
   to clear.
 - `int_status.half_fin_status[n]` — channel `n` reached the half-point of
-  its transfer (chiefly meaningful in loop mode). Write 1 to clear.
+  its transfer, i.e. `remain_len` fell to half of `transfer_length + 1`. Write 1 to clear.
 
 A channel's flag stays asserted until acknowledged, so failing to clear it
-keeps `IRQ_SOURCE_GDMA` high.
+keeps `IRQ_SOURCE_GDMA` high. The flags are set whether or not the CPU takes the interrupt.
 
 ## Notes
 
-- `enable` is self-clearing on completion. No additional acknowledgement is
+- `enable` is self-clearing on completion of a single-shot transfer. No additional acknowledgement is
   required to ready the channel for reuse beyond optionally clearing
   `int_status.fin_status[n]`.
 - `int_counts[n].fin_count` (bits 24..27) and `half_fin_count` (bits 28..31)
-  are sticky 4-bit IRQ counters — incremented by hw on each finish/half-finish,
-  never auto-cleared, wrap at 16. Useful for debug, not for driver logic.
-- `int_counts[n].remain_len` (bits 0..16) reports the number of dst writes
-  remaining.
-- `src_rd_addr[n]` and `dst_wr_addr[n]` are internal counters with a
-  hardware-specific encoding; they do not map to the current source/dest
-  address in a straightforward way. Useful for debug only.
-- `src_pause_addr[n]` and `dst_pause_addr[n]` capture addresses at pause
-  events; not exercised.
+  are sticky 4-bit IRQ counters — incremented by hw on each finish/half-finish **only while the matching
+  interrupt-enable bit is set**, never auto-cleared, wrap at 16. Useful for debug, not for driver logic.
+- `int_counts[n].remain_len` (bits 0..16) reports the number of bytes remaining.
+- `src_rd_addr[n]` is an internal counter with a hardware-specific encoding; it does not map to the current
+  source address in a straightforward way. Useful for debug only. `dst_wr_addr[n]` equals
+  `dst_start_addr` plus the bytes written when `dst_addr_inc = 1`, and wraps with the destination loop.
+- `src_pause_addr[n]` and `dst_pause_addr[n]` read `0` after a stop and in repeat mode; what captures into
+  them is not characterised.
 - `prio_mode.fixed_priority = 0` selects round-robin arbitration and is the
   most useful default; in that mode `channel_priority` in `config` is ignored.
-  With `fixed_priority = 1`, channels with higher `channel_priority` (0..3)
-  are serviced first.
-- Loop mode (`repeat_mode = 1` with `*_addr_loop = 1` and the four
-  `*_loop_*_addr` registers) was not exercised; it is intended for continuous
-  peripheral streaming (e.g. DVP → JPEG → RAM).
 - `mux_reqs.dtcm_wr_wait_word` has no known effect; leave at `0`.
   `src_rd_interval` / `dst_wr_interval` are described under "Pacing intervals".

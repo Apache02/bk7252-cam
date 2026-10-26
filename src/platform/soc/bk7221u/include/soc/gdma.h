@@ -11,39 +11,46 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t enable: 1;              // [0]
+            uint32_t enable: 1;              // [0] hw clears it when a single-shot transfer finishes. Clearing it mid-transfer
+                                             //     keeps the progress; setting it again resumes unless another
+                                             //     register of the channel was written in between (that resets it)
             uint32_t fin_int_enable: 1;      // [1]
             uint32_t half_fin_int_enable: 1; // [2]
-            uint32_t repeat_mode: 1; // [3] 0: single-shot, 1: loop using *_loop_*_addr (NOT TESTED; semantics from SDK)
+            uint32_t repeat_mode: 1; // [3] 0: single-shot, 1: restart after every finish, addresses are NOT reloaded
+                                     //     (keep every incrementing side inside a loop window, else it runs off the buffer)
             uint32_t src_data_width: 2; // [5:4] 0=8b, 1=16b, 2=32b useful bytes per src read (see notes below)
             uint32_t dst_data_width: 2; // [7:6] 0=8b, 1=16b, 2=32b useful bytes per dst write (see notes below)
             uint32_t src_addr_inc: 1;   // [8] when 1, src address advances by +4 bytes per read (always +4, independent
                                         // of src_data_width)
             uint32_t dst_addr_inc: 1;  // [9] when 1, dst address advances by +4 bytes per write (always +4, independent
                                        // of dst_data_width)
-            uint32_t src_addr_loop: 1; // [10] (NOT TESTED)
-            uint32_t dst_addr_loop: 1; // [11] (NOT TESTED)
-            uint32_t channel_priority: 2; // [13:12] 0..3, used only when prio_mode.fixed_priority = 1
+            uint32_t src_addr_loop: 1; // [10] wrap the src address inside [src_loop_start_addr, src_loop_end_addr)
+            uint32_t dst_addr_loop: 1; // [11] wrap the dst address inside [dst_loop_start_addr, dst_loop_end_addr)
+            uint32_t channel_priority: 2; // [13:12] used only when prio_mode.fixed_priority = 1. 0 = channel is never
+                                          //         granted; 1..3: higher value first, ties go to the higher channel
+                                          //         number
             uint32_t reserved_14_15: 2;   // [15:14]
-            uint32_t transfer_length: 16; // [31:16] number of dst writes minus 1. HW performs (transfer_length + 1)
-                                          // dst writes.
-                                          //         Cannot express zero writes; value 0 yields exactly one write.
-                                          //         Each write commits 2^dst_data_width bytes to dst.
+            uint32_t transfer_length: 16; // [31:16] total bytes minus 1, regardless of the widths. HW moves
+                                          // (transfer_length + 1) bytes, i.e. ceil(bytes / 2^dst_data_width) dst writes.
+                                          //         Cannot express zero bytes; value 0 yields exactly one byte.
+                                          //         Compared with the progress counter, so rewriting it while the
+                                          //         channel is stopped does not restart the transfer.
         };
     } config;
 
     uint32_t dst_start_addr;
     uint32_t src_start_addr;
-    uint32_t dst_loop_end_addr;
-    uint32_t dst_loop_start_addr;
-    uint32_t src_loop_end_addr;
+    uint32_t dst_loop_end_addr;   // exclusive
+    uint32_t dst_loop_start_addr; // wrap target; independent of dst_start_addr, which may lie inside the window
+    uint32_t src_loop_end_addr;   // exclusive
     uint32_t src_loop_start_addr;
 
     union {
         uint32_t v;
         struct {
             uint32_t src_req: 4; // [3:0] peripheral source request line, 0 for M2M (DTCM). DTCM and JPEG (8) tested.
-            uint32_t dst_req: 4; // [7:4] peripheral destination request line, 0 for M2M (DTCM). Only DTCM tested.
+            uint32_t dst_req: 4; // [7:4] peripheral destination request line, 0 for M2M (DTCM). DTCM and UART1 (4)
+                                 //       tested; a non-zero line makes the channel wait for the peripheral.
             uint32_t dtcm_wr_wait_word: 1; // [8] unknown function, no effect on DTCM->DTCM copies
             uint32_t reserved_9_11: 3;     // [11:9]
             uint32_t src_rd_interval: 4;   // [15:12] minimum period between src reads, in bus cycles
@@ -59,10 +66,11 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t remain_len: 17;    // [16:0] dst writes remaining (one unit = 2^dst_data_width bytes)
+            uint32_t remain_len: 17;    // [16:0] bytes remaining, for every width; reloads at each repeat cycle
             uint32_t reserved_17_23: 7; // [23:17]
             uint32_t fin_count: 4;      // [27:24] sticky finish-IRQ counter, never auto-clears.
-                                        //         Increments by 1 per fin interrupt; wraps at 16.
+                                        //         Increments by 1 per fin interrupt (only while fin_int_enable is
+                                        //         set); wraps at 16.
             uint32_t half_fin_count: 4; // [31:28] same as fin_count but for half-finish IRQ.
         };
     } int_counts[GDMA_NUM_CHANNELS]; // word 0x30..0x35
