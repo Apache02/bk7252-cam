@@ -14,3 +14,5 @@
 #define KEY_MODE_PIN            (13)
 
 #define CAMERA_I2C "i2c2"
+#define CAMERA_POWER_METHOD      "VDDRAM"
+#define CAMERA_POWER_VDDRAM_VOLT SCTRL_VDDRAM_3V5
