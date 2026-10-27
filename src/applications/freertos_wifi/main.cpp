@@ -88,12 +88,12 @@ static void vTaskInit(__unused void *pvParams) {
 
 /*-----------------------------------------------------------*/
 
-RINGBUF_DECLARE(uart2_tx, 1024);
+RINGBUF_DECLARE(stdio_tx, 1024);
 
 int main() {
     setvbuf(stdout, NULL, _IONBF, 0);
     platform_stdio_init();
-    platform_stdio_set_tx_buffer(&uart2_tx);
+    platform_stdio_set_tx_buffer(&stdio_tx);
 
     sctrl_init();
     sctrl_set_cpu_freq_hz(CPU_FREQ_160_MHZ); // required by wifi

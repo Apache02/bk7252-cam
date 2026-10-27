@@ -31,7 +31,7 @@ target_sources(
 
 target_link_libraries(
         freertos_wifi PRIVATE
-        platform_stdio_uart2
+        platform_stdio
         platform_freertos
         platform_port_lwip
         shell_main

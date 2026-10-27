@@ -3,7 +3,6 @@
 #include "hardware/uart.h"
 #include "soc/clock.h"
 
-#include "shell/console_colors.h"
 #include "shell/Parser.h"
 #include "utils/busy_wait.h"
 
@@ -18,13 +17,13 @@ static int take_baudrate(const char *baud) { return take_int(baud).ok_or(0); }
 
 int command_uart1_baudrate(int argc, const char *argv[]) {
     if (argc != 2) {
-        printf(COLOR_RED("Invalid arguments") "\r\n");
+        printf("Invalid arguments\r\n");
         return 1;
     }
 
     int baudrate = take_baudrate(argv[1]);
     if (!valid_baudrate(baudrate)) {
-        printf(COLOR_RED("Invalid baudrate") "%d\r\n", baudrate);
+        printf("Invalid baudrate %d\r\n", baudrate);
         return 2;
     }
 
@@ -37,13 +36,13 @@ int command_uart1_baudrate(int argc, const char *argv[]) {
 
 int command_uart2_baudrate(int argc, const char *argv[]) {
     if (argc != 2) {
-        printf(COLOR_RED("Invalid arguments") "\r\n");
+        printf("Invalid arguments\r\n");
         return 1;
     }
 
     int baudrate = take_baudrate(argv[1]);
     if (!valid_baudrate(baudrate)) {
-        printf(COLOR_RED("Invalid baudrate") " %d\r\n", baudrate);
+        printf("Invalid baudrate %d\r\n", baudrate);
         return 2;
     }
 
@@ -56,7 +55,7 @@ int command_uart2_baudrate(int argc, const char *argv[]) {
 
 int command_uart_baudrate(int argc, const char *argv[]) {
     if (argc < 2 || argc > 3) {
-        printf(COLOR_RED("Invalid arguments") "\r\n");
+        printf("Invalid arguments\r\n");
         return 3;
     }
 
@@ -70,6 +69,6 @@ int command_uart_baudrate(int argc, const char *argv[]) {
         return command_uart2_baudrate(2, arguments);
     }
 
-    printf(COLOR_RED("Invalid uart number") "\r\n");
+    printf("Invalid uart number\r\n");
     return 4;
 }

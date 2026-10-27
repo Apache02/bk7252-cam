@@ -8,7 +8,7 @@ Bare-metal / FreeRTOS firmware for a BK7252-based A9 camera (ARM968E-S, thumb-in
 
 ## Build
 
-CMake out-of-tree build. The board must be selected (defaults to `A9_B_V1_3`):
+CMake out-of-tree build. Select the board explicitly (without `-DBOARD` the build uses `generic_UART2`: console only, no LED, keys or camera):
 
 ```sh
 mkdir -p build
@@ -56,18 +56,18 @@ Layered CMake tree under `src/` — each subdir is its own CMake library and get
   - `port_newlib/`, `port_lwip/`, `port_tlsf/` — adapters between the upstream library (fetched in `dependencies.cmake`: FreeRTOS-Kernel V11.1.0, lwIP STABLE-2_2_0, tlsf) and this firmware (locks, allocators, OS shim).
   - `drivers/` — one library per on-chip peripheral. Apps link only the drivers they use. Current set: `hardware_efuse`, `hardware_flash`, `hardware_gdma`, `hardware_gpio`, `hardware_icu`, `hardware_intc`, `hardware_jpeg`, `hardware_random`, `hardware_sctrl`, `hardware_security`, `hardware_time`, `hardware_timer`, `hardware_uart`, `hardware_wdt`. Each driver is wired by `simple_drivers_library()` which links `platform_soc` transitively — no per-driver CMake boilerplate needed.
   - `soc/` — chip-scoped MMIO register struct headers. Currently one chip: `soc/bk7221u/`. Exposed as a single INTERFACE library `platform_soc` with include root `soc/bk7221u/include/`, so consumers write `#include "soc/<peripheral>.h"` (e.g. `soc/uart.h`) and `#include "platform/soc.h"` for `hw_write_fields()`. The chip name is encoded in the directory path, not the include path. All drivers receive `platform_soc` transitively via `simple_drivers_library()`.
-  - `misc/` — small non-driver platform support libraries, one per subdir: `busy_wait` (`utils_busy_wait`), `panic` (`platform_panic`), `stdio` (`platform_stdio_uart*` — `printf`/`getchar` backends bound to a chosen UART; note `printf` is built with `--specs=nano.specs` and without float support — `%f`/`%g`/`%e` and 64-bit specifiers `%llu`/`%lld` do not work).
+  - `misc/` — small non-driver platform support libraries, one per subdir: `busy_wait` (`utils_busy_wait`), `panic` (`platform_panic`), `stdio` (`platform_stdio` — `printf`/`getchar` backend bound to the UART the board picks with `BOARD_STDIO_UART` in `board.h`; `platform_stdio_none` for an image with no console; note `printf` is built with `--specs=nano.specs` and without float support — `%f`/`%g`/`%e` and 64-bit specifiers `%llu`/`%lld` do not work).
   - `devices/` — composite devices built on several drivers plus board wiring, one library per device. Currently `camera` (`device_camera`): DVP sensor + JPEG encoder + GDMA capture. A sensor is one `camera_sensor_t` (I2C address, `probe()`, init table, encoder settings) in `devices/camera/sensors/`, listed in `sensors.c`. And `soft_rtc` (`device_soft_rtc`): software wall-clock layered on a 1Hz timer tick (`rtc_get_uptime()`/`rtc_set_time()`/`rtc_get_time()`, header `device/soft_rtc.h`); no hardware RTC backing, epoch resets every boot.
 
 - `src/shell/` — interactive UART shell, split so an app can pick which command groups it ships:
   - `shell_main` — `Shell`, `Parser`, `History`, `Table` — the engine, no commands.
   - `shell_commands_common` / `_platform` / `_freertos` / `_beken` / `_iram` — independent command-group libraries. An app links the groups it wants. The suffix says what a command is tied to: `common` nothing at all, `platform` this project's own SDK layer (`src/platform/`), `freertos` the kernel but no particular chip, `beken` this chip or its family, `iram` the project's RAM-loading protocol (plus an XModem variant that nothing currently uses). A command belongs in the narrowest group that still holds everything it touches.
 
-- `src/applications/` — final firmware images. Each `add_executable(...)` here calls `bk_firmware(target)` (and optionally `bk_firmware_iram(target)`), wiring `platform_boot`, the chosen `platform_stdio_uart*`, FreeRTOS heap variant, lwip port, shell engine + command groups, and the specific drivers it needs. `freertos_shell` is the canonical reference for how to compose a real app.
+- `src/applications/` — final firmware images. Each `add_executable(...)` here calls `bk_firmware(target)` (and optionally `bk_firmware_iram(target)`), wiring `platform_boot`, `platform_stdio`, FreeRTOS heap variant, lwip port, shell engine + command groups, and the specific drivers it needs. `freertos_shell` is the canonical reference for how to compose a real app.
 
 - `src/tests/` — standalone driver smoke tests built as IRAM firmware images (one `add_executable` per subdir, wrapped with `bk_firmware_iram`). Same auto-discovery as `src/applications/`. Loaded via `tools/bkloader iram` without flashing.
 
-- `src/boards/` — board pin/feature headers. `BOARD` CMake var (or `$ENV{BOARD}`, default `A9_B_V1_3`) selects the active board and adds `BOARD_<NAME>` as a compile definition via the `board_config` INTERFACE library; `include/board.h` is the umbrella header consumers include.
+- `src/boards/` — board pin/feature headers. `BOARD` CMake var (or `$ENV{BOARD}`, default `generic_UART2`) selects the active board and adds `BOARD_<NAME>` as a compile definition via the `board_config` INTERFACE library; `include/board.h` is the umbrella header consumers include. Only `BOARD_SOC_CHIP` and `BOARD_STDIO_UART` are required; `LED_PIN`, `KEY_PWR_PIN`, `KEY_MODE_PIN` and the `CAMERA_*` macros are optional (a board with `LED_PIN` must also define `LED_PIN_INVERTED`, 1 when the LED lights at level 0), and a board without `CAMERA_I2C` builds without the camera.
 
 - `src/linker/` — three linker scripts: `flash.lds` (XIP from flash @ `0x00010000`, RAM @ `0x00400020`), `iram.lds` (load-and-run from RAM block 2 @ `0x00900000`), and `bootloader.lds` (bootloader image from flash @ `0x00000000`). The first 0x20 bytes of RAM are reserved for the bootloader's ARM exception hook table — see `docs/memory_map.md` for the full chip memory map.
 

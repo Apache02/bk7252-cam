@@ -2,6 +2,8 @@
 #include "shell/commands_common.h"
 #include "shell/commands_beken.h"
 #include "commands/commands.h"
+#include "platform/stdio.h"
+#include "board.h"
 #include <stdio.h>
 
 static int help(__unused int intc, __unused const char *argv[]) {
@@ -35,10 +37,12 @@ const Shell::Handler shell_handlers[] = {
     {"stack", command_stack, nullptr},
     {"write_regs", command_write_regs, nullptr},
     {"uart_baud", command_uart_baudrate, nullptr},
-    {"speed", command_uart2_baudrate, nullptr},
+    {"speed", command_platform_stdio_speed, nullptr},
     {"memory_read", command_memory_read_binary, nullptr},
+#ifdef CAMERA_I2C
     {"capture_start", command_capture_start, nullptr},
     {"capture_frame", command_capture_frame, nullptr},
+#endif
     // required at the end
     {nullptr, nullptr, nullptr},
 };

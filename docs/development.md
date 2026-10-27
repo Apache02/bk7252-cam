@@ -22,7 +22,7 @@ sudo apt install cmake build-essential gcc-arm-none-eabi \
 sudo apt install python3 python3-hid python3-serial python3-tqdm
 ```
 
-A 3.3 V USB–UART adapter connected to UART2 (the shell port), 115200 baud.
+A 3.3 V USB–UART adapter connected to the console UART of the board (`BOARD_STDIO_UART` in its `board.h`: UART2 on `A9_B_V1_3`), 115200 baud.
 
 ---
 
@@ -60,9 +60,10 @@ git tag v0.1.0
 
 The script builds the committed tree (`HEAD`, uncommitted changes are left out) and
 writes the images into `dist/<version>/`. The board comes from `BOARD` (default
-`A9_B_V1_3`, `BOARD=<name> ./release.sh` builds another one into the same directory). `uart2` is
-the console port the images are linked with. Only the camera image depends on the board; the
-loaders are the same for every board, so their names have no board.
+`A9_B_V1_3`, `BOARD=<name> ./release.sh` builds another one into the same directory). The
+console port in the file names (`uart2` below) is the board's `BOARD_STDIO_UART`. Only the camera
+image is named by board; the loaders are the same for every board with that console port, so
+their names have no board.
 
 | File | What it is |
 |------|------------|

@@ -6,7 +6,7 @@ add_executable(
 target_link_libraries(
         test_uart_tx PRIVATE
         platform_nosys
-        platform_stdio_uart2
+        platform_stdio
         platform_cpu
         hardware_uart
         hardware_intc

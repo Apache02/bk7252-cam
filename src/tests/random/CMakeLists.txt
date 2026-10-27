@@ -6,7 +6,7 @@ add_executable(
 target_link_libraries(
         test_random PRIVATE
         platform_nosys
-        platform_stdio_uart2
+        platform_stdio
         utils_busy_wait
         hardware_random
 )

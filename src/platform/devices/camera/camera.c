@@ -11,6 +11,12 @@
 #include "hardware/sctrl.h"
 #include "platform/unistd.h"
 
+// A board without CAMERA_I2C has no camera: nothing is built, and the code that uses the camera is
+// left out of the applications.
+#ifdef CAMERA_I2C
+
+_Static_assert(__builtin_strcmp(CAMERA_I2C, "i2c1") == 0, "CAMERA_I2C: only \"i2c1\" is supported");
+
 // The preprocessor cannot compare the board's CAMERA_POWER_METHOD string, so the compiler picks the
 // branch: strcmp() of two literals folds to a constant and the other branches are dropped. A call to
 // one of these functions that survives (bad method, missing pin or voltage) is a compile error;
@@ -498,3 +504,5 @@ const char *camera_strerror(const int rc) {
     }
 }
 // clang-format on
+
+#endif // CAMERA_I2C

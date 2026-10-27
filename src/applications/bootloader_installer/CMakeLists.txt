@@ -31,7 +31,7 @@ set_source_files_properties(
 
 target_link_libraries(bootloader_installer PRIVATE
     platform_nosys
-    platform_stdio_uart2
+    platform_stdio
     hardware_flash
     hardware_wdt
     utils_busy_wait

@@ -6,7 +6,7 @@ add_executable(
 target_link_libraries(
         test_gdma PRIVATE
         platform_nosys
-        platform_stdio_uart2
+        platform_stdio
         hardware_gdma
         hardware_time
         hardware_wdt

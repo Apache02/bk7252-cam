@@ -23,6 +23,7 @@ target_link_libraries(
         platform_cpu
         platform_fal
         platform_tlv
+        board_config
         hardware_gpio
         hardware_i2c
         hardware_icu

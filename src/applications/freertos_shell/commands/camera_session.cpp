@@ -6,6 +6,9 @@
 #include <errno.h>
 #include <stdint.h>
 #include "device/camera.h"
+#include "board.h"
+
+#ifdef CAMERA_I2C
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
 
@@ -75,3 +78,5 @@ int CameraSession::ensure_started() {
     g_started = rc == 0;
     return rc;
 }
+
+#endif // CAMERA_I2C

@@ -27,7 +27,7 @@ target_link_libraries(
         device_camera
         utils_busy_wait
         platform_nosys
-        platform_stdio_uart2
+        platform_stdio
         hardware_gdma
         hardware_gpio
         hardware_intc

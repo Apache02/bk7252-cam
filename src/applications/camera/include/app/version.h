@@ -7,6 +7,9 @@ extern "C" {
 // The firmware version, e.g. "v0.1.0" or "v0.1.0-3-g1a2b3c4" between tags.
 const char *get_version();
 
+// Directory name from src/boards
+const char *get_board_name();
+
 void print_version();
 
 #ifdef __cplusplus

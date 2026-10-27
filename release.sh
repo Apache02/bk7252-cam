@@ -11,8 +11,9 @@ set -eu
 cd "$(dirname "$0")"
 
 BOARD=${BOARD:-A9_B_V1_3}
-# The console port the images are linked with (platform_stdio_uart2 in every application for now).
-CONSOLE=uart2
+# The console port the board runs its images on, from BOARD_STDIO_UART in its board.h.
+CONSOLE=uart$(git show "HEAD:src/boards/$BOARD/board.h" | sed -n 's/^#define BOARD_STDIO_UART[[:space:]]*(\{0,1\}\([0-9]\).*/\1/p')
+[ "$CONSOLE" != uart ] || { echo "No BOARD_STDIO_UART in src/boards/$BOARD/board.h"; exit 1; }
 IMAGE=bk7252-cam-build
 VERSION=$(git describe --tags --always)
 WORK=build-release
@@ -39,7 +40,7 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/$WORK:/work" "$
 
 # Copies the built image $1 to the release directory as <name>-<version>-<console>_<kind>.bin, e.g.
 # camera_crc.bin to A9_B_V1_3-camera-v0.1.0-uart2_crc.bin. $2 is the name, $3 is crc or iram.
-# Only the camera depends on the board; the loaders have the same image for every board.
+# Only the camera is named by board; the loaders are the same image for every board with that console.
 collect() {
     built=$(find "$WORK/out" -name "$1" | head -n 1)
     [ -n "$built" ] || { echo "Not built: $1"; exit 1; }

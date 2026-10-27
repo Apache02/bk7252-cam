@@ -6,7 +6,7 @@ add_executable(
 target_link_libraries(
         test_flash_kv PRIVATE
         platform_nosys
-        platform_stdio_uart2
+        platform_stdio
         platform_flash_kv
         hardware_flash
         hardware_wdt

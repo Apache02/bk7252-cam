@@ -40,7 +40,10 @@ add_custom_command(
 
 target_sources(camera PRIVATE ${APP_C})
 
-set_source_files_properties(version.c PROPERTIES COMPILE_DEFINITIONS BK_VERSION="${BK_VERSION}")
+set_source_files_properties(
+        version.c PROPERTIES
+        COMPILE_DEFINITIONS "BK_VERSION=\"${BK_VERSION}\";BOARD=\"${BOARD}\""
+)
 
 target_include_directories(
         camera PRIVATE
@@ -50,7 +53,7 @@ target_include_directories(
 target_link_libraries(
         camera PRIVATE
         board_config
-        platform_stdio_uart2
+        platform_stdio
         platform_freertos
         platform_port_lwip
         platform_http_server

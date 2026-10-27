@@ -4,6 +4,9 @@
 #include "hardware/sctrl.h"
 #include "platform/unistd.h"
 #include "commands.h"
+#include "board.h"
+
+#ifdef CAMERA_I2C
 
 // Frames are 12-27 KB depending on the scene.
 #define FRAME_BUF_BYTES (48 * 1024)
@@ -50,3 +53,5 @@ int command_capture_frame(__unused int argc, __unused const char *argv[]) {
            static_cast<unsigned long>(frame.size));
     return 0;
 }
+
+#endif // CAMERA_I2C

@@ -25,6 +25,16 @@ int i2c1_write(uint8_t addr7, const uint8_t *data, uint16_t len);
 
 int i2c1_read(uint8_t addr7, uint8_t *data, uint16_t len);
 
+// I2C2 (GPIO0 = SCL, GPIO1 = SDA, shared with UART2): master only, same calls and
+// return codes as I2C1. A board that uses UART2 as its console cannot use I2C2.
+void i2c2_init(uint32_t baud_hz);
+
+void i2c2_deinit(void);
+
+int i2c2_write(uint8_t addr7, const uint8_t *data, uint16_t len);
+
+int i2c2_read(uint8_t addr7, uint8_t *data, uint16_t len);
+
 #ifdef __cplusplus
 }
 #endif

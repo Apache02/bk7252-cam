@@ -16,7 +16,7 @@ target_link_libraries(
         shell_commands_beken
         shell_commands_iram
         platform_nosys
-        platform_stdio_uart2
+        platform_stdio
         hardware_intc
         hardware_gpio
         hardware_timer

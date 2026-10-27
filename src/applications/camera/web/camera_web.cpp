@@ -9,6 +9,7 @@
 #include "platform/http_server.h"
 #include "platform/http_server_defaults.h"
 
+#include "board.h"
 #include "device/camera.h"
 
 #include "app/config.h"
@@ -40,6 +41,7 @@ static void serve_app(__unused const http_request_t *request, http_response_t *r
     http_respond_binary(response, page_app, page_app_size);
 }
 
+#ifdef CAMERA_I2C
 struct Camera {
     // The encoder only needs this while a frame is being built; the stream uses slots instead.
     alignas(4) uint8_t frame_buf[64];
@@ -163,6 +165,7 @@ static void serve_stream(__unused const http_request_t *request, http_response_t
 
     release_stream(camera);
 }
+#endif // CAMERA_I2C
 
 // The config as JSON, with room for every field written at its longest.
 #define CONFIG_JSON_MAX 1024
@@ -455,8 +458,10 @@ void camera_web_start() {
         {"POST", "/setup", serve_setup, nullptr},
         {"POST", "/reboot", serve_system_reboot, nullptr},
         {"POST", "/reset", serve_system_reset, nullptr},
+#ifdef CAMERA_I2C
         // camera stream
         {"GET", "/stream", serve_stream, &g_camera},
+#endif
         {nullptr, nullptr, nullptr, nullptr},
     };
 

@@ -21,6 +21,15 @@ void platform_stdio_set_tx_buffer(struct ringbuf *ring);
 // loses it unless it drains first.
 void platform_stdio_drain();
 
+// Straight to the UART, bypassing printf and the tap. For code that runs before stdio is
+// set up, or that cannot afford printf.
+void platform_stdio_puts(const char *s);
+
+void platform_stdio_set_baudrate(unsigned long baudrate);
+
+// Shell command "speed <baud>": switches the console UART to the given baud rate.
+int command_platform_stdio_speed(int argc, const char *argv[]);
+
 // A second console next to the UART. Everything written to stdout goes to the UART and
 // also to write(). Input comes from read() alone while the tap is set; what the UART
 // receives meanwhile is discarded. read() returns -1 when it has nothing.

@@ -17,8 +17,8 @@ Connect to it and open <http://192.168.4.1/> in a browser. The page has three ta
 ## What you need
 
 - An A9 camera board, version `A9_B_V1_3`. Other boards are not supported.
-- A 3.3 V USB–UART adapter connected to UART2 of the board (TX, RX, GND). The images carry `uart2`
-  in their name because they use UART2 for the log.
+- A 3.3 V USB–UART adapter connected to the console UART of the board (TX, RX, GND), UART2 on
+  `A9_B_V1_3`. The images carry `uart2` in their name because they use UART2 for the log.
 - A Linux shell with Python 3 (on Windows: WSL2). The Python packages are listed in
   `tools/flasher/requirements.txt`.
 - The flashing tools from this repository:

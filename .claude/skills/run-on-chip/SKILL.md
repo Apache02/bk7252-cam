@@ -92,7 +92,7 @@ int main() {
 ```
 
 The "output visible even on crash" guarantee on line 4 holds only for the unbuffered
-`platform_stdio_uart*` backends, where every byte goes straight to the TX FIFO. If the
+`platform_stdio` backend, where every byte goes straight to the TX FIFO. If the
 experiment links `platform_buffered_stdio_uart2` instead, output reaches the wire only
 when the TX interrupt runs — so anything printed after interrupts are torn down, or
 right before `wdt_reboot()`, is lost with the queue and the capture ends mid-experiment

@@ -2,6 +2,7 @@
 #include "shell/commands_common.h"
 #include "shell/commands_beken.h"
 #include "shell/commands_iram.h"
+#include "platform/stdio.h"
 #include <stdio.h>
 
 static int help(__unused int argc, __unused const char *argv[]) {
@@ -13,7 +14,7 @@ const Shell::Handler shell_handlers[] = {
     {"help", help, "print this help"},
     {"reboot", command_reboot, "perform reboot"},
     {"crc32", command_crc32, "CRC32 of memory: <addr> <size>"},
-    {"speed", command_uart2_baudrate, "set UART2 baud rate: <baud>"},
+    {"speed", command_platform_stdio_speed, "set console UART baud rate: <baud>"},
 
     {"go", command_jump, "jump to address: <addr|app|iram|bootloader>"},
     {"loadi", command_iram_load, "load binary to RAM: <addr> <size> <checksum>"},
@@ -27,10 +28,13 @@ const Shell::Handler shell_handlers[] = {
     {"flash_crc32", command_flash_crc32, "CRC32 of flash: <addr> <size>"},
     {"flash", command_flash, "flash <action: id|unprotect>"},
 
-    {"partitions", command_partitions, "find and print partitions table"},
     {"chip_id", command_chip_id, "print chip and device IDs"},
+    {"partitions", command_partitions, "find and print partitions table"},
     {"dump", command_dump, "hex dump of memory: [addr]"},
     {"dump32", command_dump32, "32-bit word dump of memory: [addr]"},
 
+    {"i2c", command_i2c, "I2C control; see i2c --help"},
+    {"gpio", command_gpio, "GPIO control; run gpio for usage"},
+    // required at the end
     {nullptr, nullptr, nullptr},
 };

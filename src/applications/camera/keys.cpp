@@ -16,7 +16,14 @@
 
 #define count_of(x) (sizeof(x) / sizeof(x[0]))
 
-constexpr uint32_t TICK_MS        = 50;
+// Each key is optional: a board without its pin has no such key, and with neither the task is
+// not started.
+#if defined(KEY_PWR_PIN) || defined(KEY_MODE_PIN)
+#define KEYS_ENABLED
+#endif
+
+#ifdef KEYS_ENABLED
+constexpr uint32_t TICK_MS       = 50;
 constexpr uint8_t  DEBOUNCE_TICKS = 2;
 // A press shorter than this is a tap, and two taps closer than DOUBLE_TAP_MS reboot the board.
 constexpr uint32_t TAP_MS        = 500;
@@ -51,6 +58,7 @@ static bool button_update(Button &button) {
     return false;
 }
 
+#ifdef KEY_MODE_PIN
 static void blink_led(const int times) {
     for (int i = 0; i < times; i++) {
         status_led_hold(true);
@@ -82,7 +90,9 @@ static void reset_settings() {
     }
     main_task_config_changed();
 }
+#endif // KEY_MODE_PIN
 
+#ifdef KEY_PWR_PIN
 static __dead2 void reboot_board() {
     printf("[keys] power double tap: reboot\r\n");
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -91,25 +101,31 @@ static __dead2 void reboot_board() {
     wdt_reboot(1000);
     taskEXIT_CRITICAL();
 }
+#endif // KEY_PWR_PIN
 
 static __dead2 void keys_task(__unused void *params) {
+#ifdef KEY_PWR_PIN
     gpio_config(KEY_PWR_PIN, GPIO_IN_PULLUP);
-    gpio_config(KEY_MODE_PIN, GPIO_IN_PULLUP);
-
     Button power = {.pin = KEY_PWR_PIN};
-    Button mode  = {.pin = KEY_MODE_PIN};
 
     bool     tapped   = false;
     uint32_t last_tap = 0;
+#endif
+
+#ifdef KEY_MODE_PIN
+    gpio_config(KEY_MODE_PIN, GPIO_IN_PULLUP);
+    Button mode = {.pin = KEY_MODE_PIN};
 
     // Set once the hold has reset the settings, so one press resets only once.
     bool reset_done = false;
+#endif
 
-    uint32_t   tick = 0;
-    TickType_t wake = xTaskGetTickCount();
+    __unused uint32_t tick = 0;
+    TickType_t        wake = xTaskGetTickCount();
     for (;; tick++) {
         vTaskDelayUntil(&wake, pdMS_TO_TICKS(TICK_MS));
 
+#ifdef KEY_PWR_PIN
         // The board restarts on the release of the second tap, so holding the key through a boot
         // does not loop.
         if (button_update(power) && !power.down) {
@@ -118,7 +134,9 @@ static __dead2 void keys_task(__unused void *params) {
             tapped   = tap;
             last_tap = tick;
         }
+#endif // KEY_PWR_PIN
 
+#ifdef KEY_MODE_PIN
         if (button_update(mode) && !mode.down) {
             if (!reset_done && mode.last_held * TICK_MS < WARNING_MS) toggle_ap();
             reset_done = false;
@@ -136,13 +154,16 @@ static __dead2 void keys_task(__unused void *params) {
         } else if (!mode.down) {
             status_led_hold(false);
         }
+#endif // KEY_MODE_PIN
     }
 }
 
 static StaticTask_t taskTCB;
 static StackType_t  taskStack[configMINIMAL_STACK_SIZE * 6];
+#endif // KEYS_ENABLED
 
 void keys_start() {
+#ifdef KEYS_ENABLED
     // clang-format off
     xTaskCreateStatic(
         keys_task,
@@ -154,4 +175,5 @@ void keys_start() {
         &taskTCB
     );
     // clang-format on
+#endif
 }

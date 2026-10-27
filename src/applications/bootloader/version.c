@@ -3,5 +3,9 @@
 #include <stdio.h>
 
 const char *get_version() { return BK_VERSION; }
+const char *get_board_name() { return BOARD; }
 
-void print_version() { printf("Bootloader %s by Apache02\r\n\r\n", get_version()); }
+void print_version() {
+    printf("Bootloader %s by Apache02\r\n", get_version());
+    printf("    board: %s\r\n\r\n", BOARD);
+}

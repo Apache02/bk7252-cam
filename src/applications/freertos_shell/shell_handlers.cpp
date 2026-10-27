@@ -1,6 +1,8 @@
 #include "shell_handlers.h"
 #include <stdio.h>
 
+#include "platform/stdio.h"
+#include "board.h"
 #include "shell/commands_common.h"
 #include "shell/commands_platform.h"
 #include "shell/commands_freertos.h"
@@ -18,8 +20,10 @@ static int help(__unused int intc, __unused const char *argv[]) {
 extern int command_uptime(int argc, const char *argv[]);
 extern int command_blink(int argc, const char *argv[]);
 // extern int command_test_net(int argc, const char *argv[]);
+#ifdef CAMERA_I2C
 extern int command_capture_frame(int argc, const char *argv[]);
 extern int command_capture_stream(int argc, const char *argv[]);
+#endif
 
 const Shell::Handler shell_handlers[] = {
     {"help", help, nullptr},
@@ -37,7 +41,7 @@ const Shell::Handler shell_handlers[] = {
     {"blink", command_blink, nullptr},
     {"flash_dump", command_flash_dump, nullptr},
     {"memory_read", command_memory_read_binary, nullptr},
-    {"speed", command_uart2_baudrate, nullptr},
+    {"speed", command_platform_stdio_speed, nullptr},
     {"tlv", command_tlv, nullptr},
     {"kv", command_flash_kv, nullptr},
     {"random_test", command_random_test, nullptr},
@@ -56,8 +60,10 @@ const Shell::Handler shell_handlers[] = {
     {"sha256", command_sha256, nullptr},
     {"sha512", command_sha512, nullptr},
     {"intc", command_intc, nullptr},
+#ifdef CAMERA_I2C
     {"capture_frame", command_capture_frame, nullptr},
     {"capture_stream", command_capture_stream, nullptr},
+#endif
     // required at the end
     {nullptr, nullptr, nullptr},
 };

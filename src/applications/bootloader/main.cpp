@@ -6,7 +6,6 @@
 #include "platform/arm.h"
 #include "hardware/intc.h"
 #include "hardware/random.h"
-#include "hardware/uart.h"
 #include "hardware/wdt.h"
 #include "shell/commands_beken.h"
 #include "shell_handlers.h"
@@ -54,7 +53,7 @@ static bool enter_shell(int seconds) {
 
 static inline int hex_digit(int digit) { return (digit > 9 ? 'a' - 0xa : '0') + digit; }
 
-void uart2_print_uint32(uint32_t value) {
+void stdio_print_uint32(uint32_t value) {
     char buf[12] = {0};
     int  i       = 0;
     buf[i++]     = '0';
@@ -68,12 +67,12 @@ void uart2_print_uint32(uint32_t value) {
     buf[i++]     = hex_digit((value >> (4 * 1)) & 0xf);
     buf[i++]     = hex_digit((value >> (4 * 0)) & 0xf);
     buf[i]       = '\0';
-    uart2_puts(buf);
+    platform_stdio_puts(buf);
 }
 
-#define PRINT_REG(name, value) \
-    uart2_puts(name);          \
-    uart2_print_uint32(value);
+#define PRINT_REG(name, value)  \
+    platform_stdio_puts(name);  \
+    stdio_print_uint32(value);
 
 static const char *cpsr_mode_name(uint32_t cpsr) {
     switch (cpsr & CPU_MODE_MASK) {
@@ -102,15 +101,15 @@ static const char *reset_cause_name() {
 }
 
 static void print_reset_cause() {
-    uart2_puts("\r\nReset cause: ");
-    uart2_puts(reset_cause_name());
-    uart2_puts("\r\n");
+    platform_stdio_puts("\r\nReset cause: ");
+    platform_stdio_puts(reset_cause_name());
+    platform_stdio_puts("\r\n");
 }
 
 static void print_registers() {
     PRINT_REG("\r\nCPSR:    ", boot_entry_state.cpsr);
-    uart2_puts("  mode: ");
-    uart2_puts(cpsr_mode_name(boot_entry_state.cpsr));
+    platform_stdio_puts("  mode: ");
+    platform_stdio_puts(cpsr_mode_name(boot_entry_state.cpsr));
     PRINT_REG("\r\nR0:      ", boot_entry_state.r0);
     PRINT_REG("\r\nR1:      ", boot_entry_state.r1);
     PRINT_REG("\r\nR2:      ", boot_entry_state.r2);
@@ -125,7 +124,7 @@ static void print_registers() {
     PRINT_REG("\r\nR12:     ", boot_entry_state.r12);
     PRINT_REG("\r\nR13(SP): ", boot_entry_state.sp);
     PRINT_REG("\r\nR14(LR): ", boot_entry_state.lr);
-    uart2_puts("\r\n");
+    platform_stdio_puts("\r\n");
 }
 
 static void preinit() {
@@ -145,20 +144,20 @@ int main() {
     // warm when the application reads it.
     trng_enable();
 
-    uart2_init();
+    platform_stdio_init();
     print_reset_cause();
     print_registers();
-    uart2_puts("\r\n");
+    platform_stdio_puts("\r\n");
 
     // Entered in USR the mode switches in boot_reset.S had no effect, so everything runs
     // unprivileged. Only a real reset restores SVC.
     if ((boot_entry_state.cpsr & CPU_MODE_MASK) == CPU_MODE_USR) {
-        uart2_puts("Entered in USR mode, resetting\r\n");
-        uart2_drain();
+        platform_stdio_puts("Entered in USR mode, resetting\r\n");
+        platform_stdio_drain();
         wdt_reboot(100);
     }
 
-    uart2_drain();
+    platform_stdio_drain();
 
     wdt_down();
     platform_stdio_init();

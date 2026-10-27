@@ -10,7 +10,7 @@ target_include_directories(
 
 target_link_libraries(
         freertos_example PRIVATE
-        platform_stdio_uart2
+        platform_stdio
         platform_freertos
         hardware_gpio
         hardware_wdt

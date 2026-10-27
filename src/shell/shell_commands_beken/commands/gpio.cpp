@@ -4,13 +4,13 @@
 #include "shell/Parser.h"
 #include "hardware/gpio.h"
 #include "utils/busy_wait.h"
+#include "board.h"
 
 static constexpr uint8_t busy_pins[] = {
 // Skip stdio UART pins during scan — reconfiguring them kills the console.
-#if defined(PLATFORM_STDIO_UART1_ENABLED)
+#if BOARD_STDIO_UART == 1
     10, 11,
-#endif
-#if defined(PLATFORM_STDIO_UART2_ENABLED)
+#elif BOARD_STDIO_UART == 2
     0,  1,
 #endif
 };

@@ -74,7 +74,7 @@ static __dead2 void vTaskShell(void *pvParams) {
 
 /*-----------------------------------------------------------*/
 
-RINGBUF_DECLARE(uart2_tx, 1024);
+RINGBUF_DECLARE(stdio_tx, 1024);
 
 int main() {
     trng_enable();
@@ -83,7 +83,7 @@ int main() {
 
     setvbuf(stdout, nullptr, _IONBF, 0);
     platform_stdio_init();
-    platform_stdio_set_tx_buffer(&uart2_tx);
+    platform_stdio_set_tx_buffer(&stdio_tx);
     print_version();
 
     sctrl_init();

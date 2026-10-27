@@ -2,6 +2,7 @@
 #include "shell/commands_common.h"
 #include "shell/commands_beken.h"
 #include "shell/commands_iram.h"
+#include "platform/stdio.h"
 #include <stdio.h>
 #include "version.h"
 
@@ -20,7 +21,7 @@ const Shell::Handler shell_handlers[] = {
     {"version", version, "print bootloader version"},
     {"reboot", command_reboot, "perform reboot"},
     {"crc32", command_crc32, "CRC32 of memory: <addr> <size>"},
-    {"speed", command_uart2_baudrate, "set UART2 baud rate: <baud>"},
+    {"speed", command_platform_stdio_speed, "set console UART baud rate: <baud>"},
 
     {"go", command_jump, "jump to address: <addr|app|iram|bootloader>"},
     {"loadi", command_iram_load, "load binary to RAM: <addr> <size> <checksum>"},

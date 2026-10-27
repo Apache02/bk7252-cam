@@ -33,6 +33,16 @@
 #include "utils/busy_wait.h"
 #include "utils/ring_buffer.h"
 
+#include "board.h"
+
+#if BOARD_STDIO_UART == 1
+#define HW_STDIO_UART         hw_uart1
+#define IRQ_SOURCE_STDIO_UART IRQ_SOURCE_UART1
+#else
+#define HW_STDIO_UART         hw_uart2
+#define IRQ_SOURCE_STDIO_UART IRQ_SOURCE_UART2
+#endif
+
 
 extern "C" int _write(int file, char *ptr, int len);
 
@@ -66,11 +76,11 @@ static char g_block[MAX_BYTES];
 
 static volatile uint32_t g_isr_count;
 
-// Counts only. The driver's handler, registered first by uart2_init(), does the work.
+// Counts only. The driver's handler, registered first by the stdio UART init, does the work.
 extern "C" void test_count_isr(void) { g_isr_count = g_isr_count + 1; }
 
 static void wait_fifo_empty(void) {
-    while (!hw_uart2->fifo_status.tx_fifo_empty);
+    while (!HW_STDIO_UART->fifo_status.tx_fifo_empty);
 }
 
 // Nothing queued, FIFO empty, counter zeroed - so one case cannot bleed into the next.
@@ -148,7 +158,7 @@ int main() {
     sctrl_rf_init();
     s_clock_runs = time_counter_is_running();
 
-    intc_register_irq_handler(IRQ_SOURCE_UART2, test_count_isr);
+    intc_register_irq_handler(IRQ_SOURCE_STDIO_UART, test_count_isr);
     portENABLE_IRQ();
 
     // ---- cost and benefit, both regimes ------------------------------------
@@ -184,9 +194,9 @@ int main() {
 
     platform_stdio_set_tx_buffer(NULL);
     s_detach_emptied = ringbuf_is_empty(&tx);
-    s_detach_tx_bit  = hw_uart2->int_enable.tx_need_write;
+    s_detach_tx_bit  = HW_STDIO_UART->int_enable.tx_need_write;
 
-    intc_disable_irq_source(IRQ_SOURCE_UART2);
+    intc_disable_irq_source(IRQ_SOURCE_STDIO_UART);
 
     // ============================================================================
     // Verdicts

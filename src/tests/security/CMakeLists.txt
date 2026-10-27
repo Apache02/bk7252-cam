@@ -9,7 +9,7 @@ add_executable(
 target_link_libraries(
         test_security PRIVATE
         platform_nosys
-        platform_stdio_uart2
+        platform_stdio
         hardware_security
         hardware_wdt
 )

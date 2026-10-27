@@ -5,7 +5,11 @@
 
 #define BOARD_SOC_CHIP bk7221u
 
+// The UART the console (stdio, shell, bootloader) runs on: 1 or 2.
+#define BOARD_STDIO_UART (2)
+
 #define LED_PIN                 (26)
+#define LED_PIN_INVERTED        (0)
 #define FLASHLIGHT_PIN          (12)
 #define FLASHLIGHT_PIN_INVERTED (1)
 #define KEY_PWR_PIN             (2)

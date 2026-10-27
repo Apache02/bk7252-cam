@@ -4,6 +4,9 @@
 #include "camera_session.h"
 #include "device/camera.h"
 #include "platform/unistd.h"
+#include "board.h"
+
+#ifdef CAMERA_I2C
 
 #define STREAM_SLOT_BYTES (48 * 1024)
 #define STREAM_SLOT_COUNT (3)
@@ -90,3 +93,5 @@ int command_capture_frame(__unused int argc, __unused const char *argv[]) {
            static_cast<unsigned long>(frame.size));
     return 0;
 }
+
+#endif // CAMERA_I2C
