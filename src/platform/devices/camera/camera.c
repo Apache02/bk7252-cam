@@ -6,7 +6,6 @@
 #include "soc/jpeg.h"
 #include "hardware/gdma.h"
 #include "hardware/gpio.h"
-#include "hardware/i2c.h"
 #include "hardware/jpeg.h"
 #include "hardware/sctrl.h"
 #include "platform/unistd.h"
@@ -15,7 +14,8 @@
 // left out of the applications.
 #ifdef CAMERA_I2C
 
-_Static_assert(__builtin_strcmp(CAMERA_I2C, "i2c1") == 0, "CAMERA_I2C: only \"i2c1\" is supported");
+#include "i2c.h"
+
 
 // The preprocessor cannot compare the board's CAMERA_POWER_METHOD string, so the compiler picks the
 // branch: strcmp() of two literals folds to a constant and the other branches are dropped. A call to
@@ -84,18 +84,18 @@ static void end_frame_handler(void) {
 }
 
 int camera_bus_read_reg(const uint8_t i2c_addr, const uint8_t reg, uint8_t *value) {
-    const int rc = i2c1_write(i2c_addr, &reg, 1);
+    const int rc = i2c_write(i2c_addr, &reg, 1);
     if (rc != 0) return rc;
-    return i2c1_read(i2c_addr, value, 1);
+    return i2c_read(i2c_addr, value, 1);
 }
 
 int camera_bus_write_reg(const uint8_t i2c_addr, const uint8_t reg, const uint8_t value) {
     const uint8_t data[2] = {reg, value};
-    return i2c1_write(i2c_addr, data, 2);
+    return i2c_write(i2c_addr, data, 2);
 }
 
 static void power_down(void) {
-    i2c1_deinit();
+    i2c_deinit();
     jpeg_disable();
     jpeg_power_down();
     jpeg_clear_end_frame_handler();
@@ -229,7 +229,7 @@ int camera_start(const camera_config_t *config) {
 
         encoder_start(candidate);
         if (!i2c_ready) {
-            i2c1_init(I2C_BAUD_HZ);
+            i2c_init(I2C_BAUD_HZ);
             usleep(I2C_SETTLE_US);
             i2c_ready = true;
         }
