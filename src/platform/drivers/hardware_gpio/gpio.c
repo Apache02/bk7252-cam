@@ -116,9 +116,9 @@ static const gpio_func_map_entry_t gpio_func_map[] = {
 
 static inline void gpio_set_func_mode(gpio_num_t gpio, uint32_t mode) {
     static volatile uint32_t *const func_cfg_regs[] = {
-        &hw_gpio->func_mux_1,
-        &hw_gpio->func_mux_2,
-        &hw_gpio->func_mux_3,
+        &hw_gpio->func_mode_0_15,
+        &hw_gpio->func_mode_16_31,
+        &hw_gpio->func_mode_32_39,
     };
 
     static const unsigned BITS_PER_GPIO     = 2;

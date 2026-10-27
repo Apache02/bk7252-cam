@@ -35,11 +35,11 @@ typedef volatile struct {
 typedef volatile struct {
     hw_gpio_pin_t pin_cfg[32]; // word 0x00..0x1F: GPIO 0-31 pin config
 
-    uint32_t func_mux_1; // word 0x20: GPIO 0-15 function select, 2 bits/pin
-    uint32_t inten;      // word 0x21: GPIO 0-31 interrupt enable, 1 bit/pin
-    uint32_t intlv0;     // word 0x22: GPIO 0-15 interrupt edge/level select, 2 bits/pin
-    uint32_t intlv1;     // word 0x23: GPIO 16-31 interrupt edge/level select, 2 bits/pin
-    uint32_t intsta;     // word 0x24: GPIO 0-31 interrupt status, 1 bit/pin, W1C
+    uint32_t func_mode_0_15;  // word 0x20: GPIO 0-15 function select, 2 bits/pin
+    uint32_t int_enable;      // word 0x21: GPIO 0-31 interrupt enable, 1 bit/pin
+    uint32_t int_type_0_15;   // word 0x22: GPIO 0-15 interrupt edge/level select, 2 bits/pin
+    uint32_t int_type_16_31;  // word 0x23: GPIO 16-31 interrupt edge/level select, 2 bits/pin
+    uint32_t int_status;      // word 0x24: GPIO 0-31 interrupt status, 1 bit/pin, W1C
 
     uint32_t reserved_0x25; // word 0x25
 
@@ -82,14 +82,14 @@ typedef volatile struct {
         };
     } module_select; // word 0x2D
 
-    uint32_t func_mux_2; // word 0x2E: GPIO 16-31 function select, 2 bits/pin
-    uint32_t func_mux_3; // word 0x2F: GPIO 32-39 function select, 2 bits/pin (upper 16 bits unused)
+    uint32_t func_mode_16_31; // word 0x2E: GPIO 16-31 function select, 2 bits/pin
+    uint32_t func_mode_32_39; // word 0x2F: GPIO 32-39 function select, 2 bits/pin (upper 16 bits unused)
 
-    hw_gpio_pin_t pin_cfg2[8]; // word 0x30..0x37: GPIO 32-39 pin config
+    hw_gpio_pin_t pin_cfg_32_39[8]; // word 0x30..0x37: GPIO 32-39 pin config
 
-    uint32_t inten2;  // word 0x38: GPIO 32-39 interrupt enable, 1 bit/pin (upper 24 bits unused)
-    uint32_t intlv3;  // word 0x39: GPIO 32-39 interrupt edge/level select, 2 bits/pin (upper 16 bits unused)
-    uint32_t intsta2; // word 0x3A: GPIO 32-39 interrupt status, 1 bit/pin, W1C (upper 24 bits unused)
+    uint32_t int_enable_32_39; // word 0x38: GPIO 32-39 interrupt enable, 1 bit/pin (upper 24 bits unused)
+    uint32_t int_type_32_39;   // word 0x39: GPIO 32-39 interrupt edge/level select, 2 bits/pin (upper 16 bits unused)
+    uint32_t int_status_32_39; // word 0x3A: GPIO 32-39 interrupt status, 1 bit/pin, W1C (upper 24 bits unused)
 } hw_gpio_t;
 
 static_assert(sizeof(hw_gpio_t) == 59 * sizeof(uint32_t), "hw_gpio_t size mismatch");
@@ -97,7 +97,7 @@ static_assert(sizeof(hw_gpio_t) == 59 * sizeof(uint32_t), "hw_gpio_t size mismat
 #define hw_gpio ((volatile hw_gpio_t *)GPIO_BASE_ADDR)
 
 #define hw_gpio_bank0 (hw_gpio->pin_cfg)
-#define hw_gpio_bank1 (hw_gpio->pin_cfg2)
+#define hw_gpio_bank1 (hw_gpio->pin_cfg_32_39)
 
 __unused static inline volatile hw_gpio_pin_t *get_gpio_reg(unsigned gpio) {
     // clang-format off

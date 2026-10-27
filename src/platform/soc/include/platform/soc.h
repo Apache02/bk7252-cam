@@ -19,7 +19,7 @@
 //
 // Example:
 //   hw_write_fields(hw_efuse->ctrl,
-//       .en = 1,
+//       .enable = 1,
 //       .addr = a,
 //   );
 //

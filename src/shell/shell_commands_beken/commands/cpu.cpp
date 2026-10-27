@@ -185,7 +185,7 @@ int command_cpu_speed(int argc, const char *argv[]) {
         return 1;
     }
 
-    uint32_t mclk_source = hw_sctrl->control.mclk_source;
+    uint32_t mclk_source = hw_sctrl->ctrl.mclk_source;
     if (mclk_source != MCLK_FIELD_DPLL && !use_timer && !no_timer) {
         printf("Error: mclk source is not DPLL (source=%lu) — the NXMAC counter may hang here.\r\n",
                static_cast<unsigned long>(mclk_source));
@@ -314,8 +314,8 @@ int command_mclk(int argc, const char *argv[]) {
         return 0;
     }
 
-    typeof(hw_sctrl->control) tmp;
-    tmp.v = hw_sctrl->control.v;
+    typeof(hw_sctrl->ctrl) tmp;
+    tmp.v = hw_sctrl->ctrl.v;
 
     int set_source = -1;
     if (argc > 1) {
@@ -343,13 +343,13 @@ int command_mclk(int argc, const char *argv[]) {
     if (set_source != -1) {
         tmp.mclk_source = set_source;
         if (set_divider != -1) {
-            tmp.divider = set_divider;
+            tmp.mclk_div = set_divider;
         }
-        hw_sctrl->control.v = tmp.v;
+        hw_sctrl->ctrl.v = tmp.v;
     }
 
     printf("   source:  %d (%s)\r\n", tmp.mclk_source, get_name_by_id(mclk_name_map, tmp.mclk_source));
-    printf("  divider: %d\r\n", tmp.divider);
+    printf("  divider: %d\r\n", tmp.mclk_div);
 
     return 0;
 }

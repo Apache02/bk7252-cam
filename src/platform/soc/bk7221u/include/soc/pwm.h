@@ -7,7 +7,7 @@
 #define PWM_BASE_ADDR (0x00802A80)
 #define PWM_CHANNELS  (6)
 
-// mode field values (2 bits, see hw_pwm_t.ctl.chN_mode)
+// mode field values (2 bits, see hw_pwm_t.ctrl.chN_mode)
 #define PWM_MODE_PWM     (0) // output signal on pin; output high [0..duty), low [duty..period)
 #define PWM_MODE_TIMER   (1) // interrupt-only, no pin output
 #define PWM_MODE_CAP_POS (2) // capture: latch counter on rising edge
@@ -46,7 +46,7 @@ typedef volatile struct {
             uint32_t ch5_mode: 2;       // [23:22]
             uint32_t reserved_24_31: 8; // [31:24]
         };
-    } ctl;
+    } ctrl;
 
     union {
         uint32_t v;

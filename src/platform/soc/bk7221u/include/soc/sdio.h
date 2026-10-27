@@ -15,9 +15,9 @@ typedef volatile struct {
             uint32_t dma_en: 1;         // [0]     1 = DMA enabled
             uint32_t addr_ready: 1;     // [1]     1 = transfer address is ready
             uint32_t reserved_2_4: 3;   // [4:2]
-            uint32_t intr_en_tx: 1;     // [5]     1 = TX data interrupt enabled
-            uint32_t intr_en_rx: 1;     // [6]     1 = RX data interrupt enabled
-            uint32_t intr_en_cmd: 1;    // [7]     1 = CMD interrupt enabled
+            uint32_t tx_int_en: 1;      // [5]     1 = TX data interrupt enabled
+            uint32_t rx_int_en: 1;      // [6]     1 = RX data interrupt enabled
+            uint32_t cmd_int_en: 1;     // [7]     1 = CMD interrupt enabled
             uint32_t reserved_8_31: 24; // [31:8]
         };
     } config;
@@ -42,7 +42,7 @@ typedef volatile struct {
             uint32_t cmd: 1;            // [2]    host→target CMD received
             uint32_t reserved_3_31: 29; // [31:3]
         };
-    } intr_status;
+    } int_status;
 
     union {
         uint32_t v;

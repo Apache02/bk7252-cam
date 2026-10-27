@@ -196,19 +196,19 @@ hw_sctrl->analog_ctrl4 = 0x59C04520u;
 
 Fixed delays only.  No lock-status bit exists (or is not used by the vendor).
 
-### Step 8 — switch `mclk` to DPLL (`hw_sctrl->control`)
+### Step 8 — switch `mclk` to DPLL (`hw_sctrl->ctrl`)
 
 ```c
-hw_sctrl->control.v =
-    (hw_sctrl->control.v & ~0xf3u) | 0x32u;
+hw_sctrl->ctrl.v =
+    (hw_sctrl->ctrl.v & ~0xf3u) | 0x32u;
 // mclk_source = 2 (DPLL), divider = 3 → CPU clock = DPLL / 4 ≈ 120 MHz
 // coarse_delay(100)
 ```
 
-`control.mclk_source = 2` (DPLL) and `control.divider = 3` (divide-by-4).
+`ctrl.mclk_source = 2` (DPLL) and `ctrl.mclk_div = 3` (divide-by-4).
 DPLL runs at ~480 MHz, so CPU clock becomes ~120 MHz.
 
-`control.dpll_div_reset` (bit 14) is relevant for sleep/wakeup: assert it
+`ctrl.dpll_div_reset` (bit 14) is relevant for sleep/wakeup: assert it
 before shutting DPLL down, release it after DPLL blocks are re-enabled and
 `mclk` has been temporarily switched to 26M XTAL, then switch back to DPLL.
 

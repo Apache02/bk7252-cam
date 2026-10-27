@@ -66,9 +66,8 @@ int _write(int file, char *ptr, const int len) {
     //        return -1;
     //    }
 
-    const char *data = ptr;
-
 #ifdef UART_WRITE_BYTE
+    const char *data = ptr;
     for (int i = 0; i < len; i++) {
         UART_WRITE_BYTE(*data++);
     }

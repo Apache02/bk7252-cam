@@ -6,13 +6,13 @@ int efuse_read_byte(uint8_t addr) {
 
     // Single store latches addr/dir/en together; field-by-field writes would
     // emit three RMW transactions and expose intermediate values to the hw.
-    hw_write_fields(hw_efuse->ctrl, .en = 1, .addr = addr, );
+    hw_write_fields(hw_efuse->ctrl, .enable = 1, .addr = addr, );
 
-    for (int timeout = 1000; hw_efuse->ctrl.en; timeout--) {
+    for (int timeout = 1000; hw_efuse->ctrl.enable; timeout--) {
         if (timeout <= 0) return -2;
     }
 
-    if (!hw_efuse->optr.is_valid) return -3;
+    if (!hw_efuse->optr.rd_data_valid) return -3;
 
     return hw_efuse->optr.rd_data;
 }

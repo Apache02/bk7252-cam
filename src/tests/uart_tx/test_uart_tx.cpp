@@ -70,7 +70,7 @@ static volatile uint32_t g_isr_count;
 extern "C" void test_count_isr(void) { g_isr_count = g_isr_count + 1; }
 
 static void wait_fifo_empty(void) {
-    while (!hw_uart2->fifo_status.tx_empty);
+    while (!hw_uart2->fifo_status.tx_fifo_empty);
 }
 
 // Nothing queued, FIFO empty, counter zeroed - so one case cannot bleed into the next.
@@ -184,7 +184,7 @@ int main() {
 
     platform_stdio_set_tx_buffer(NULL);
     s_detach_emptied = ringbuf_is_empty(&tx);
-    s_detach_tx_bit  = hw_uart2->irq_enable.tx_need_write;
+    s_detach_tx_bit  = hw_uart2->int_enable.tx_need_write;
 
     intc_disable_irq_source(IRQ_SOURCE_UART2);
 

@@ -34,25 +34,25 @@ extern sctrl_vddram_volt_t camera_power_no_volt(void)
 
 #define POWER_METHOD_IS(name) (__builtin_strcmp(CAMERA_POWER_METHOD, name) == 0)
 
-#define I2C_BAUD_HZ         (100000)
-#define I2C_SETTLE_US       (200000)
-#define PROBE_ATTEMPTS      (10)
-#define PROBE_RETRY_US      (20000)
-#define RESET_PULSE_US      (100000)
-#define SENSOR_SETTLE_US    (1000000)
-#define FRAME_WAIT_SPINS    (30000000u)
-#define DRAIN_STABLE_POLLS  (50)
-#define DRAIN_MAX_POLLS     (400000)
-#define END_MARKER_SCAN_LEN (16)
+#define I2C_BAUD_HZ           (100000)
+#define I2C_SETTLE_US         (200000)
+#define PROBE_ATTEMPTS        (10)
+#define PROBE_RETRY_US        (20000)
+#define RESET_PULSE_US        (100000)
+#define SENSOR_SETTLE_US      (1000000)
+#define FRAME_WAIT_SPINS      (30000000u)
+#define DRAIN_STABLE_POLLS    (50)
+#define DRAIN_MAX_POLLS       (400000)
+#define END_MARKER_SCAN_LEN   (16)
 #define PREFERRED_DMA_CHANNEL (4)
-#define TRAILER_BYTES       (5)   // 00 and the 32-bit frame size after FF D9
-#define MAX_DMA_BYTES       (65536)
+#define TRAILER_BYTES         (5) // 00 and the 32-bit frame size after FF D9
+#define MAX_DMA_BYTES         (65536)
 
-static int                      g_dma_channel = -1;
-static const camera_sensor_t   *g_sensor;
-static camera_config_t          g_config;
-static volatile uint32_t        g_end_frame_count;
-static volatile uint32_t        g_last_frame_size;
+static int                    g_dma_channel = -1;
+static const camera_sensor_t *g_sensor;
+static camera_config_t        g_config;
+static volatile uint32_t      g_end_frame_count;
+static volatile uint32_t      g_last_frame_size;
 
 // The interrupt owns the slot states and the queue head; the caller owns the queue tail and
 // clears a slot's busy flag on release.
@@ -311,18 +311,23 @@ int camera_capture_frame(camera_frame_t *frame) {
     const int ch = g_dma_channel;
 
     const gdma_config_t dma_config = {
-        .src = {
-            .mode = GDMA_MODE_JPEG,
-            .addr = (uint32_t)&hw_jpeg->rx_fifo_data,
-            .incr = false,
-            .dw   = GDMA_DATA_WIDTH_32,
-        },
-        .dst = {
-            .mode = GDMA_MODE_DTCM,
-            .addr = (uint32_t)g_config.frame_buf,
-            .incr = true,
-            .dw   = GDMA_DATA_WIDTH_32,
-        },
+        .src =
+            {
+                .mode = GDMA_MODE_JPEG,
+                .addr = (uint32_t)&hw_jpeg->rx_fifo_data,
+                .incr = false,
+                .dw   = GDMA_DATA_WIDTH_32,
+            },
+        .dst =
+            {
+                .mode          = GDMA_MODE_DTCM,
+                .addr          = (uint32_t)g_config.frame_buf,
+                .loop_addr     = (uint32_t)g_config.frame_buf,
+                .loop_end_addr = (uint32_t)g_config.frame_buf + g_config.frame_buf_size,
+                .incr          = true,
+                .dw            = GDMA_DATA_WIDTH_32,
+            },
+        .repeat = false,
     };
     const int rc = gdma_configure(ch, &dma_config);
     if (rc != 0) return rc < 0 ? rc : -EIO;
@@ -395,11 +400,11 @@ static void stream_on_end_frame(void) {
 
     const bool queued = whole && next >= 0;
     if (queued) {
-        g_stream.size[cur] = (uint32_t)size;
+        g_stream.size[cur]                                         = (uint32_t)size;
         g_stream.queue[g_stream.head % g_stream.config.slot_count] = (uint8_t)cur;
-        g_stream.head      = g_stream.head + 1;
-        g_stream.busy[next] = 1;
-        g_stream.current   = (unsigned)next;
+        g_stream.head                                              = g_stream.head + 1;
+        g_stream.busy[next]                                        = 1;
+        g_stream.current                                           = (unsigned)next;
     } else {
         g_stream.dropped = g_stream.dropped + 1;
     }
@@ -411,9 +416,9 @@ static void stream_on_end_frame(void) {
 int camera_stream_start(const camera_stream_config_t *config) {
     if (g_sensor == NULL) return -ENXIO;
     if (g_stream.active) return -EBUSY;
-    if (config == NULL || config->slots == NULL || ((uintptr_t)config->slots & 3) != 0 ||
-        config->slot_size == 0 || (config->slot_size & 3) != 0 || config->slot_size > MAX_DMA_BYTES ||
-        config->slot_count < 2 || config->slot_count > CAMERA_STREAM_MAX_SLOTS) {
+    if (config == NULL || config->slots == NULL || ((uintptr_t)config->slots & 3) != 0 || config->slot_size == 0 ||
+        (config->slot_size & 3) != 0 || config->slot_size > MAX_DMA_BYTES || config->slot_count < 2 ||
+        config->slot_count > CAMERA_STREAM_MAX_SLOTS) {
         return -EINVAL;
     }
     if (g_config.frame_max_bytes != 0 && config->slot_size < g_config.frame_max_bytes + TRAILER_BYTES) {
@@ -421,18 +426,23 @@ int camera_stream_start(const camera_stream_config_t *config) {
     }
 
     const gdma_config_t dma_config = {
-        .src = {
-            .mode = GDMA_MODE_JPEG,
-            .addr = (uint32_t)&hw_jpeg->rx_fifo_data,
-            .incr = false,
-            .dw   = GDMA_DATA_WIDTH_32,
-        },
-        .dst = {
-            .mode = GDMA_MODE_DTCM,
-            .addr = (uint32_t)config->slots,
-            .incr = true,
-            .dw   = GDMA_DATA_WIDTH_32,
-        },
+        .src =
+            {
+                .mode = GDMA_MODE_JPEG,
+                .addr = (uint32_t)&hw_jpeg->rx_fifo_data,
+                .incr = false,
+                .dw   = GDMA_DATA_WIDTH_32,
+            },
+        .dst =
+            {
+                .mode          = GDMA_MODE_DTCM,
+                .addr          = (uint32_t)config->slots,
+                .loop_addr     = (uint32_t)config->slots,
+                .loop_end_addr = (uint32_t)config->slots + (config->slot_size * config->slot_count),
+                .incr          = true,
+                .dw            = GDMA_DATA_WIDTH_32,
+            },
+        .repeat = false,
     };
     const int rc = gdma_configure(g_dma_channel, &dma_config);
     if (rc != 0) return rc < 0 ? rc : -EIO;
@@ -471,29 +481,20 @@ void camera_stream_release(const camera_frame_t *frame) {
 
 uint32_t camera_stream_dropped(void) { return g_stream.dropped; }
 
+// clang-format off
 const char *camera_strerror(const int rc) {
     switch (rc) {
-    case 0:
-        return "ok";
-    case -EAGAIN:
-        return "no frame is ready";
-    case -EINVAL:
-        return "bad configuration or unknown sensor";
-    case -ENXIO:
-        return "camera is not started";
-    case -ENODEV:
-        return "no sensor answered";
-    case -EIO:
-        return "sensor register write failed";
-    case -EBUSY:
-        return "DMA channel is not available, or a stream is running";
-    case -ETIMEDOUT:
-        return "no frames arrived";
-    case -EOVERFLOW:
-        return "frame does not fit in the buffer";
-    case -EBADMSG:
-        return "received data is not a complete JPEG";
-    default:
-        return "unknown error";
+        case 0:             return "ok";
+        case -EAGAIN:       return "no frame is ready";
+        case -EINVAL:       return "bad configuration or unknown sensor";
+        case -ENXIO:        return "camera is not started";
+        case -ENODEV:       return "no sensor answered";
+        case -EIO:          return "sensor register write failed";
+        case -EBUSY:        return "DMA channel is not available, or a stream is running";
+        case -ETIMEDOUT:    return "no frames arrived";
+        case -EOVERFLOW:    return "frame does not fit in the buffer";
+        case -EBADMSG:      return "received data is not a complete JPEG";
+        default:            return "unknown error";
     }
 }
+// clang-format on

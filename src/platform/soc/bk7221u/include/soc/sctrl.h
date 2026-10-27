@@ -16,8 +16,8 @@ typedef volatile struct {
         struct {
             uint32_t mclk_source: 2;       // [1:0]   0=DCO, 1=26M_XTAL, 2=DPLL, 3=LPO
             uint32_t reserved_2_3: 2;      // [3:2]
-            uint32_t divider: 4;           // [7:4]   MCU clock = source / (divider+1) when DPLL
-                                           //         (divider floors at 2 with DPLL, i.e. /3,
+            uint32_t mclk_div: 4;          // [7:4]   MCU clock = source / (mclk_div+1) when DPLL
+                                           //         (mclk_div floors at 2 with DPLL, i.e. /3,
                                            //         160 MHz max, even if set lower; measured
                                            //         on hardware via clock and current draw)
             uint32_t flash_26m: 1;         // [8]     1 = flash clock uses 26 MHz XTAL
@@ -36,7 +36,7 @@ typedef volatile struct {
             uint32_t efuse_vdd25_en: 1;    // [23]    1 = eFuse 2.5 V supply enabled
             uint32_t reserved_24_31: 8;    // [31:24]
         };
-    } control;
+    } ctrl;
 
     union {
         uint32_t v;
@@ -330,14 +330,14 @@ typedef volatile struct {
             uint32_t io_ldo_low_power: 1;           // [9]
             uint32_t xtal_2_rf: 1;                  // [10]
             uint32_t xtal_26m_low_power: 1;         // [11]
-            uint32_t temprature_sensor: 1;          // [12]
+            uint32_t temperature_sensor: 1;         // [12]
             uint32_t saradc: 1;                     // [13]
             uint32_t usb: 1;                        // [14]   USB block enable
             uint32_t audio_random_generator: 1;     // [15]
             uint32_t audio_pll: 1;                  // [16]
             uint32_t audio: 1;                      // [17]
             uint32_t mic_qspi_ram_or_flash: 1;      // [18]   1 = QSPI block on and VDDRAM output pin powered at the
-                                                    //        level in control.psram_vddpad_volt (0 V while clear)
+                                                    //        level in ctrl.psram_vddpad_volt (0 V while clear)
             uint32_t nc: 1;                         // [19]
             uint32_t write_key: 12;                 // [31:20] must write 0xA5C alongside any block enable change
         };
@@ -450,10 +450,10 @@ static_assert(sizeof(hw_sctrl_t) == 85 * sizeof(uint32_t), "hw_sctrl_t size mism
 
 #define SCTRL_BLOCK_ENABLE_WRITE_KEY (0xA5C)
 
-__unused static inline void sctrl_block_enable_temprature_sensor() {
-    hw_write_fields(hw_sctrl->block_enable, .temprature_sensor = 1, .write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY, );
+__unused static inline void sctrl_block_enable_temperature_sensor() {
+    hw_write_fields(hw_sctrl->block_enable, .temperature_sensor = 1, .write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY, );
 }
 
-__unused static inline void sctrl_block_disable_temprature_sensor() {
-    hw_write_fields(hw_sctrl->block_enable, .temprature_sensor = 0, .write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY, );
+__unused static inline void sctrl_block_disable_temperature_sensor() {
+    hw_write_fields(hw_sctrl->block_enable, .temperature_sensor = 0, .write_key = SCTRL_BLOCK_ENABLE_WRITE_KEY, );
 }

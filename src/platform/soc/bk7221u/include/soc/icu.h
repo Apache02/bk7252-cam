@@ -206,7 +206,7 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t div: 2;            // [1:0]  0=/1, 1=/2, 2=/4, 3=/8
+            uint32_t clk_div: 2;        // [1:0]  0=/1, 1=/2, 2=/4, 3=/8
             uint32_t reserved_2_31: 30; // [31:2]
         };
     } clk26m_div;

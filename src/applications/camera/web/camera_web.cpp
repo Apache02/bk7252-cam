@@ -65,7 +65,7 @@ static bool ensure_camera(Camera *camera) {
     };
     const int rc = camera_start(&config);
     if (rc != 0) {
-        printf("http: camera start failed: %s\r\n", camera_strerror(rc));
+        printf("[http] camera start failed: %s\r\n", camera_strerror(rc));
         return false;
     }
     camera->started = true;
@@ -130,7 +130,7 @@ static void stream_frames(http_response_t *response) {
     }
 
     const uint32_t elapsed_ms = pdTICKS_TO_MS(static_cast<uint32_t>(xTaskGetTickCount() - started));
-    printf("http: stream closed after %lu.%03lu s, %lu frames sent, %lu dropped\r\n", elapsed_ms / 1000,
+    printf("[http] stream closed after %lu.%03lu s, %lu frames sent, %lu dropped\r\n", elapsed_ms / 1000,
            elapsed_ms % 1000, sent, camera_stream_dropped());
 }
 
@@ -157,7 +157,7 @@ static void serve_stream(__unused const http_request_t *request, http_response_t
             stream_frames(response);
             camera_stream_stop();
         } else {
-            printf("http: stream start failed: %s\r\n", camera_strerror(rc));
+            printf("[http] stream start failed: %s\r\n", camera_strerror(rc));
         }
     }
 
@@ -238,7 +238,7 @@ static void serve_settings_post(const http_request_t *request, http_response_t *
 
     const int error = config_save();
     if (error) {
-        printf("http: config not stored: %d\r\n", error);
+        printf("[http] config not stored: %d\r\n", error);
         respond_error(response, 500, "config applied but not stored");
     } else {
         respond_config(response, buf);
@@ -469,8 +469,8 @@ void camera_web_start() {
     };
 
     if (http_server_start(&config)) {
-        printf("http: listening on port %u\r\n", HTTP_PORT);
+        printf("[http] listening on *:%u\r\n", HTTP_PORT);
     } else {
-        printf("http: could not start\r\n");
+        printf("[http] could not start\r\n");
     }
 }

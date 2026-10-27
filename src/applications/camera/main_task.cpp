@@ -51,9 +51,6 @@ static void bring_up() {
     sctrl_rf_init();
     rwnxl_init();
     wifi_core_start();
-
-    vTaskDelay(100);
-    camera_web_start();
 }
 
 // Brings the access point to the requested state. Returns true when it is there.
@@ -209,10 +206,14 @@ static void configure_mac() {
 
 static __dead2 void main_task(__unused void *params) {
     bring_up();
+    vTaskDelay(100);
     configure_mac();
+    vTaskDelay(100);
 
     vTaskPrioritySet(nullptr, PRIORITY_RUN);
     s_ready = true;
+
+    camera_web_start();
 
     Service ap     = {};
     Service sta    = {};

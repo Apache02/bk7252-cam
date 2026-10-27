@@ -58,7 +58,7 @@ static void uart_reset(const struct uart_port *p) {
         .tx_enable = 1,
         .rx_enable = 1,
         .data_length = 3,
-        .clk_divider = baud_div,
+        .clk_div = baud_div,
     );
 
     hw_write_fields(uart->fifo_config,
@@ -72,8 +72,8 @@ static void uart_reset(const struct uart_port *p) {
 
     // rx_need_read / rx_stop_end deliberately left off: commit 01e2875 made them live and
     // reproduced task-stack corruption (known_issues.md, Arch8). _read() polls instead.
-    uart->irq_enable.v = 0;
-    uart->irq_status.v = uart->irq_status.v;
+    uart->int_enable.v = 0;
+    uart->int_status.v = uart->int_status.v;
 }
 
 static bool uart_is_tx_active(const struct uart_port *p) { return p->regs->config.tx_enable; }
@@ -95,10 +95,10 @@ static int uart_fifo_write_blocked(const struct uart_port *p, uint8_t byte) {
 }
 
 static void uart_fifo_wait_empty(const struct uart_port *p) {
-    while (!p->regs->fifo_status.tx_empty);
+    while (!p->regs->fifo_status.tx_fifo_empty);
 }
 
-// wr_ready lags tx_full by 2-3 writes (soc/uart.h), so a false "no room" just queues.
+// wr_ready lags tx_fifo_full by 2-3 writes (soc/uart.h), so a false "no room" just queues.
 static bool uart_fifo_try_write(const struct uart_port *p, uint8_t byte) {
     volatile hw_uart_t *uart = p->regs;
 
@@ -112,20 +112,20 @@ static bool uart_fifo_try_write(const struct uart_port *p, uint8_t byte) {
 // interrupt. Skipping the write when the bit already reads as wanted is most of a burst,
 // which is why queueing a byte costs one MMIO read instead of a masked read-modify-write.
 static void uart_tx_disarm(const struct uart_port *p) {
-    if (!p->regs->irq_enable.tx_need_write) return;
+    if (!p->regs->int_enable.tx_need_write) return;
 
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
-    p->regs->irq_enable.tx_need_write = 0;
+    p->regs->int_enable.tx_need_write = 0;
     GLOBAL_INT_RESTORE();
 }
 
 static void uart_tx_arm(const struct uart_port *p) {
-    if (p->regs->irq_enable.tx_need_write) return;
+    if (p->regs->int_enable.tx_need_write) return;
 
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
-    p->regs->irq_enable.tx_need_write = 1;
+    p->regs->int_enable.tx_need_write = 1;
     GLOBAL_INT_RESTORE();
 }
 
@@ -232,7 +232,7 @@ static int uart_write_byte(const struct uart_port *p, char byte) {
         // Both buffers full. Yielding unmasked is safe because tx_need_write is a level: a
         // wake-up missed in the gap is followed by another as the FIFO drains - but only
         // while the capacity exceeds one ISR pass, which could otherwise empty and disarm.
-        const bool can_wake = ringbuf_capacity(ring) > TX_FIFO_DEPTH && uart->irq_enable.tx_need_write &&
+        const bool can_wake = ringbuf_capacity(ring) > TX_FIFO_DEPTH && uart->int_enable.tx_need_write &&
                               intc_irq_source_enabled(p->irq_source);
         if (can_wake)
             sched_yield();
@@ -248,7 +248,7 @@ static void uart_drain(const struct uart_port *p) {
 
 static void uart_set_baudrate(const struct uart_port *p, unsigned long baudrate) {
     uint32_t baud_div           = DEFAULT_CLK_HZ / baudrate;
-    p->regs->config.clk_divider = baud_div;
+    p->regs->config.clk_div = baud_div;
 }
 
 // ack whatever fired (write-1-to-clear). tx_stop_end is a real latched edge event and
@@ -257,8 +257,8 @@ static void uart_isr(const struct uart_port *p) {
     volatile hw_uart_t *uart = p->regs;
     struct ringbuf     *ring = p->tx->ring;
 
-    typeof(uart->irq_status) status = {.v = uart->irq_status.v};
-    uart->irq_status.v              = status.v;
+    typeof(uart->int_status) status = {.v = uart->int_status.v};
+    uart->int_status.v              = status.v;
 
     if (!ring) {
         // Nothing here can end the level, so a stale arm - a write that raced a detach -

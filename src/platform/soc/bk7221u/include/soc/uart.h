@@ -18,7 +18,7 @@ typedef volatile struct {
             uint32_t parity_enable: 1;   // [5]
             uint32_t parity_odd_mode: 1; // [6]
             uint32_t stop_length_2: 1;   // [7]
-            uint32_t clk_divider: 13;    // [20:8]
+            uint32_t clk_div: 13;        // [20:8]
             uint32_t reserved_21_31: 11; // [31:21]
         };
     } config;
@@ -38,11 +38,11 @@ typedef volatile struct {
         struct {
             uint32_t tx_fifo_count: 8;   // [7:0]  TX FIFO depth is 128 (confirmed on hardware)
             uint32_t rx_fifo_count: 8;   // [15:8]
-            uint32_t tx_full: 1;         // [16]  1 when tx_fifo_count reaches 128 (confirmed on hardware)
-            uint32_t tx_empty: 1;        // [17]
-            uint32_t rx_full: 1;         // [18]
-            uint32_t rx_empty: 1;        // [19]
-            uint32_t wr_ready: 1;        // [20]  lags tx_full by ~2-3 writes (confirmed on hardware)
+            uint32_t tx_fifo_full: 1;    // [16]  1 when tx_fifo_count reaches 128 (confirmed on hardware)
+            uint32_t tx_fifo_empty: 1;   // [17]
+            uint32_t rx_fifo_full: 1;    // [18]
+            uint32_t rx_fifo_empty: 1;   // [19]
+            uint32_t wr_ready: 1;        // [20]  lags tx_fifo_full by ~2-3 writes (confirmed on hardware)
             uint32_t rd_ready: 1;        // [21]
             uint32_t reserved_22_31: 10; // [31:22]
         };
@@ -70,7 +70,7 @@ typedef volatile struct {
             uint32_t rxd_wakeup: 1;      // [7]
             uint32_t reserved_8_31: 24;  // [31:8]
         };
-    } irq_enable;
+    } int_enable;
 
     union {
         uint32_t v;
@@ -85,7 +85,7 @@ typedef volatile struct {
             uint32_t rxd_wakeup: 1;      // [7]
             uint32_t reserved_8_31: 24;  // [31:8]
         };
-    } irq_status;
+    } int_status;
 
     union {
         uint32_t v;

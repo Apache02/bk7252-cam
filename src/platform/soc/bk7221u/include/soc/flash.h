@@ -47,7 +47,7 @@ typedef volatile struct {
     const uint32_t data_flash_sw; // [offset 2]  read FIFO: flash→SW, 8 words (one 32-byte block per READ)
     uint32_t       reserved_0x03;
 
-    const uint32_t JEDEC_ID; // [offset 4]  JEDEC ID captured by last RDID command
+    const uint32_t jedec_id; // [offset 4]  JEDEC ID captured by last RDID command
 
     /* offset 5 */
     union {
@@ -63,7 +63,7 @@ typedef volatile struct {
             uint32_t page_write_en: 1; // [30]     (NOT INVESTIGATED) sticky on BK7221U; SDK uses only on BK7238/BK7252N
             uint32_t reserved_31: 1;   // [31]
         };
-    } sr_data_crc_cnt;
+    } status;
 
     uint32_t reserved_0x06;
 
@@ -72,14 +72,14 @@ typedef volatile struct {
         uint32_t v;
         struct {
             uint32_t clk_conf: 4;    // [3:0]    SPI clock selection; 5 = 60 MHz (DPLL source)
-            uint32_t model_sel: 5;   // [8:4]    XIP read mode: 0 = single, 1 = dual, 2 = quad
+            uint32_t mode_sel: 5;    // [8:4]    XIP read mode: 0 = single, 1 = dual, 2 = quad
             uint32_t cpu_data_wr: 1; // [9]      (NOT INVESTIGATED) SDK name: FWREN_FLASH_CPU
             uint32_t wrsr_data: 16;  // [25:10]  SR payload: low byte → WRSR; both bytes → WRSR2
             uint32_t crc_en: 1;      // [26]     0 = disable XIP CRC validation (no abort, addr mapping unchanged); 1 =
                                      // abort on mismatch
             uint32_t reserved_27_31: 5; // [31:27]
         };
-    } conf;
+    } config;
 
     uint32_t reserved_0x08; // BK7252N deep-power-down config (REG_FLASH_DPD_CONF); reserved on BK7221U
     uint32_t reserved_0x09; // BK7252N page-write buffer config (REG_FLASH_PW_CONF); reserved on BK7221U — writes

@@ -127,7 +127,7 @@ PWM0–5, Audio, TL410 WDT, SDIO, USB, FFT, Timer, JPEG, QSPI).
 | Word | Offset | Value        | Meaning                                                   |
 |------|--------|--------------|-----------------------------------------------------------|
 | [05] | +0x014 | `0x28390000` | `m_value=0xa0` (quad M-byte, set by vendor ROM); `wr_fifo_ptr=7` (constant) |
-| [07] | +0x01c | `0x0400000f` | `clk_conf=15`; `model_sel=0` (single SPI); **`crc_en=1`** (XIP CRC active) |
+| [07] | +0x01c | `0x0400000f` | `clk_conf=15`; `mode_sel=0` (single SPI); **`crc_en=1`** (XIP CRC active) |
 | [08] | +0x020 | `0x01ffffff` | "reserved" on BK7221U — non-zero; identity unknown        |
 
 CRC-verified XIP mode is active from the moment the vendor bootloader hands

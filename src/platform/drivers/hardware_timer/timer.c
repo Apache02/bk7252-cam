@@ -21,28 +21,28 @@ static private_timer_t timers_handlers[TIMERS_TOTAL] = {0};
 #define assert_timer_number(i) assert((i >= 0) && (i < TIMERS_TOTAL))
 
 #define timer_clear_irq_status(bank, status) \
-    while (bank->ctl.irq_status & status) {  \
-        bank->ctl.irq_status = status;       \
+    while (bank->ctrl.int_status & status) { \
+        bank->ctrl.int_status = status;      \
     }
 
-// irq_status shares the ctl word and is W1C, so a plain read-modify-write of any other
+// int_status shares the ctrl word and is W1C, so a plain read-modify-write of any other
 // field writes pending flags back as 1 and clears them. Write them as 0 instead.
 static void timer_bank_update_enable(volatile hw_timer_bank_t *bank, uint32_t set, uint32_t clear) {
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
 
-    typeof(bank->ctl) ctl = {.v = bank->ctl.v};
-    ctl.irq_status        = 0;
-    ctl.enable            = (ctl.enable | set) & ~clear;
-    bank->ctl.v           = ctl.v;
+    typeof(bank->ctrl) ctrl = {.v = bank->ctrl.v};
+    ctrl.int_status         = 0;
+    ctrl.enable             = (ctrl.enable | set) & ~clear;
+    bank->ctrl.v            = ctrl.v;
 
     GLOBAL_INT_RESTORE();
 }
 
 
 static void timer_isr() {
-    uint32_t status0    = hw_timer_bank0->ctl.irq_status;
-    uint32_t status1    = hw_timer_bank1->ctl.irq_status;
+    uint32_t status0    = hw_timer_bank0->ctrl.int_status;
+    uint32_t status1    = hw_timer_bank1->ctrl.int_status;
     uint32_t status_all = status0 | (status1 << TIMERS_IN_BANK);
 
     for (int i = 0; i < TIMERS_TOTAL; i++) {
@@ -84,19 +84,19 @@ static int find_free_timer(uint32_t freq) {
 }
 
 void timer_reset(void) {
-    hw_timer_bank0->ctl.v = 0;
-    hw_timer_bank1->ctl.v = 0;
+    hw_timer_bank0->ctrl.v = 0;
+    hw_timer_bank1->ctrl.v = 0;
 
-    timer_clear_irq_status(hw_timer_bank0, hw_timer_bank0->ctl.irq_status);
-    timer_clear_irq_status(hw_timer_bank1, hw_timer_bank1->ctl.irq_status);
+    timer_clear_irq_status(hw_timer_bank0, hw_timer_bank0->ctrl.int_status);
+    timer_clear_irq_status(hw_timer_bank1, hw_timer_bank1->ctrl.int_status);
 
     hw_icu->peri_clk_pwd.timer_26m = 1;
     hw_icu->peri_clk_pwd.timer_32k = 1;
 }
 
 static void timer_init(void) {
-    hw_timer_bank0->ctl.v = 0;
-    hw_timer_bank1->ctl.v = 0;
+    hw_timer_bank0->ctrl.v = 0;
+    hw_timer_bank1->ctrl.v = 0;
 
     hw_icu->peri_clk_pwd.timer_26m = 0;
     hw_icu->peri_clk_pwd.timer_32k = 0;
@@ -179,8 +179,8 @@ uint32_t timer_pause_all(void) {
     GLOBAL_INT_DECLARATION();
     GLOBAL_INT_DISABLE();
 
-    uint32_t enabled0 = hw_timer_bank0->ctl.enable;
-    uint32_t enabled1 = hw_timer_bank1->ctl.enable;
+    uint32_t enabled0 = hw_timer_bank0->ctrl.enable;
+    uint32_t enabled1 = hw_timer_bank1->ctrl.enable;
 
     timer_bank_update_enable(hw_timer_bank0, 0, enabled0);
     timer_bank_update_enable(hw_timer_bank1, 0, enabled1);

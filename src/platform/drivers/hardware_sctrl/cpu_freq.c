@@ -34,11 +34,11 @@ static const struct {
 bool sctrl_set_cpu_freq_hz(uint32_t freq) {
     for (unsigned int i = 0; i < count_of(configs); i++) {
         if (configs[i].freq == freq) {
-            typeof(hw_sctrl->control) reg;
-            reg.v               = hw_sctrl->control.v;
-            reg.mclk_source     = configs[i].src;
-            reg.divider         = configs[i].divider;
-            hw_sctrl->control.v = reg.v;
+            typeof(hw_sctrl->ctrl) reg;
+            reg.v            = hw_sctrl->ctrl.v;
+            reg.mclk_source  = configs[i].src;
+            reg.mclk_div     = configs[i].divider;
+            hw_sctrl->ctrl.v = reg.v;
 
             return true;
         }
@@ -47,7 +47,7 @@ bool sctrl_set_cpu_freq_hz(uint32_t freq) {
 }
 
 uint32_t sctrl_get_cpu_freq_hz() {
-    uint32_t source = hw_sctrl->control.mclk_source;
+    uint32_t source = hw_sctrl->ctrl.mclk_source;
     unsigned int clk_freq;
 
     if (source == MCLK_SOURCE_DPLL) {
@@ -56,5 +56,5 @@ uint32_t sctrl_get_cpu_freq_hz() {
         clk_freq = XTAL_CLOCK_HZ;
     }
 
-    return clk_freq / (hw_sctrl->control.divider + 1);
+    return clk_freq / (hw_sctrl->ctrl.mclk_div + 1);
 }

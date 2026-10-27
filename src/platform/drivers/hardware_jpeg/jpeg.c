@@ -86,7 +86,7 @@ void jpeg_configure(const jpeg_encoder_config_t *config) {
     hw_write_fields(hw_jpeg->ctrl0,
         .start_frame_int = 0,
         .end_frame_int = 1,
-        .div = config->frequency,
+        .clk_div = config->frequency,
     );
 }
 
@@ -107,4 +107,4 @@ void jpeg_clear_end_frame_handler() { g_end_frame_handler = NULL; }
 
 bool jpeg_is_fifo_empty() { return hw_jpeg->rx_state.empty_fifo; }
 
-size_t jpeg_get_last_frame_size() { return hw_jpeg->byte_cnt_pfrm; }
+size_t jpeg_get_last_frame_size() { return hw_jpeg->byte_cnt_per_frame; }

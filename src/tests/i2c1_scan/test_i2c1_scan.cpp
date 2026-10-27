@@ -30,7 +30,7 @@ static void report(const char *name, bool ok) {
 
 static void dvp_jpeg_bring_up() {
     hw_write_fields(hw_jpeg->ctrl0,
-        .div = 0,
+        .clk_div = 0,
     );
 
     icu_jpeg_power_up();

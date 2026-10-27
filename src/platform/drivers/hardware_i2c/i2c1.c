@@ -38,7 +38,7 @@ static struct {
     g_state.remain     = g_state.remain - 1;
 
 #define issue_stop(status)        \
-    status.sto        = 1;        \
+    status.stop       = 1;        \
     hw_i2c1->config.v = status.v; \
     g_state.done      = 1;
 
@@ -49,14 +49,14 @@ static struct {
 static void i2c1_isr() {
     typeof(hw_i2c1->config) status = {.v = hw_i2c1->config.v};
 
-    if (!status.si) return;
+    if (!status.int_flag) return;
 
-    if (status.sta) {
+    if (status.start) {
         // address phase
-        status.sta        = 0;
+        status.start      = 0;
         hw_i2c1->config.v = status.v;
 
-        if (!status.ack_rx) {
+        if (!status.rx_ack) {
             g_state.nack = 1;
             issue_stop(status);
         } else {
@@ -72,7 +72,7 @@ static void i2c1_isr() {
         }
     } else if (g_state.tx_mode) {
         // data write phase
-        if (!status.ack_rx || g_state.remain == 0) {
+        if (!status.rx_ack || g_state.remain == 0) {
             issue_stop(status);
         } else {
             send_next_byte();
@@ -82,21 +82,21 @@ static void i2c1_isr() {
         *(g_state.data++) = (uint8_t)hw_i2c1->data.data;
         g_state.remain    = g_state.remain - 1;
         if (g_state.remain) {
-            status.ack_tx     = 1;
+            status.tx_ack     = 1;
             hw_i2c1->config.v = status.v;
         } else {
-            status.ack_tx     = 0;
+            status.tx_ack     = 0;
             hw_i2c1->config.v = status.v;
             issue_stop(status);
         }
     }
 
-    status.si         = 0;
+    status.int_flag   = 0;
     hw_i2c1->config.v = status.v;
 }
 
 void i2c1_deinit(void) {
-    hw_i2c1->config.ensmb = 0;
+    hw_i2c1->config.enable = 0;
     intc_disable_irq_source(IRQ_SOURCE_I2C1);
     intc_unregister_irq_handler(IRQ_SOURCE_I2C1, i2c1_isr);
     icu_i2c1_power_down();
@@ -111,8 +111,8 @@ void i2c1_init(uint32_t baud_hz) {
     intc_register_irq_handler(IRQ_SOURCE_I2C1, i2c1_isr);
     intc_enable_irq_source(IRQ_SOURCE_I2C1);
 
-    hw_i2c1->config.v        = 0;
-    hw_i2c1->config.freq_div = i2c1_freq_div(baud_hz);
+    hw_i2c1->config.v       = 0;
+    hw_i2c1->config.clk_div = i2c1_freq_div(baud_hz);
 }
 
 static bool take_busy() {
@@ -146,8 +146,8 @@ static int i2c1_transfer(uint8_t addr7, volatile uint8_t *data, uint16_t len, bo
 
     typeof(hw_i2c1->config) cfg;
     cfg.v             = hw_i2c1->config.v;
-    cfg.ensmb         = 1;
-    cfg.sta           = 1;
+    cfg.enable        = 1;
+    cfg.start         = 1;
     cfg.tx_mode       = 1;
     hw_i2c1->config.v = cfg.v;
 
@@ -158,8 +158,8 @@ static int i2c1_transfer(uint8_t addr7, volatile uint8_t *data, uint16_t len, bo
     }
     while (!g_state.done) {
         if (is_timeout_finished(&t)) {
-            cfg.sta           = 0;
-            cfg.sto           = 1;
+            cfg.start         = 0;
+            cfg.stop          = 1;
             hw_i2c1->config.v = cfg.v;
             release_busy();
             return -ETIMEDOUT;

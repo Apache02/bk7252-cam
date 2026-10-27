@@ -57,7 +57,7 @@ returned by RDID does not match any table entry, the default row applies
 bytes = 1 use RDSR/WRSR only; chips with SR bytes = 2 also use RDSR2/WRSR2.
 
 **Line mode** is the SPI width set by init for all subsequent transfers:
-`dual` → `conf.model_sel = 1`; `quad` → `conf.model_sel = 2`.
+`dual` → `config.mode_sel = 1`; `quad` → `config.mode_sel = 2`.
 
 **QE setup**: whether init writes the Quad Enable bit into the flash SR. SR2\[1\]
 = bit 1 of SR2 (bit 9 of the concatenated 16-bit SR1:SR2 value); SR1\[6\] = bit 6
@@ -79,10 +79,10 @@ Offsets are in 32-bit words from base `0x00803000`.
 | `0x01` | `data_sw_flash`   | Write FIFO: SW→flash, 8 words (one 32-byte block per operation) |
 | `0x02` | `data_flash_sw`   | Read FIFO: flash→SW, 8 words (one 32-byte block per operation)  |
 | `0x03` | —                 | Reserved                                                        |
-| `0x04` | `JEDEC_ID`        | JEDEC ID read by the last RDID command (read-only)              |
-| `0x05` | `sr_data_crc_cnt` | SR readback, CRC error counter, FIFO word pointers              |
+| `0x04` | `jedec_id`        | JEDEC ID read by the last RDID command (read-only)              |
+| `0x05` | `status`          | SR readback, CRC error counter, FIFO word pointers              |
 | `0x06` | —                 | Reserved                                                        |
-| `0x07` | `conf`            | Clock, SPI line mode, WRSR data, CPU write gate, XIP CRC       |
+| `0x07` | `config`          | Clock, SPI line mode, WRSR data, CPU write gate, XIP CRC       |
 
 ### `operate_sw` bits
 
@@ -94,7 +94,7 @@ Offsets are in 32-bit words from base `0x00803000`.
 | `[30]`   | `wp`         | 1 = de-assert WP# pin; required for write and erase operations  |
 | `[31]`   | `busy`       | 1 while an operation is in progress; read-only                  |
 
-### `sr_data_crc_cnt` bits
+### `status` bits
 
 | Bits     | Name             | Purpose                                                             |
 | -------- | ---------------- | ------------------------------------------------------------------- |
@@ -105,12 +105,12 @@ Offsets are in 32-bit words from base `0x00803000`.
 | `[29:22]`| `m_value`        | Mode byte for quad continuous-read; set per flash chip config       |
 | `[30]`   | `page_write_en`  | Not investigated; sticky on BK7221U but function unknown; SDK uses only on BK7238/BK7252N |
 
-### `conf` bits
+### `config` bits
 
 | Bits     | Name          | Purpose                                                                |
 | -------- | ------------- | ---------------------------------------------------------------------- |
 | `[3:0]`  | `clk_conf`    | Flash SPI clock selection; `5` = 60 MHz (DPLL source)                  |
-| `[8:4]`  | `model_sel`   | SPI line mode for reads: `0` = single, `1` = dual, `2` = quad         |
+| `[8:4]`  | `mode_sel`   | SPI line mode for reads: `0` = single, `1` = dual, `2` = quad         |
 | `[9]`    | `cpu_data_wr` | Not investigated (SDK name: `FWREN_FLASH_CPU`)                         |
 | `[25:10]`| `wrsr_data`   | 16-bit payload written to the flash SR by WRSR or WRSR2                |
 | `[26]`   | `crc_en`      | 0 = disable XIP CRC validation (no abort, address mapping unchanged); 1 = enforce CRC (abort on mismatch) |
@@ -124,11 +124,11 @@ The controller internally maps these identifiers to chip-specific SPI wire bytes
 | ------------ | ------- | ------------------------------------------------------------- |
 | `1`          | `WREN`  | Set Write Enable Latch in flash SR                            |
 | `2`          | `WRDI`  | Clear Write Enable Latch                                      |
-| `3`          | `RDSR`  | Read flash SR1 → `sr_data_crc_cnt.sr`                        |
-| `4`          | `WRSR`  | Write flash SR1 with `conf.wrsr_data[7:0]`                   |
+| `3`          | `RDSR`  | Read flash SR1 → `status.sr`                        |
+| `4`          | `WRSR`  | Write flash SR1 with `config.wrsr_data[7:0]`                   |
 | `5`          | `READ`  | Read 32 bytes → `data_flash_sw` FIFO                         |
-| `6`          | `RDSR2` | Read flash SR2 → `sr_data_crc_cnt.sr`                        |
-| `7`          | `WRSR2` | Write flash SR1+SR2 with `conf.wrsr_data[15:0]`              |
+| `6`          | `RDSR2` | Read flash SR2 → `status.sr`                        |
+| `7`          | `WRSR2` | Write flash SR1+SR2 with `config.wrsr_data[15:0]`              |
 | `12`         | `PP`    | Page Program: 32 bytes from `data_sw_flash` FIFO             |
 | `13`         | `SE`    | Sector Erase: 4 KB sector containing `addr`                  |
 | `14`         | `BE1`   | Block Erase: 32 KB block containing `addr`                   |
@@ -136,7 +136,7 @@ The controller internally maps these identifiers to chip-specific SPI wire bytes
 | `16`         | `CE`    | Chip Erase                                                    |
 | `17`         | `DP`    | Deep Power Down; `addr` ignored                               |
 | `18`         | `RFDP`  | Release from Deep Power Down; `addr` ignored                  |
-| `20`         | `RDID`  | Read JEDEC ID → `JEDEC_ID` register                          |
+| `20`         | `RDID`  | Read JEDEC ID → `jedec_id` register                          |
 | `21`         | `HPM`   | High Performance Mode                                         |
 | `22`         | `CRMR`  | Continuous Read Mode Reset                                    |
 | `23`         | `CRMR2` | Continuous Read Mode Reset (variant 2)                        |
@@ -217,8 +217,8 @@ succeed:
 
 ### Flash chip status register
 
-The `RDSR` opcode returns the flash chip SR byte into `sr_data_crc_cnt.sr`.
-The `WRSR` opcode writes `conf.wrsr_data[7:0]` to the chip SR.
+The `RDSR` opcode returns the flash chip SR byte into `status.sr`.
+The `WRSR` opcode writes `config.wrsr_data[7:0]` to the chip SR.
 Bit layout for EN25QH16B (confirmed on hardware; other flash chips may differ):
 
 | SR bit | Name  | Purpose                                                                    |
@@ -253,23 +253,23 @@ unspecified state after reset; skipping init may leave write protection active
 or the SPI line mode misconfigured.
 
 1. Poll `operate_sw.busy` until 0.
-2. Issue RDID (see Read JEDEC ID below). Read `JEDEC_ID` and look up the
+2. Issue RDID (see Read JEDEC ID below). Read `jedec_id` and look up the
    per-chip parameters in the flash chip models table. If no entry matches,
    use the default row.
 3. Clear write protection: write the chip's `unprotect_last_block` SR value into
-   `conf.wrsr_data`; issue WRSR (SR bytes = 1) or WRSR2 (SR bytes = 2).
+   `config.wrsr_data`; issue WRSR (SR bytes = 1) or WRSR2 (SR bytes = 2).
    Poll `busy` until 0.
-4. Write `conf.cpu_data_wr = 0` (bit 9 of the `conf` register).
+4. Write `config.cpu_data_wr = 0` (bit 9 of the `config` register).
 5. Issue CRMR to reset any continuous-read state in the flash chip; then set
    the line mode:
-   - Dual: set `conf.model_sel = 1`.
-   - Quad: write the chip's `m_value` into `sr_data_crc_cnt.m_value`;
-     set `conf.model_sel = 2`.
+   - Dual: set `config.mode_sel = 1`.
+   - Quad: write the chip's `m_value` into `status.m_value`;
+     set `config.mode_sel = 2`.
 6. For chips with a QE setup in the models table: read the relevant SR byte
    (RDSR or RDSR2); set the QE bit at the listed position; write back with
    WRSR or WRSR2. Poll `busy` until 0.
-7. Set `conf.crc_en = 1`.
-8. Set `conf.clk_conf = 5` (60 MHz from DPLL).
+7. Set `config.crc_en = 1`.
+8. Set `config.clk_conf = 5` (60 MHz from DPLL).
 
 ### Read 32 bytes
 
@@ -309,12 +309,12 @@ unmodified only if a read-modify-write is used.
 
 ### Clear write protection
 
-1. Write the desired SR value into `conf.wrsr_data` (bits `[25:10]`).
+1. Write the desired SR value into `config.wrsr_data` (bits `[25:10]`).
 2. Write `operate_sw = (WRSR << 24) | (1 << 29) | (1 << 30)`.
    Poll `busy` until 0.
 
 A WREN before step 2 is not needed but does no harm.
-To remove all block protection, write `0x00` to `conf.wrsr_data` before step 2.
+To remove all block protection, write `0x00` to `config.wrsr_data` before step 2.
 Use WRSR2 (opcode 7) to write a 16-bit value covering SR1+SR2 on chips with
 two status register bytes. After the WRSR trigger, poll `operate_sw.busy` until
 0; the internal SR write cycle completes in up to 30 ms (t_W max on EN25QH16B).
@@ -324,14 +324,14 @@ two status register bytes. After the WRSR trigger, poll `operate_sw.busy` until
 1. Poll `operate_sw.busy` until 0.
 2. Write `operate_sw = (RDID << 24) | (1 << 29) | (1 << 30)`.
    Poll `busy` until 0.
-3. Read `JEDEC_ID` register.
+3. Read `jedec_id` register.
 
 ### Read status register
 
 1. Poll `operate_sw.busy` until 0.
 2. Write `operate_sw = (RDSR << 24) | (1 << 29) | (1 << 30)`.
    Poll `busy` until 0.
-3. Read `sr_data_crc_cnt.sr` (bits `[7:0]`).
+3. Read `status.sr` (bits `[7:0]`).
 
 Use RDSR2 (opcode 6) for SR2 on chips with two status register bytes.
 
@@ -351,17 +351,17 @@ Use RDSR2 (opcode 6) for SR2 on chips with two status register bytes.
   the physical WP# line. It does not bypass SR write protection. PP and SE
   need `wp = 1` to proceed; no explicit WREN is needed.
 
-- **`cpu_data_wr` (conf bit 9) — not investigated.** SDK name is
+- **`cpu_data_wr` (config bit 9) — not investigated.** SDK name is
   `FWREN_FLASH_CPU`; no SDK driver uses it. Exact function unknown.
 
-- **`crc_en` (conf bit 26) disables CRC validation only; address mapping is
+- **`crc_en` (config bit 26) disables CRC validation only; address mapping is
   always CRC-interleaved regardless of this bit.** With `crc_en=0`, XIP reads
   beyond the physical flash boundary return garbage instead of causing a Data
   Abort. The CRC-interleaved address formula `P = (L/32)*34 + (L%32)` applies
   in both modes.
 
 - **XIP CRC mismatch causes a Data Abort when `crc_en=1`.** The controller
-  does not return bad data silently. `sr_data_crc_cnt.error_count` did not
+  does not return bad data silently. `status.error_count` did not
   increment in any tested scenario (0 with valid CRC, 0 with `crc_en=0`); with
   `crc_en=1` and invalid CRC the chip resets via Data Abort before the register
   can be read. Function of `error_count` not confirmed.
@@ -388,18 +388,18 @@ Use RDSR2 (opcode 6) for SR2 on chips with two status register bytes.
   t_RES2 max = 1.8 µs (release with Device ID read via `ABh`).
 
 - **CRMR / CRMR2** reset continuous-read mode on chips that use the M-byte
-  mechanism for quad I/O. Issue before switching `model_sel` from quad to a
+  mechanism for quad I/O. Issue before switching `mode_sel` from quad to a
   lower mode.
 
-- **`m_value` (sr_data_crc_cnt bits `[29:22]`)**: the M-byte transmitted during
+- **`m_value` (status bits `[29:22]`)**: the M-byte transmitted during
   quad continuous-read (QPI). Set per flash chip datasheet before enabling
-  `model_sel = 2`. Not required for single or dual SPI.
+  `mode_sel = 2`. Not required for single or dual SPI.
 
-- **`model_sel`** affects the SPI read command issued by the XIP engine; it does
+- **`mode_sel`** affects the SPI read command issued by the XIP engine; it does
   not affect OPERATE_SW READ or PP operations, which always use standard
   single-wire SPI.
 
-- **SPI clock selection (`conf.clk_conf`)**: value `5` selects 60 MHz from the
+- **SPI clock selection (`config.clk_conf`)**: value `5` selects 60 MHz from the
   DPLL source. Other values are not characterised; leave at the reset default
   until the flash chip's maximum frequency is confirmed.
 

@@ -26,12 +26,12 @@ void flash_init(void) {
     wait_busy_bit();
     trigger(0, FLASH_OPCODE_RDID);
 
-    hw_write_fields(hw_flash->conf, .clk_conf = 5, .model_sel = 1, .crc_en = 1, );
-    hw_flash->sr_data_crc_cnt.m_value = 0xA5;
+    hw_write_fields(hw_flash->config, .clk_conf = 5, .mode_sel = 1, .crc_en = 1, );
+    hw_flash->status.m_value = 0xA5;
 }
 INIT_AT(flash_init, 02);
 
-uint32_t flash_id() { return hw_flash->JEDEC_ID; }
+uint32_t flash_id() { return hw_flash->jedec_id; }
 
 /* Write one 32-byte hardware block to flash using Page Program (PP).
  * aligned_addr must be 32-byte aligned. */
@@ -71,18 +71,18 @@ void flash_read(uint32_t addr, uint8_t *dst, uint32_t count) {
 uint8_t flash_read_sr1(void) {
     wait_busy_bit();
     trigger(0, FLASH_OPCODE_RDSR);
-    return (uint8_t)hw_flash->sr_data_crc_cnt.sr;
+    return (uint8_t)hw_flash->status.sr;
 }
 
 uint8_t flash_read_sr2(void) {
     wait_busy_bit();
     trigger(0, FLASH_OPCODE_RDSR2);
-    return (uint8_t)hw_flash->sr_data_crc_cnt.sr;
+    return (uint8_t)hw_flash->status.sr;
 }
 
 void flash_write_sr1(uint8_t sr1) {
     wait_busy_bit();
-    hw_flash->conf.wrsr_data = sr1;
+    hw_flash->config.wrsr_data = sr1;
     wren();
     trigger(0, FLASH_OPCODE_WRSR);
 }

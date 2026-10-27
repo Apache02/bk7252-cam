@@ -26,7 +26,7 @@ static void dvp_jpeg_bring_up() {
     sctrl_vddram_enable(SCTRL_VDDRAM_3V5);
 
     hw_write_fields(hw_jpeg->ctrl0,
-        .div = 0, // 24 MHz MCLK
+        .clk_div = 0, // 24 MHz MCLK
     );
 
     icu_jpeg_power_up();

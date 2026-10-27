@@ -12,7 +12,7 @@ All registers are 32-bit, word-aligned.
 
 | Offset | Name         | Description                               |
 |--------|--------------|-------------------------------------------|
-| `0x00` | `ctl`        | Per-channel enable / int-enable / mode (4 bits × 6 channels = 24 bits) |
+| `0x00` | `ctrl`       | Per-channel enable / int-enable / mode (4 bits × 6 channels = 24 bits) |
 | `0x04` | `int_status` | Per-channel interrupt flags [5:0]; W1C    |
 | `0x08` | `ch[0].period` | Channel 0 period (counter wraps here)   |
 | `0x0C` | `ch[0].duty`   | Channel 0 duty threshold                |
@@ -20,7 +20,7 @@ All registers are 32-bit, word-aligned.
 | `0x14` | `ch[1].period` | …                                       |
 | …      | …              | Channels 1–5 follow at `+3 words` each |
 
-### `ctl` register — bit layout
+### `ctrl` register — bit layout
 
 Channel `n` occupies bits `[4n+3 : 4n]`:
 

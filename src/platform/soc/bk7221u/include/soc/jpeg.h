@@ -13,7 +13,7 @@ typedef volatile struct {
             uint32_t reserved_0_1: 2;    // [1:0]
             uint32_t start_frame_int: 1; // [2]     start-of-frame interrupt enable
             uint32_t end_frame_int: 1;   // [3]     end-of-frame interrupt enable
-            uint32_t div: 2;             // [5:4]   MCLK divider: 0=24 MHz, 1=16 MHz, 2=12 MHz, 3=24 MHz
+            uint32_t clk_div: 2;         // [5:4]   MCLK divider: 0=24 MHz, 1=16 MHz, 2=12 MHz, 3=24 MHz
             uint32_t reserved_6_31: 26;  // [31:6]
         };
     } ctrl0;
@@ -53,7 +53,7 @@ typedef volatile struct {
         };
     } status;
 
-    uint32_t byte_cnt_pfrm; // byte count of last encoded frame; read-only
+    uint32_t byte_cnt_per_frame; // byte count of last encoded frame; read-only
 
     union {
         uint32_t v;

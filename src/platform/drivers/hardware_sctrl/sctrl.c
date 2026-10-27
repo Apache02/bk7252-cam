@@ -168,7 +168,7 @@ void sctrl_init() {
 }
 
 void sctrl_vddram_enable(sctrl_vddram_volt_t volt) {
-    hw_sctrl->control.psram_vddpad_volt = volt;
+    hw_sctrl->ctrl.psram_vddpad_volt = volt;
 
     typeof(hw_sctrl->block_enable) bits = {.mic_qspi_ram_or_flash = 1};
     sctrl_block_enable_set(bits.v);
@@ -282,7 +282,7 @@ void sctrl_rf_init() {
 
     // vendor sctrl_sub_reset(): the modem-side resets, minus the USB/DSP ones
     // that have nothing to do with the radio.
-    hw_sctrl->control.mpif_clk_invert = 1;
+    hw_sctrl->ctrl.mpif_clk_invert = 1;
     sctrl_modem_core_reset();
     sctrl_subsys_modem_reset();
     sctrl_subsys_mac_reset();
@@ -301,9 +301,9 @@ void sctrl_rf_init() {
     // MAC then modem, each an AHB slave clock followed by its 480 MHz subsystem
     // clock — the order the vendor wakes them in.
     hw_sctrl->modem_core_reset_phy_hclk.mac_hclk_enable = 1;
-    hw_sctrl->control.mac_clk480m_pwd                   = 0;
+    hw_sctrl->ctrl.mac_clk480m_pwd                      = 0;
     hw_sctrl->modem_core_reset_phy_hclk.phy_hclk_enable = 1;
-    hw_sctrl->control.modem_clk480m_pwd                 = 0;
+    hw_sctrl->ctrl.modem_clk480m_pwd                    = 0;
 
     // Enable the BK7011 radio controller (vendor rc_cntl_stat_set(0x09)).
     hw_write_fields(hw_rc->cntl_stat,

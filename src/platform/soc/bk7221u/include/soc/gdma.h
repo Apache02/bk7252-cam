@@ -11,9 +11,8 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t enable: 1;              // [0] hw clears it when a single-shot transfer finishes. Clearing it mid-transfer
-                                             //     keeps the progress; setting it again resumes unless another
-                                             //     register of the channel was written in between (that resets it)
+            uint32_t enable: 1;              // [0] hw clears it when a single-shot transfer finishes. Every 0 -> 1 starts a
+                                             //     new transfer from the start addresses; a stopped one cannot resume
             uint32_t fin_int_enable: 1;      // [1]
             uint32_t half_fin_int_enable: 1; // [2]
             uint32_t repeat_mode: 1; // [3] 0: single-shot, 1: restart after every finish, addresses are NOT reloaded
@@ -26,15 +25,13 @@ typedef volatile struct {
                                        // of dst_data_width)
             uint32_t src_addr_loop: 1; // [10] wrap the src address inside [src_loop_start_addr, src_loop_end_addr)
             uint32_t dst_addr_loop: 1; // [11] wrap the dst address inside [dst_loop_start_addr, dst_loop_end_addr)
-            uint32_t channel_priority: 2; // [13:12] used only when prio_mode.fixed_priority = 1. 0 = channel is never
-                                          //         granted; 1..3: higher value first, ties go to the higher channel
+            uint32_t channel_priority: 3; // [14:12] used only when prio_mode.fixed_priority = 1. 0 usually stalls the
+                                          //         channel; 1..7: higher value first, ties go to the higher channel
                                           //         number
-            uint32_t reserved_14_15: 2;   // [15:14]
+            uint32_t reserved_15: 1;      // [15]
             uint32_t transfer_length: 16; // [31:16] total bytes minus 1, regardless of the widths. HW moves
                                           // (transfer_length + 1) bytes, i.e. ceil(bytes / 2^dst_data_width) dst writes.
                                           //         Cannot express zero bytes; value 0 yields exactly one byte.
-                                          //         Compared with the progress counter, so rewriting it while the
-                                          //         channel is stopped does not restart the transfer.
         };
     } config;
 
@@ -67,13 +64,13 @@ typedef volatile struct {
         uint32_t v;
         struct {
             uint32_t remain_len: 17;    // [16:0] bytes remaining, for every width; reloads at each repeat cycle
-            uint32_t reserved_17_23: 7; // [23:17]
+            uint32_t reserved_17_23: 7; // [23:17] bit 17 has no visible effect when written
             uint32_t fin_count: 4;      // [27:24] sticky finish-IRQ counter, never auto-clears.
                                         //         Increments by 1 per fin interrupt (only while fin_int_enable is
                                         //         set); wraps at 16.
             uint32_t half_fin_count: 4; // [31:28] same as fin_count but for half-finish IRQ.
         };
-    } int_counts[GDMA_NUM_CHANNELS]; // word 0x30..0x35
+    } status[GDMA_NUM_CHANNELS]; // word 0x30..0x35
 
     uint32_t reserved_0x36; // word 0x36
 
@@ -81,7 +78,9 @@ typedef volatile struct {
         uint32_t v;
         struct {
             uint32_t fixed_priority: 1; // [0] 0: round-robin arbitration across channels,
-                                        //     1: fixed priority taken from channel_priority of each channel
+                                        //     1: fixed priority taken from channel_priority of each channel.
+                                        //     Sticky: writing 0 afterward reads back 0 but the arbiter stays fixed
+                                        //     until reset
             uint32_t reserved_1_31: 31; // [31:1]
         };
     } prio_mode; // word 0x37
@@ -89,9 +88,9 @@ typedef volatile struct {
     union {
         uint32_t v;
         struct {
-            uint32_t fin_status: 6;      // [5:0] per-channel finish flag, write 1 to clear
+            uint32_t fin_int: 6;         // [5:0] per-channel finish flag, write 1 to clear
             uint32_t reserved_6_7: 2;    // [7:6]
-            uint32_t half_fin_status: 6; // [13:8] per-channel half-finish flag, write 1 to clear
+            uint32_t half_fin_int: 6;    // [13:8] per-channel half-finish flag, write 1 to clear
             uint32_t reserved_14_31: 18; // [31:14]
         };
     } int_status; // word 0x38

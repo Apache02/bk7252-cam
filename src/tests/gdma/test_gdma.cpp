@@ -6,6 +6,8 @@
 #include "hardware/gdma.h"
 #include "hardware/time.h"
 #include "hardware/sctrl.h"
+#include "platform/cpu.h"
+#include "soc/gdma.h"
 #include "utils/busy_wait.h"
 
 
@@ -377,6 +379,623 @@ __unused static void run_benchmark() {
     bench_one("align sweep, src/dst @1", dst1, src1, 1023, 500);
 }
 
+// ============================================================================
+// Loop, repeat, resume, interrupts, arbitration and request lines.
+// These use their own word buffers and read channel registers directly where
+// the driver has no accessor. Behaviour is documented in docs/hardware/dma.md.
+// ============================================================================
+
+static constexpr size_t   WORDS = 512;
+static constexpr uint32_t BLANK = 0xEEEEEEEEu;
+
+static uint32_t w_src[WORDS] __attribute__((aligned(4)));
+static uint32_t w_dst[WORDS] __attribute__((aligned(4)));
+
+static uint32_t pat(size_t i) { return 0x1000u + (uint32_t)i; }
+static uint32_t same(size_t i) { return pat(i); }
+static uint32_t blank(size_t) { return BLANK; }
+
+static void load_words() {
+    for (size_t i = 0; i < WORDS; i++) {
+        w_src[i] = pat(i);
+        w_dst[i] = BLANK;
+    }
+    hw_gdma->int_status.v = hw_gdma->int_status.v;
+}
+
+static void wipe(size_t from, size_t count) {
+    for (size_t i = from; i < from + count; i++) w_dst[i] = BLANK;
+}
+
+template <typename F>
+static bool check_words(const char *what, size_t from, size_t count, F expect) {
+    for (size_t i = from; i < from + count; i++) {
+        const uint32_t want = expect(i);
+        if (w_dst[i] != want) {
+            printf("       %s: word %u is 0x%08lx, expected 0x%08lx\r\n", what, (unsigned)i, (unsigned long)w_dst[i],
+                   (unsigned long)want);
+            return false;
+        }
+    }
+    return true;
+}
+
+static int highest_written() {
+    int hi = -1;
+    for (size_t i = 0; i < WORDS; i++) {
+        if (w_dst[i] != BLANK) hi = (int)i;
+    }
+    return hi;
+}
+
+static int count_written() {
+    int n = 0;
+    for (size_t i = 0; i < WORDS; i++) {
+        if (w_dst[i] != BLANK) n++;
+    }
+    return n;
+}
+
+static void wait_us(uint32_t us) {
+    const absolute_time_t t0 = get_absolute_time();
+    while (absolute_time_diff_us(t0, get_absolute_time()) < us) {}
+}
+
+// Polls the enable bit; false if the channel was still running after timeout_us.
+static bool wait_done(int ch, uint32_t timeout_us) {
+    const absolute_time_t t0 = get_absolute_time();
+    while (hw_gdma->channels[ch].config.enable) {
+        if (absolute_time_diff_us(t0, get_absolute_time()) > timeout_us) return false;
+    }
+    return true;
+}
+
+static uint32_t remain_len(int ch) { return hw_gdma->status[ch].v & 0x1FFFF; }
+static unsigned fin_count(int ch) { return (hw_gdma->status[ch].v >> 24) & 0xF; }
+static unsigned half_count(int ch) { return (hw_gdma->status[ch].v >> 28) & 0xF; }
+
+// Reserved for the scope; stopped and released on exit so a failing test cannot leave a channel running.
+struct Channel {
+    int id;
+    Channel() : id(gdma_reserve_channel()) {}
+    ~Channel() {
+        if (id >= 0) gdma_release_channel(id);
+    }
+    Channel(const Channel &)            = delete;
+    Channel &operator=(const Channel &) = delete;
+};
+
+struct FixedPriority {
+    FixedPriority() { hw_gdma->prio_mode.v = 1; }
+    ~FixedPriority() { hw_gdma->prio_mode.v = 0; }
+};
+
+struct CpuIrq {
+    bool was;
+    CpuIrq() : was(portENABLED_IRQ() != 0) { portENABLE_IRQ(); }
+    ~CpuIrq() {
+        if (!was) portDISABLE_IRQ();
+    }
+};
+
+static gdma_config_t word_copy() {
+    gdma_config_t c = {};
+    c.src.mode      = GDMA_MODE_DTCM;
+    c.src.addr      = (uint32_t)w_src;
+    c.src.incr      = true;
+    c.src.dw        = GDMA_DATA_WIDTH_32;
+    c.dst.mode      = GDMA_MODE_DTCM;
+    c.dst.addr      = (uint32_t)w_dst;
+    c.dst.incr      = true;
+    c.dst.dw        = GDMA_DATA_WIDTH_32;
+    return c;
+}
+
+static void src_window(gdma_config_t &c, size_t words) {
+    c.src.loop_addr     = (uint32_t)w_src;
+    c.src.loop_end_addr = (uint32_t)(w_src + words);
+}
+
+static void dst_window(gdma_config_t &c, size_t words) {
+    c.dst.loop_addr     = (uint32_t)w_dst;
+    c.dst.loop_end_addr = (uint32_t)(w_dst + words);
+}
+
+static bool run_to_end(int ch, const gdma_config_t &c, size_t size) {
+    return gdma_run(ch, &c, size) == 0 && wait_done(ch, 3000);
+}
+
+// ---------------------------------------------------------------------------
+// Address loop
+// ---------------------------------------------------------------------------
+
+static void test_dst_loop_wraps() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    dst_window(c, 16);
+    // 64 words through a 16-word window: the window ends up holding the last 16 words; the end is exclusive.
+    const bool ok = ch.id >= 0 && run_to_end(ch.id, c, 256) &&
+                    check_words("window", 0, 16, [](size_t i) { return pat(48 + i); }) &&
+                    check_words("past the window", 16, 16, blank);
+    report("dst loop: 64 words through a 16-word window", ok);
+}
+
+static void test_src_loop_repeats_pattern() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    src_window(c, 4);
+    const bool ok = ch.id >= 0 && run_to_end(ch.id, c, 64) &&
+                    check_words("pattern", 0, 16, [](size_t i) { return pat(i % 4); }) &&
+                    check_words("past the transfer", 16, 16, blank);
+    report("src loop: 4-word window repeats over 16 words", ok);
+}
+
+static void test_both_loops() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    src_window(c, 8);
+    dst_window(c, 12);
+    // dst word k holds src word (k + 12 * lap) % 8 after the last lap; 48 words = 4 laps of the 12-word window.
+    const bool ok = ch.id >= 0 && run_to_end(ch.id, c, 192) &&
+                    check_words("both", 0, 12, [](size_t i) { return pat((36 + i) % 8); }) &&
+                    check_words("past the window", 12, 8, blank);
+    report("src and dst loops together (8-word / 12-word windows)", ok);
+}
+
+static void test_loop_start_inside_window() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    c.dst.addr      = (uint32_t)(w_dst + 8);
+    dst_window(c, 16);
+    // First 8 words fill the upper half, then writing wraps to the window start (not back to the start address).
+    const bool ok = ch.id >= 0 && run_to_end(ch.id, c, 128) &&
+                    check_words("lower half", 0, 8, [](size_t i) { return pat(24 + i); }) &&
+                    check_words("upper half", 8, 8, [](size_t i) { return pat(8 + i); }) &&
+                    check_words("past the window", 16, 8, blank);
+    report("loop: transfer start inside the window wraps to the window start", ok);
+}
+
+static void test_loop_partial_wrap() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    dst_window(c, 16);
+    // 24 words through a 16-word window: words 16..23 overwrite window words 0..7.
+    const bool ok = ch.id >= 0 && run_to_end(ch.id, c, 96) &&
+                    check_words("overwritten", 0, 8, [](size_t i) { return pat(16 + i); }) &&
+                    check_words("first lap", 8, 8, [](size_t i) { return pat(i); }) &&
+                    check_words("past the window", 16, 8, blank);
+    report("dst loop: size not a multiple of the window", ok);
+}
+
+static void test_loop_narrow(uint8_t dw, const char *name) {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    c.src.dw        = dw;
+    c.dst.dw        = dw;
+    dst_window(c, 16);
+    // The address still advances +4 per write, so 32 bytes at dw=8 are 32 writes and wrap the 16-word window once.
+    // Only the written lanes change.
+    bool ok = ch.id >= 0 && run_to_end(ch.id, c, 32);
+    if (dw == GDMA_DATA_WIDTH_8) {
+        ok = ok && check_words("byte lane", 0, 16, [](size_t i) { return (BLANK & ~0xFFu) | (pat(16 + i) & 0xFFu); });
+    } else {
+        ok = ok && check_words("half-word lane", 0, 16, [](size_t i) { return (BLANK & ~0xFFFFu) | (pat(i) & 0xFFFFu); });
+    }
+    ok = ok && check_words("past the window", 16, 8, blank);
+    report(name, ok);
+}
+
+// ---------------------------------------------------------------------------
+// Repeat mode
+// ---------------------------------------------------------------------------
+
+static void test_repeat_fixed_addresses() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    c.src.incr      = false;
+    c.dst.incr      = false;
+    c.repeat        = true;
+    bool ok         = ch.id >= 0 && gdma_run(ch.id, &c, 16) == 0;
+    wait_us(200);
+    const bool still_running = gdma_busy(ch.id);
+    // Wipe the destination while the channel runs: only another cycle can fill it again.
+    w_dst[0] = BLANK;
+    w_src[0] = 0xCAFE0001u;
+    wait_us(100);
+    const bool refilled = w_dst[0] == 0xCAFE0001u && w_dst[1] == BLANK;
+    gdma_stop(ch.id);
+    wait_us(20);
+    ok = ok && still_running && refilled && !gdma_busy(ch.id);
+    report("repeat: restarts by itself and keeps rewriting fixed addresses", ok);
+}
+
+static void test_repeat_continues_addresses() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    src_window(c, 16);
+    dst_window(c, 16);
+    c.repeat = true;
+    // 10 words per cycle through 16-word windows: if each cycle restarted at the start addresses, words 10..15
+    // would never be written.
+    bool ok = ch.id >= 0 && gdma_run(ch.id, &c, 40) == 0;
+    wait_us(300);
+    const bool running = gdma_busy(ch.id);
+    gdma_stop(ch.id);
+    wait_us(20);
+    ok = ok && running && check_words("window", 0, 16, same) && check_words("past the window", 16, 8, blank);
+    report("repeat: addresses continue between cycles", ok);
+}
+
+static void test_repeat_stop_clears_enable() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    src_window(c, 16);
+    dst_window(c, 16);
+    c.repeat = true;
+    bool ok  = ch.id >= 0 && gdma_run(ch.id, &c, 64) == 0;
+    wait_us(1000);
+    const bool running = gdma_busy(ch.id);
+    gdma_stop(ch.id);
+    const bool stopped = !gdma_busy(ch.id);
+    report("repeat: runs until stopped, stop clears enable", ok && running && stopped);
+}
+
+// ---------------------------------------------------------------------------
+// Stop, resume and restart
+// ---------------------------------------------------------------------------
+
+struct Partial {
+    bool     ok;
+    int      hi; // highest destination word written
+    uint32_t remain;
+};
+
+// Slow 1 KB copy (interval 15, ~36 us at dw=32), stopped ~10 us in.
+static Partial interrupted_copy(int ch, uint8_t dw) {
+    load_words();
+    gdma_config_t c = word_copy();
+    c.src.dw        = dw;
+    c.dst.dw        = dw;
+    c.src.interval  = 15;
+    c.dst.interval  = 15;
+    // Narrow widths advance the address +4 per write, so keep a runaway write inside the buffer.
+    if (dw != GDMA_DATA_WIDTH_32) dst_window(c, 256);
+    Partial p = {false, -1, 0};
+    if (gdma_run(ch, &c, 1024) != 0) return p;
+    wait_us(10);
+    gdma_stop(ch);
+    p.remain = remain_len(ch);
+    p.hi     = highest_written();
+    p.ok     = p.hi > 8 && p.hi < 240;
+    return p;
+}
+
+static void test_remain_len_is_bytes(uint8_t dw, const char *name) {
+    Channel ch;
+    bool    ok = ch.id >= 0;
+    if (ok) {
+        const Partial p     = interrupted_copy(ch.id, dw);
+        const uint32_t unit = 1u << dw;
+        const uint32_t moved = 1024 - p.remain;
+        // Allow a few transactions in flight between the two reads.
+        const int64_t diff = (int64_t)moved - (int64_t)unit * (p.hi + 1);
+        ok                 = p.ok && p.remain > 0 && p.remain < 1024 && moved % unit == 0 && diff >= -3 * (int64_t)unit &&
+             diff <= 3 * (int64_t)unit;
+        if (!ok) {
+            printf("       remain=%lu hi=%d\r\n", (unsigned long)p.remain, p.hi);
+        }
+    }
+    report(name, ok);
+}
+
+// A stopped transfer cannot be resumed: every enable 0 -> 1 starts over from the start addresses.
+static void test_stop_enable_restarts() {
+    Channel ch;
+    bool    ok = ch.id >= 0;
+    if (ok) {
+        const Partial p = interrupted_copy(ch.id, GDMA_DATA_WIDTH_32);
+        ok              = p.ok;
+        if (ok) {
+            wipe(0, 256);
+            hw_gdma->channels[ch.id].config.enable = 1;
+            ok = wait_done(ch.id, 3000) && check_words("whole copy", 0, 256, same);
+        }
+    }
+    report("stop + bare enable restarts: the whole transfer is rewritten from the start", ok);
+}
+
+static void test_stop_with_new_length() {
+    Channel ch;
+    bool    ok = ch.id >= 0;
+    if (ok) {
+        const Partial p = interrupted_copy(ch.id, GDMA_DATA_WIDTH_32);
+        ok              = p.ok;
+        if (ok) {
+            wipe(0, 256);
+            ok = gdma_start(ch.id, 16) == 0 && wait_done(ch.id, 1000) && check_words("copied", 0, 4, same) &&
+                 check_words("not copied", 4, 252, blank);
+        }
+    }
+    report("stop + new transfer_length: the new length is copied from the start", ok);
+}
+
+static void test_stop_with_new_destination() {
+    Channel ch;
+    bool    ok = ch.id >= 0;
+    if (ok) {
+        const Partial p = interrupted_copy(ch.id, GDMA_DATA_WIDTH_32);
+        ok              = p.ok;
+        if (ok) {
+            wipe(0, 256);
+            ok = gdma_restart(ch.id, (uint32_t)(w_dst + 256), 1024) == 0 && wait_done(ch.id, 3000) &&
+                 check_words("old destination", 0, 256, blank) &&
+                 check_words("new destination", 256, 256, [](size_t i) { return pat(i - 256); });
+        }
+    }
+    report("stop + new destination address: the whole transfer goes to the new address", ok);
+}
+
+static void test_enable_after_finish_restarts() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    bool          ok = ch.id >= 0 && run_to_end(ch.id, c, 64);
+    wipe(0, 32);
+    hw_gdma->channels[ch.id].config.enable = 1;
+    ok = ok && wait_done(ch.id, 3000) && check_words("second run", 0, 16, same) && check_words("past", 16, 16, blank);
+    report("bare enable after a finished transfer starts a new one from the start", ok);
+}
+
+// ---------------------------------------------------------------------------
+// Interrupts
+// ---------------------------------------------------------------------------
+
+static volatile unsigned irq_fin, irq_half;
+static volatile uint32_t irq_half_remain;
+
+static void on_fin(int) { irq_fin = irq_fin + 1; }
+static void on_half(int ch) {
+    irq_half        = irq_half + 1;
+    irq_half_remain = remain_len(ch);
+}
+
+static void test_irq_single_shot() {
+    Channel ch;
+    CpuIrq  irq;
+    if (ch.id < 0) {
+        report("interrupts: one finish and one half-finish per single-shot transfer", false);
+        return;
+    }
+    load_words();
+    irq_fin         = 0;
+    irq_half        = 0;
+    irq_half_remain = 0;
+    gdma_config_t c = word_copy();
+    c.src.interval  = 15;
+    c.dst.interval  = 15;
+    c.finish        = on_fin;
+    c.h_finish      = on_half;
+    const unsigned f0 = fin_count(ch.id), h0 = half_count(ch.id);
+    bool           ok = ch.id >= 0 && run_to_end(ch.id, c, 1024);
+    wait_us(50);
+    const uint32_t flags = (1u << ch.id) | (0x100u << ch.id);
+    ok = ok && irq_fin == 1 && irq_half == 1 && ((fin_count(ch.id) - f0) & 0xF) == 1 &&
+         ((half_count(ch.id) - h0) & 0xF) == 1 && (hw_gdma->int_status.v & flags) == 0;
+    // The handler runs after interrupt latency, so it can only see the transfer at or below the half point.
+    ok = ok && irq_half_remain > 0 && irq_half_remain <= 512;
+    if (!ok) {
+        printf("       fin=%u half=%u half_remain=%lu\r\n", irq_fin, irq_half, (unsigned long)irq_half_remain);
+    }
+    report("interrupts: one finish and one half-finish per single-shot transfer", ok);
+}
+
+// Polls the half-finish flag without taking the interrupt and reads remain_len as soon as the flag shows.
+static uint32_t remain_at_half_flag(int ch, size_t size) {
+    load_words();
+    gdma_config_t c = word_copy();
+    c.src.interval  = 15;
+    c.dst.interval  = 15;
+    c.h_finish      = on_half; // sets half_fin_int_enable; never runs, CPU IRQs are masked here
+    if (gdma_run(ch, &c, size) != 0) return 0xFFFFFFFFu;
+    uint32_t              remain = 0xFFFFFFFFu;
+    const absolute_time_t t0     = get_absolute_time();
+    while (absolute_time_diff_us(t0, get_absolute_time()) < 4000) {
+        if (hw_gdma->int_status.v & (0x100u << ch)) {
+            remain = remain_len(ch);
+            break;
+        }
+    }
+    gdma_stop(ch);
+    hw_gdma->int_status.v = hw_gdma->int_status.v;
+    return remain;
+}
+
+static void test_half_flag_at_half_the_bytes() {
+    Channel ch;
+    bool    ok = ch.id >= 0 && !portENABLED_IRQ();
+    if (ok) {
+        // Polling latency is a few words, so the flag is seen at or just below size / 2.
+        const size_t sizes[] = {1024, 600, 2000};
+        for (size_t size : sizes) {
+            const uint32_t r = remain_at_half_flag(ch.id, size);
+            if (r > size / 2 || r + 96 < size / 2) {
+                printf("       size %u: remain %lu at the half flag\r\n", (unsigned)size, (unsigned long)r);
+                ok = false;
+            }
+        }
+    }
+    report("half-finish flag is raised when half of the bytes are left", ok);
+}
+
+static void test_irq_counters_need_enable() {
+    Channel ch;
+    if (ch.id < 0) {
+        report("sticky fin/half counters do not move without the interrupt-enable bits", false);
+        return;
+    }
+    load_words();
+    gdma_config_t c = word_copy();
+    const unsigned f0 = fin_count(ch.id), h0 = half_count(ch.id);
+    const bool     ok = ch.id >= 0 && run_to_end(ch.id, c, 64);
+    const bool     counters = fin_count(ch.id) == f0 && half_count(ch.id) == h0;
+    report("sticky fin/half counters do not move without the interrupt-enable bits", ok && counters);
+}
+
+static void test_irq_repeat_per_cycle() {
+    Channel ch;
+    CpuIrq  irq;
+    if (ch.id < 0) {
+        report("repeat: one finish and one half-finish interrupt per cycle", false);
+        return;
+    }
+    load_words();
+    irq_fin         = 0;
+    irq_half        = 0;
+    gdma_config_t c = word_copy();
+    c.repeat        = true;
+    c.src.interval  = 15;
+    c.dst.interval  = 15;
+    src_window(c, 256);
+    dst_window(c, 256);
+    c.finish   = on_fin;
+    c.h_finish = on_half;
+    const unsigned f0 = fin_count(ch.id);
+    bool           ok = ch.id >= 0 && gdma_run(ch.id, &c, 1024) == 0;
+    wait_us(2000);
+    gdma_stop(ch.id);
+    wait_us(100);
+    const unsigned fin = irq_fin, half = irq_half;
+    // About 55 cycles of 36 us fit in 2 ms.
+    ok = ok && fin >= 20 && half + 1 >= fin && half <= fin + 1 && ((fin_count(ch.id) - f0) & 0xF) == (fin & 0xF);
+    if (!ok) {
+        printf("       fin=%u half=%u\r\n", fin, half);
+    }
+    report("repeat: one finish and one half-finish interrupt per cycle", ok);
+}
+
+// ---------------------------------------------------------------------------
+// Arbitration
+// ---------------------------------------------------------------------------
+
+static void test_fixed_priority_zero_never_runs() {
+    Channel ch;
+    bool    ok = ch.id >= 0;
+    bool    stuck = false, released_by_rr = false, runs_at_one = false;
+    if (ok) {
+        load_words();
+        FixedPriority fp;
+        gdma_config_t c = word_copy();
+        gdma_configure(ch.id, &c);
+        hw_gdma->channels[ch.id].config.channel_priority = 0;
+        gdma_start(ch.id, 1024);
+        wait_us(1000);
+        stuck = gdma_busy(ch.id) && remain_len(ch.id) == 1024 && count_written() == 0;
+        // Round-robin does not release a channel that was stuck at priority 0.
+        hw_gdma->prio_mode.v = 0;
+        wait_us(200);
+        released_by_rr = !gdma_busy(ch.id) || count_written() != 0;
+        gdma_stop(ch.id);
+
+        hw_gdma->prio_mode.v = 1;
+        load_words();
+        gdma_configure(ch.id, &c);
+        hw_gdma->channels[ch.id].config.channel_priority = 1;
+        gdma_start(ch.id, 1024);
+        runs_at_one = wait_done(ch.id, 1000) && check_words("priority 1", 0, 256, same);
+    }
+    report("fixed priority: priority 0 is never granted, even alone", ok && stuck && !released_by_rr);
+    report("fixed priority: priority 1 channel alone runs normally", ok && runs_at_one);
+}
+
+// Six channels copy 8 KB each through shared 256-byte windows; returns finish times in us (-1 = never).
+static bool six_channels(bool fixed, const unsigned prio[6], int64_t t[6]) {
+    bool got[6] = {};
+    bool ok     = true;
+    for (int i = 0; i < 6; i++) {
+        got[i] = gdma_reserve_specific_channel(i) == i;
+        ok     = ok && got[i];
+        t[i]   = -1;
+    }
+    if (ok) {
+        load_words();
+        hw_gdma->prio_mode.v = fixed ? 1 : 0;
+        for (int i = 0; i < 6; i++) {
+            gdma_config_t c = word_copy();
+            src_window(c, 64);
+            dst_window(c, 64);
+            gdma_configure(i, &c);
+            hw_gdma->channels[i].config.channel_priority = prio[i];
+        }
+        const absolute_time_t t0 = get_absolute_time();
+        for (int i = 0; i < 6; i++) gdma_start(i, 8192);
+        int left = 6;
+        while (left > 0) {
+            const int64_t now = absolute_time_diff_us(t0, get_absolute_time());
+            for (int i = 0; i < 6; i++) {
+                if (t[i] < 0 && !hw_gdma->channels[i].config.enable) {
+                    t[i] = now;
+                    left--;
+                }
+            }
+            if (now > 5000) break;
+        }
+        hw_gdma->prio_mode.v = 0;
+    }
+    for (int i = 0; i < 6; i++) {
+        if (got[i]) gdma_release_channel(i);
+    }
+    for (int i = 0; i < 6; i++) ok = ok && t[i] >= 0;
+    return ok;
+}
+
+static int64_t max2(int64_t a, int64_t b) { return a > b ? a : b; }
+static int64_t min2(int64_t a, int64_t b) { return a < b ? a : b; }
+
+// Groups {a0,a1} must finish strictly before {b0,b1}, which must finish before {c0,c1}.
+static bool group_order(const int64_t t[6], int a0, int a1, int b0, int b1, int c0, int c1) {
+    return max2(t[a0], t[a1]) < min2(t[b0], t[b1]) && max2(t[b0], t[b1]) < min2(t[c0], t[c1]);
+}
+
+static void test_round_robin_is_fair() {
+    static const unsigned prio[6] = {3, 0, 2, 1, 0, 3}; // ignored in round-robin
+    int64_t               t[6];
+    bool                  ok = six_channels(false, prio, t);
+    if (ok) {
+        int64_t lo = t[0], hi = t[0];
+        for (int i = 1; i < 6; i++) {
+            lo = min2(lo, t[i]);
+            hi = max2(hi, t[i]);
+        }
+        ok = hi - lo <= 40;
+    }
+    report("round-robin: six channels finish together, priority ignored", ok);
+}
+
+static void test_fixed_priority_order() {
+    static const unsigned ramp[6]    = {1, 1, 2, 2, 3, 3};
+    static const unsigned reverse[6] = {3, 3, 2, 2, 1, 1};
+    static const unsigned equal[6]   = {1, 1, 1, 1, 1, 1};
+    int64_t               t[6];
+
+    bool ok = six_channels(true, ramp, t) && group_order(t, 4, 5, 2, 3, 0, 1);
+    report("fixed priority: higher value is served first (1 1 2 2 3 3)", ok);
+
+    ok = six_channels(true, reverse, t) && group_order(t, 0, 1, 2, 3, 4, 5);
+    report("fixed priority: order flips with the priorities (3 3 2 2 1 1)", ok);
+
+    ok = six_channels(true, equal, t) && group_order(t, 4, 5, 2, 3, 0, 1);
+    report("fixed priority: equal priorities, higher channel number first", ok);
+}
+
 extern "C" void test_gdma() {
     printf("\r\n== GDMA driver test ==\r\n");
 
@@ -394,6 +1013,45 @@ extern "C" void test_gdma() {
     test_busy_invalid_channel();
     test_null_args();
 
+    // A runaway repeat channel would hang the CPU; let the watchdog recover the chip.
+    wdt_set(10000);
+    wdt_up();
+
+    printf("\r\n-- address loop --\r\n");
+    test_dst_loop_wraps();
+    test_src_loop_repeats_pattern();
+    test_both_loops();
+    test_loop_start_inside_window();
+    test_loop_partial_wrap();
+    test_loop_narrow(GDMA_DATA_WIDTH_8, "dst loop with 8-bit widths wraps, only the byte lane changes");
+    test_loop_narrow(GDMA_DATA_WIDTH_16, "dst loop with 16-bit widths wraps, only the half-word lane changes");
+
+    printf("\r\n-- repeat mode --\r\n");
+    test_repeat_fixed_addresses();
+    test_repeat_continues_addresses();
+    test_repeat_stop_clears_enable();
+
+    printf("\r\n-- stop, resume, restart --\r\n");
+    test_remain_len_is_bytes(GDMA_DATA_WIDTH_8, "remain_len counts bytes (8-bit widths)");
+    test_remain_len_is_bytes(GDMA_DATA_WIDTH_16, "remain_len counts bytes (16-bit widths)");
+    test_remain_len_is_bytes(GDMA_DATA_WIDTH_32, "remain_len counts bytes (32-bit widths)");
+    test_stop_enable_restarts();
+    test_stop_with_new_length();
+    test_stop_with_new_destination();
+    test_enable_after_finish_restarts();
+
+    printf("\r\n-- interrupts --\r\n");
+    test_half_flag_at_half_the_bytes();
+    test_irq_single_shot();
+    test_irq_counters_need_enable();
+    test_irq_repeat_per_cycle();
+
+    printf("\r\n-- arbitration --\r\n");
+    test_round_robin_is_fair();
+    test_fixed_priority_zero_never_runs();
+    test_fixed_priority_order();
+
+    wdt_down();
     run_benchmark();
 
     printf("\r\n%u / %u passed\r\n\r\n", g_passed, g_total);
@@ -414,5 +1072,7 @@ int main() {
 
     test_gdma();
 
+    printf("==END==\r\n");
+    wdt_reboot(100);
     return 0;
 }

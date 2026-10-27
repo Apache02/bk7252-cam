@@ -24,8 +24,8 @@ static void gdma_isr(void) {
     // ack everything that fired (write-1-to-clear)
     hw_gdma->int_status.v = status.v;
 
-    uint32_t bits = status.fin_status, h_bits = status.half_fin_status;
-    // bits = status.fin_status;
+    uint32_t bits = status.fin_int, h_bits = status.half_fin_int;
+    // bits = status.fin_int;
     for (int ch = 0; ch < GDMA_NUM_CHANNELS; ch++) {
         if ((1 << ch) & bits) {
             if (finish_handlers[ch]) finish_handlers[ch](ch);
@@ -39,7 +39,7 @@ static void gdma_isr(void) {
 static void gdma_reset() {
     // disable every channel
     for (int ch = 0; ch < GDMA_NUM_CHANNELS; ch++) {
-        hw_gdma->int_counts[ch].v      = 0;
+        hw_gdma->status[ch].v          = 0;
         hw_gdma->channels[ch].config.v = 0;
         finish_handlers[ch]            = NULL;
         h_finish_handlers[ch]          = NULL;
@@ -249,7 +249,7 @@ int gdma_wait(const int ch, const uint32_t timeout_ms) {
     // silently turning every later WFI()-based wait (this channel's and anyone
     // else's) into an immediate no-op instead of a real sleep.
     hw_write_fields(hw_gdma->int_status,
-        .fin_status = (1u << ch)
+        .fin_int = (1u << ch)
     );
 
     return 0;

@@ -39,7 +39,7 @@ typedef volatile struct {
 
 ---
 
-## 12 conventions
+## 13 conventions
 
 ### 1. Union layout: `v` first, struct second
 
@@ -192,6 +192,29 @@ typedef volatile struct {
 - One blank line between the closing `} hw_<block>_t;` and the pointer macro is sufficient.
 
 ---
+
+### 13. Register and field names
+
+Registers that do the same job use the same name in every block. Use the full word when its meaning is known;
+keep an SDK abbreviation only when the function is not understood.
+
+| Purpose | Name | Not |
+|---------|------|-----|
+| Control register | `ctrl` | `ctl`, `control` |
+| Configuration register | `config` | `conf`, `cfg` |
+| Status register | `status` | `stat` |
+| Data register | `data` | `dat` |
+| Interrupt enable / pending | `int_enable` / `int_status` | `irq_*`, `intr_*`, `inten`, `intsta` |
+| Lone enable bit | `enable` | `en`, `ensmb`, `spien` |
+| Qualified enable bit | `<what>_en` | `<what>_enable` |
+| Clock divider | `clk_div` | `ckr`, `freq_div`, `clk_divider`, `div` |
+| FIFO flags | `tx_fifo_full`, `rx_fifo_empty` | `txfifo_full`, `tx_full` |
+| Pending interrupt flag | `<what>_int`, or `int_flag` when unqualified | `si`, `*_status` fields |
+| Interrupt enable bit | `<what>_int_en` | `intr_en_<what>` |
+| Bank of a split register set | `_<first>_<last>` suffix | `1`, `2`, `3` |
+
+Array registers carry no index range in the name unless the registers are not contiguous. Typos in vendor names
+are fixed (`temperature_sensor`, `mode_sel`).
 
 ## What does NOT belong in a register header
 

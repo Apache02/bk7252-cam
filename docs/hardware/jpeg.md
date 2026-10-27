@@ -23,7 +23,7 @@ clocked from DPLL at 96 MHz; sensor MCLK output is divided down from that.
 | `0x10`           | —                      | Reserved                                    |
 | `0x14`           | `rx_fifo_data`        | Encoded JPEG output FIFO. Read-only, DMA source port |
 | `0x18`           | `status`               | Frame interrupt status, write-1-to-clear    |
-| `0x1C`           | `byte_cnt_pfrm`       | Byte count of the last encoded frame. Read-only |
+| `0x1C`           | `byte_cnt_per_frame`       | Byte count of the last encoded frame. Read-only |
 | `0x20`           | `rx_state`            | Output FIFO state. Read-only                |
 | `0x24`–`0x7C`     | —                      | Reserved                                    |
 | `0x80`–`0xFC`     | `quantization_table`  | 32-word quantization table RAM              |
@@ -35,7 +35,7 @@ clocked from DPLL at 96 MHz; sensor MCLK output is divided down from that.
 | `[1:0]` | —               | Reserved                                              |
 | `[2]`   | `start_frm_int` | Start-of-frame interrupt enable                       |
 | `[3]`   | `end_frm_int`   | End-of-frame interrupt enable                         |
-| `[5:4]` | `div`           | MCLK divider: `0`=24 MHz, `1`=16 MHz, `2`=12 MHz, `3`=24 MHz |
+| `[5:4]` | `clk_div`       | MCLK divider: `0`=24 MHz, `1`=16 MHz, `2`=12 MHz, `3`=24 MHz |
 
 ### `ctrl1`
 
@@ -72,7 +72,7 @@ clocked from DPLL at 96 MHz; sensor MCLK output is divided down from that.
 
 ## Operation model
 
-`div` sets the sensor MCLK output. MCLK runs only while the block's clock gate
+`clk_div` sets the sensor MCLK output. MCLK runs only while the block's clock gate
 is powered and `enc_en` is set; with `enc_en` clear no clock reaches the
 sensor. `enc_en` also gates the capture/encode pipeline: PCLK/HSYNC/VSYNC/PXD
 sampling, quantization, and JPEG output only run while it is set.
@@ -84,7 +84,7 @@ and is otherwise persistent.
 Once `enc_en` is set and frames are arriving, the block free-runs: it samples
 each incoming frame against HSYNC/VSYNC, encodes it through the quantization
 table, and pushes the compressed bytes into `rx_fifo_data` for the DMA (or
-CPU) to drain. `byte_cnt_pfrm` reports the size of the most recently completed
+CPU) to drain. `byte_cnt_per_frame` reports the size of the most recently completed
 frame; `status` flags start/end of each frame for interrupt-driven draining.
 
 ## Output stream
@@ -139,7 +139,7 @@ Minimum sequence to produce a running sensor MCLK (no capture):
 1. Power the block's clock gate in the ICU.
 2. Configure the DVP pin group (MCLK/PCLK/HSYNC/VSYNC/PXD0-7) into second
    function mode.
-3. Write `ctrl0.div` for the desired MCLK rate (`0` selects 24 MHz).
+3. Write `ctrl0.clk_div` for the desired MCLK rate (`0` selects 24 MHz).
 4. Write `ctrl1.enc_en = 1`.
 
 Full capture/encode additionally requires, before step 4:
@@ -167,10 +167,10 @@ run from DMA.
   traffic: with MCLK not running, every transaction on that I2C bus timed
   out — not just transactions addressed to the sensor — because the
   unclocked sensor held a bus line in an undefined state. The bus returned to
-  normal, zero-timeout operation as soon as MCLK started (`div` written and
+  normal, zero-timeout operation as soon as MCLK started (`clk_div` written and
   `enc_en` set). This is a property of the sensor, not of this block or of
   the I2C controller, but it means MCLK must be running before any bus the
   sensor shares is used, regardless of whether capture/encode is ever
   enabled.
-- `div = 3` is redundant with `div = 0` — both select 24 MHz.
+- `clk_div = 3` is redundant with `clk_div = 0` — both select 24 MHz.
 - Bit 1 of `rx_state` is not characterised.

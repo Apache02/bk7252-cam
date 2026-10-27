@@ -9,16 +9,16 @@ static pwm_timer_cb_t g_timer_cbs[PWM_CHANNELS];
 static void pwm_clock_up(unsigned ch)   { hw_icu->peri_clk_pwd.v &= ~(1u << (9 + ch)); }
 static void pwm_clock_down(unsigned ch) { hw_icu->peri_clk_pwd.v |=  (1u << (9 + ch)); }
 
-// CTL layout: 4 bits per channel at [4n+3:4n] — [en, int_en, mode[1], mode[0]]
+// ctrl layout: 4 bits per channel at [4n+3:4n] — [en, int_en, mode[1], mode[0]]
 static void pwm_ch_enable(unsigned ch, uint32_t mode, int int_en) {
     uint32_t shift = ch * 4;
-    uint32_t ctl   = hw_pwm->ctl.v & ~(0xFu << shift);
-    ctl |= (1u | ((uint32_t)!!int_en << 1) | (mode << 2)) << shift;
-    hw_pwm->ctl.v = ctl;
+    uint32_t ctrl  = hw_pwm->ctrl.v & ~(0xFu << shift);
+    ctrl |= (1u | ((uint32_t)!!int_en << 1) | (mode << 2)) << shift;
+    hw_pwm->ctrl.v = ctrl;
 }
 
 static void pwm_ch_disable(unsigned ch) {
-    hw_pwm->ctl.v &= ~(0xFu << (ch * 4));
+    hw_pwm->ctrl.v &= ~(0xFu << (ch * 4));
 }
 
 static void pwm_isr(void) {
