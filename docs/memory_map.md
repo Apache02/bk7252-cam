@@ -336,7 +336,11 @@ to peripheral registers are not supported unless noted.
 | `0x00808000`   | SPI DMA        | —                         | —                               | SPI slave DMA engine; RX/TX FIFOs with timeout interrupt |
 | `0x00809000`   | GDMA           | `soc/gdma.h`              | `hardware_gdma`                 | General-purpose DMA, 6 channels                    |
 | `0x0080A000`   | JPEG encoder   | `soc/jpeg.h`              | `hardware_jpeg`                 | Hardware JPEG encoder                              |
+| `0x0080B400`   | BLE radio (XVR) | —                        | —                               | BLE transceiver registers — see BLE below           |
 | `0x0080D000`   | QSPI           | —                         | —                               | Quad-SPI controller                                |
+| `0x00810000`   | BLE core       | —                         | —                               | BLE 4.2 link-layer controller registers            |
+| `0x00814000`   | BLE EM         | —                         | —                               | BLE exchange memory, 16 KiB                        |
+| `0x00818000`   | Word-only RAM  | —                         | —                               | 16 KiB, owner unknown; word writes only — see below |
 
 ### FFT internal memory (`0x00805800`–`0x00805FFF`)
 
@@ -366,6 +370,70 @@ clock gate cleared and `FFT_CONF.ENABLE` set — it behaves like unmapped space
 `0x00805020`–`0x008051FF` (between the FFT control registers at
 `0x00805000`–`0x0080501C` and `FFT_MEMORY_BASE_ADDR`) reads `0` and rejects
 writes regardless of clock/enable state — genuinely empty, not gated RAM.
+
+### BLE (`0x0080B400`, `0x00810000`–`0x00817FFF`)
+
+A BLE 4.2 controller (vendor SDK `beken378/driver/ble/ble_4_2`, selected for
+this chip by `CFG_BLE_VERSION = BLE_VERSION_4_2`). The vendor camera firmware
+uses all three windows; the usage column comes from running that firmware in
+an emulator.
+
+| Range | Contents | Vendor firmware usage |
+|---|---|---|
+| `0x0080B400`… | Radio (XVR) registers: `0x0080B4A8` = `BLE_XVR_REG2A`, `0x0080B4C0` = `REG30`, `0x0080B4F0` = `REG3C` | One-time setup: a constant write, a read-modify-write with `\| 0x80`, one more write |
+| `0x00810000`… | Core registers: `RWBLECNTL` (`+0x00`), `INTACK` (`+0x18`), `BASETIMECNT` (`+0x1C`), `FINETIMECNT` (`+0x20`), `BDADDRL`/`BDADDRU` (`+0x24`/`+0x28`), `DEEPSLCNTL` (`+0x30`), `ENBPRESET` (`+0x3C`), `RFTESTCNTL` (`+0x100`), `TIMGENCNTL` (`+0x110`) | Core init, then base-timer use |
+| `0x00814000`–`0x00817FFF` | Exchange memory (EM): RAM shared between the CPU and the BLE core, 16 KiB per SDK (`BT_EM_SIZE`) | Control structures and descriptors written with **16-bit** stores; the firmware prints `EM_BLE_END:0xef6`, so it uses ~3.8 KiB |
+
+Literal address scan of the vendor app images: references stay inside
+`0x00810000`–`0x0081014C` and `0x00814000`–`0x00814A50`.
+
+Power and clock, per SDK:
+
+- **Power:** SCTRL word 69 (`0x00800114`) bits [31:16] — `0xDB1E` powers the
+  block down, `0x0001` powers it up.
+- **Clock gate:** ICU word 4 (`0x00802010`) bit 1, 1 = gated. Bit 0 gates
+  "TL410".
+
+Observed on chip, outside the vendor init sequence:
+
+- ICU word 4 resets to `0x3`. Bit 1 clears; bit 0 reads back 1 after
+  writing 0.
+- SCTRL word 69 reads `0x00000000` before and after writing either power
+  value.
+- With either power value and the BLE clock ungated, `0x00810000`,
+  `0x00814000` and `0x00817FF0` read `0` and do not take writes (EM
+  included).
+- A **write** to `0x00810000` in that state hangs the bus; only the
+  watchdog recovers. Reads complete.
+
+How the vendor firmware brings the block up is not characterised.
+
+### Word-only RAM (`0x00818000`–`0x0081FFFF`)
+
+16 KiB of RAM directly above the BLE exchange memory. Not named in any
+vendor SDK, and never referenced by the vendor firmware. Confirmed by
+on-chip probing (`run-on-chip` skill):
+
+- **Size 16 KiB, mirrored.** Real cells span `0x00818000`–`0x0081BFFF`;
+  `0x0081C000`–`0x0081FFFF` is the same storage (address bit 14 is ignored).
+  Writing either half reads back from the other.
+- **Genuine RAM.** All 32 bits of every word are writable; data bus,
+  address bus, solid patterns, address-in-cell and March C- (four
+  backgrounds) pass over the 16 KiB. No side effects on write, data held for
+  2 s.
+- **Reads `0xAAAAAAAA` after reset** — the chip-wide idle pattern.
+- **Not gated.** Readable, writable and retains data with BLE powered down or
+  up, and with the BLE clock gated or ungated.
+- **Word writes only.** A byte or halfword store replicates its data across
+  the whole word: `STRB 0xAA` into `0x11223344` gives `0xAAAAAAAA`,
+  `STRH 0xBEEF` gives `0xBEEFBEEF`, at every lane. Byte and halfword
+  **reads** return the correct lane. FFT internal memory and peripheral
+  registers behave the same, so this is a property of the peripheral bus
+  path, not evidence of registers.
+
+Not the BLE exchange memory under another address. The EM sits in a
+different window, and the vendor firmware writes it with 16-bit stores,
+which would corrupt this RAM.
 
 ---
 
