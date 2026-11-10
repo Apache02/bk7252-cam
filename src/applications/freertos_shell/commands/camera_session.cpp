@@ -5,6 +5,7 @@
 #include <task.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "device/camera.h"
 #include "board.h"
 
@@ -76,6 +77,7 @@ int CameraSession::ensure_started() {
     }
 
     g_started = rc == 0;
+    if (g_started) printf("sensor: %s\r\n", camera_sensor_name());
     return rc;
 }
 

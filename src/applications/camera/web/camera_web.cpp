@@ -70,6 +70,7 @@ static bool ensure_camera(Camera *camera) {
         printf("[http] camera start failed: %s\r\n", camera_strerror(rc));
         return false;
     }
+    printf("[http] camera started, sensor: %s\r\n", camera_sensor_name());
     camera->started = true;
     return true;
 }
