@@ -38,6 +38,7 @@ bool sctrl_set_cpu_freq_hz(uint32_t freq) {
             reg.v            = hw_sctrl->ctrl.v;
             reg.mclk_source  = configs[i].src;
             reg.mclk_div     = configs[i].divider;
+            reg.hclk_div2_en = 0; // related to F12 temp fix
             hw_sctrl->ctrl.v = reg.v;
 
             return true;
@@ -47,7 +48,7 @@ bool sctrl_set_cpu_freq_hz(uint32_t freq) {
 }
 
 uint32_t sctrl_get_cpu_freq_hz() {
-    uint32_t source = hw_sctrl->ctrl.mclk_source;
+    uint32_t     source = hw_sctrl->ctrl.mclk_source;
     unsigned int clk_freq;
 
     if (source == MCLK_SOURCE_DPLL) {
