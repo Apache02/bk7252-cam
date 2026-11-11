@@ -4,6 +4,7 @@ target_sources(
         device_camera INTERFACE
         camera.c
         sensors.c
+        sensors/gc0310.c
         sensors/hi704.c
 )
 
