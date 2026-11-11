@@ -2,24 +2,53 @@
 # Builds the release images in Docker from the committed tree (HEAD) and collects them into
 # dist/. Needs Docker and network access (npm and the library sources).
 #
-#   ./release.sh               # BOARD defaults to A9_B_V1_3
+#   ./release.sh                        # every board in src/boards
+#   BOARDS="A9_B_V1_3 HB6_V1_0D211115" ./release.sh
 #
-# Images: camera, ram_loader and bootloader_installer (it carries the bootloader build inside).
+# Images:
+#   camera                  for the boards that have a camera (CAMERA_I2C in board.h).
+#   ram_loader              for the boards without a camera: it is the same image for every board
+#   bootloader_installer    with that console port (it carries the bootloader build inside).
+#
+# File names: <image>-<target>-<version>_<kind>.bin. The target is the board. The kind is crc
+# (flash it) or iram (load it).
 
 set -eu
 
 cd "$(dirname "$0")"
 
-BOARD=${BOARD:-A9_B_V1_3}
-# The console port the board runs its images on, from BOARD_STDIO_UART in its board.h.
-CONSOLE=uart$(git show "HEAD:src/boards/$BOARD/board.h" | sed -n 's/^#define BOARD_STDIO_UART[[:space:]]*(\{0,1\}\([0-9]\).*/\1/p')
-[ "$CONSOLE" != uart ] || { echo "No BOARD_STDIO_UART in src/boards/$BOARD/board.h"; exit 1; }
+BOARDS=${BOARDS:-$(git ls-tree -d --name-only HEAD:src/boards/)}
 IMAGE=bk7252-cam-build
 VERSION=$(git describe --tags --always)
 WORK=build-release
 OUT=$PWD/dist/$VERSION
+# Kept between releases: the library sources (dependencies.cmake) and the npm download cache.
+CACHE=$PWD/.cache/release
 
-echo "Releasing $VERSION for $BOARD"
+# Runs the command in the build container. The tree is mounted at /work; the library sources
+# and the npm cache come from CACHE, so they are not downloaded again for every release.
+in_docker() {
+    docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+        -v "$PWD/$WORK:/work" \
+        -v "$CACHE/libs:/work/src/libs" \
+        -v "$CACHE/npm:/tmp/.npm" \
+        "$IMAGE" "$@"
+}
+
+# Copies the built image $1 of board $2 to the release directory as <name>-<target>-<version>_<kind>.bin.
+# $3 is the image name, $4 the target and $5 the kind.
+collect() {
+    built=$(find "$WORK/out/$2" -name "$1" | head -n 1)
+    [ -n "$built" ] || { echo "Not built: $1 for $2"; exit 1; }
+    cp "$built" "$OUT/$3-$4-${VERSION}_$5.bin"
+}
+
+for board in $BOARDS; do
+    git cat-file -e "HEAD:src/boards/$board/board.h" 2>/dev/null \
+        || { echo "Unknown board '$board'"; exit 1; }
+done
+
+echo "Releasing $VERSION for: $BOARDS"
 if ! git diff --quiet HEAD; then
     echo "Note: uncommitted changes are not part of the release"
 fi
@@ -27,30 +56,43 @@ fi
 docker build -t "$IMAGE" docker
 
 rm -rf "$WORK"
-mkdir -p "$WORK/src"
+# The mount points are made here, by the current user, so that Docker does not create them as root.
+mkdir -p "$WORK/src/libs" "$CACHE/libs" "$CACHE/npm" "$OUT"
 git archive HEAD | tar -x -C "$WORK/src"
 
-docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/$WORK:/work" "$IMAGE" sh -ec "
-    npm --prefix src/src/applications/camera/frontend ci
-    cmake -S src -B out -DBOARD=$BOARD -DBK_VERSION=$VERSION
-    cmake --build out --target camera
-    cmake --build out --target ram_loader
-    cmake --build out --target bootloader_installer--iram
-"
+in_docker npm --prefix src/src/applications/camera/frontend ci
 
-# Copies the built image $1 to the release directory as <name>-<version>-<console>_<kind>.bin, e.g.
-# camera_crc.bin to A9_B_V1_3-camera-v0.1.0-uart2_crc.bin. $2 is the name, $3 is crc or iram.
-# Only the camera is named by board; the loaders are the same image for every board with that console.
-collect() {
-    built=$(find "$WORK/out" -name "$1" | head -n 1)
-    [ -n "$built" ] || { echo "Not built: $1"; exit 1; }
-    cp "$built" "$OUT/$2-${VERSION}-${CONSOLE}_$3.bin"
-}
+for board in $BOARDS; do
+    # A board with a camera gets the camera firmware, a board without one gets the loaders.
+    if git show "HEAD:src/boards/$board/board.h" | grep -q '^#define CAMERA_I2C'; then
+        camera=1
+        loaders=0
+    else
+        camera=0
+        loaders=1
+    fi
 
-mkdir -p "$OUT"
-collect camera_crc.bin "${BOARD}-camera" crc
-collect ram_loader_crc.bin ram_loader crc
-collect bootloader_installer--iram.bin bootloader_installer iram
+    echo
+    echo "== $board =="
+    in_docker sh -ec "
+        cmake -S src -B out/$board -DBOARD=$board -DBK_VERSION=$VERSION
+        if [ $camera = 1 ]; then
+            cmake --build out/$board --target camera
+        fi
+        if [ $loaders = 1 ]; then
+            cmake --build out/$board --target ram_loader
+            cmake --build out/$board --target bootloader_installer--iram
+        fi
+    "
+
+    if [ "$camera" = 1 ]; then
+        collect camera_crc.bin "$board" camera "$board" crc
+    fi
+    if [ "$loaders" = 1 ]; then
+        collect ram_loader_crc.bin "$board" ram_loader "$board" crc
+        collect bootloader_installer--iram.bin "$board" bootloader_installer "$board" iram
+    fi
+done
 
 echo
 echo "Done: ${OUT#"$PWD"/}"

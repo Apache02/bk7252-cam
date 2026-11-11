@@ -18,7 +18,7 @@ Connect to it and open <http://192.168.4.1/> in a browser. The page has three ta
 
 - An A9 camera board, version `A9_B_V1_3`. Other boards are not supported.
 - A 3.3 V USB–UART adapter connected to the console UART of the board (TX, RX, GND), UART2 on
-  `A9_B_V1_3`. The images carry `uart2` in their name because they use UART2 for the log.
+  `A9_B_V1_3`.
 - A Linux shell with Python 3 (on Windows: WSL2). The Python packages are listed in
   `tools/flasher/requirements.txt`.
 - The flashing tools from this repository:
@@ -26,7 +26,7 @@ Connect to it and open <http://192.168.4.1/> in a browser. The page has three ta
   git clone https://github.com/Apache02/bk7252-cam.git
   cd bk7252-cam
   ```
-- The firmware image `A9_B_V1_3-camera-<version>-uart2_crc.bin` from the
+- The firmware image `camera-A9_B_V1_3-<version>_crc.bin` from the
   [releases page](https://github.com/Apache02/bk7252-cam/releases).
 
 The camera keeps its factory bootloader. Only the application is replaced, so the factory firmware
@@ -49,7 +49,7 @@ tools/flasher/uartreader --port <port> --segment app -o backups/app_original_crc
 **2. Flash the camera firmware.**
 
 ```sh
-tools/flasher/uartprogram --port <port> --segment app A9_B_V1_3-camera-<version>-uart2_crc.bin
+tools/flasher/uartprogram --port <port> --segment app camera-A9_B_V1_3-<version>_crc.bin
 ```
 
 **3. Open the camera's Wi-Fi network** `Beken-xxxxxx` and go to <http://192.168.4.1/>. The video is

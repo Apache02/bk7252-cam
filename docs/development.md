@@ -59,17 +59,20 @@ git tag v0.1.0
 ```
 
 The script builds the committed tree (`HEAD`, uncommitted changes are left out) and
-writes the images into `dist/<version>/`. The board comes from `BOARD` (default
-`A9_B_V1_3`, `BOARD=<name> ./release.sh` builds another one into the same directory). The
-console port in the file names (`uart2` below) is the board's `BOARD_STDIO_UART`. Only the camera
-image is named by board; the loaders are the same for every board with that console port, so
-their names have no board.
+writes the images into `dist/<version>/`. It builds every board in `src/boards`;
+`BOARDS="A9_B_V1_3 HB6_V1_0D211115" ./release.sh` builds only the listed ones. The camera is
+built for the boards that have one (`CAMERA_I2C` in `board.h`), the loaders for the boards
+that do not (today `generic_UART1` and `generic_UART2`). A loader is the same for every board
+with that console port, so take the one that matches your board's console.
+
+Names are `<image>-<target>-<version>_<kind>.bin`, where the target is the board. The kind is `crc` (flash it) or `iram`
+(load it into RAM).
 
 | File | What it is |
 |------|------------|
-| `<board>-camera-<version>-uart2_crc.bin` | The camera firmware, ready to flash. |
-| `ram_loader-<version>-uart2_crc.bin` | A minimal shell for loading RAM images. Flashed with the vendor tool, only to run the installer. |
-| `bootloader_installer-<version>-uart2_iram.bin` | A RAM image that writes the custom bootloader (built into it) to flash, see [Custom bootloader](custom-bootloader.md). |
+| `camera-<board>-<version>_crc.bin` | The camera firmware, ready to flash. |
+| `ram_loader-generic_UART2-<version>_crc.bin` | A minimal shell for loading RAM images. Flashed with the vendor tool, only to run the installer. |
+| `bootloader_installer-generic_UART2-<version>_iram.bin` | A RAM image that writes the custom bootloader (built into it) to flash, see [Custom bootloader](custom-bootloader.md). |
 
 The version is `git describe --tags`; it is printed at boot and shown on the camera System page.
 Between tags it looks like `v0.1.0-3-g1a2b3c4`.
