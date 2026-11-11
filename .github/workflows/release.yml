@@ -1,0 +1,28 @@
+name: release
+
+# Pushing a tag like v0.2.0 builds the release images and publishes them as a GitHub release.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git describe needs the tags
+
+      - uses: actions/cache@v4
+        with:
+          path: .cache/release
+          key: release-${{ hashFiles('dependencies.cmake', 'src/applications/camera/frontend/package-lock.json') }}
+
+      - run: ./release.sh
+
+      - run: gh release create "$GITHUB_REF_NAME" "dist/$(git describe --tags --always)"/* --notes "" --draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
