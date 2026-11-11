@@ -7,6 +7,23 @@
 #define SCTRL_BASE (0x00800000)
 
 
+// Value layout of analog_ctrl1. The register sits behind the analog SPI link, so it is read and written
+// whole via sctrl_analog_get/set and composed in this type.
+typedef union {
+    uint32_t v;
+    struct {
+        uint32_t reserved_0_11: 12; // [11:0]
+        uint32_t dco_div: 2;        // [13:12] DCO output divider: 0 = /2; 1 and 2 stopped the CPU (measured)
+        uint32_t reserved_14: 1;    // [14]
+        uint32_t dco_trig: 1;       // [15]    rising edge applies dco_cnti
+        uint32_t dco_cnti: 9;       // [24:16] DCO tuning word, ~0.82 MHz per step (measured)
+        uint32_t spi_rst: 1;        // [25]    0 then 1 resets the DCO control logic
+        uint32_t reserved_26_30: 5; // [30:26]
+        uint32_t div_bypass: 1;     // [31]    1 = bypass dco_div
+    };
+} hw_sctrl_analog_ctrl1_t;
+
+
 typedef volatile struct {
     uint32_t chip_id;   // [+0x00] chip identifier; reads 0x7221a on BK7252
     uint32_t device_id; // [+0x04] silicon revision identifier
@@ -139,7 +156,7 @@ typedef volatile struct {
     uint32_t la_sample_dma_start_addr;
 
     uint32_t analog_ctrl0; // DPLL calibration trigger / SPI detect
-    uint32_t analog_ctrl1; // DCO calibration control
+    uint32_t analog_ctrl1; // DCO control, fields in hw_sctrl_analog_ctrl1_t
     uint32_t analog_ctrl2; // XTAL tune / bias
     uint32_t analog_ctrl3; // charge pump / LDO
     uint32_t analog_ctrl4; // sys LDO / charge mode

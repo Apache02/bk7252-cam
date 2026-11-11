@@ -7,7 +7,9 @@
 // Backed by the monotonic counter in the MAC/WiFi (rwnx/mac_core.h)
 // hardware block, which can be powered off. sctrl_rf_init() powers that
 // block up, so the counter runs after it.
-// Code that must keep working regardless cannot rely on this module for timing
+// Code that must keep working regardless cannot rely on this module for timing.
+// Reading it also hangs the CPU at low core clocks: seen at 32 MHz (DPLL, large divider) and at 13 MHz
+// (XTAL); 40 MHz and above worked. Use a hardware timer there.
 
 typedef struct {
     uint64_t time_raw;

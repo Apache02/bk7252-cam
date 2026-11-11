@@ -50,6 +50,7 @@ const Shell::Handler shell_handlers[] = {
     {"exit", command_telnet_exit, "close the Telnet session"},
     {"i2c", command_i2c, "I2C control; see i2c --help"},
     {"gpio", command_gpio, "GPIO control; run gpio for usage"},
+    {"cpu_speed", command_cpu_speed, nullptr},
     // required at the end
     {nullptr, nullptr, nullptr},
 };

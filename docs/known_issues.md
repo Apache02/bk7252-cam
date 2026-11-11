@@ -92,8 +92,11 @@ after `go`.
 Files: `src/platform/devices/camera/camera.c` (`camera_stream_*`), `src/linker/iram.lds`,
 `tools/bkloader` (`iram`).
 
-Status: cause not found. The failure is tied to the IRAM load path; the same code is stable
-when flashed.
+Status: mechanism found (hardware), no fix; the AHB divider does not close it (see Fix). While the GDMA loads the shared bus, above all with
+reads of a peripheral register, a CPU data load from RAM block 2 (IRAM) can return the word the
+CPU is fetching as instructions at that moment. Code loaded with `tools/bkloader iram` keeps its literal pools in IRAM, so
+constants and pointers are loaded wrong now and then. The same code flashed reads them
+from flash and is stable. Evidence and the probe: `docs/f12_handoff.md`.
 
 Symptom. A firmware image started with `tools/bkloader iram` (code and data in RAM block 2 at
 `0x00900000`) that keeps the JPEG encoder DMA running frame after frame fails at random, from
@@ -132,34 +135,97 @@ Reproduce.
 6. Flash `freertos_shell` instead (`tools/bkloader flash build/app_crc.bin`) and run
    `capture_stream 10`, `capture_stream 300`. Stable.
 
-What the failure needs.
+Mechanism.
 
-- The DMA must be armed on `rx_fifo_data`. With the encoder running and the DMA off (CPU only
-  reading the FIFO in the end-of-frame FIQ) FreeRTOS from IRAM is stable.
-- More bus and interrupt load makes it faster: 1 kHz timer interrupt, printing from the FIQ,
-  and re-arming the DMA mid-frame from the main loop all shortened the time to failure.
+- A Thumb loop in IRAM loaded the literal `0x9E3779B1` and got `0x2f043701`: the two
+  instructions 12 bytes ahead of the `ldr`, which the CPU was fetching at that moment.
+- When the wrong word is a pointer or a return address, the CPU jumps somewhere else. Wild
+  jumps were seen to land on real function entries, for example `do_pabort`, which then
+  reports `bk_trap_pabt`. Such a report is not a real prefetch abort. The UND traps, SWI traps,
+  assertions and freezes above are the same thing.
+- Memory is never changed. Every word that looked corrupted was correct in RAM and on a
+  re-read; the expected value it was compared with had been computed from a misread constant.
+- The trigger is GDMA load on the shared bus, not the JPEG encoder. Peripheral reads are the
+  strongest: one channel that copies the `sctrl` `chip_id` register (`0x00800000`, no request
+  line, camera off) into RAM crashes the CPU within milliseconds. Memory-to-memory DMA with one
+  or two channels is clean, even into IRAM; six memory-to-memory channels crash the CPU too.
+- The "silent freezes where the watchdog does not fire" are not freezes. The base address of
+  the timer that `get_absolute_time()` reads is an IRAM literal; misread, it yields a time that
+  never reaches the loop's deadline, and the loop keeps feeding the watchdog. The board then
+  looks hung until a power cycle. After a real watchdog reset the bootloader comes up normally,
+  even with GDMA channels still running.
+- Where the DMA writes changes the rate. JPEG data written to IRAM gave about 220 misreads per
+  9 s; written to RAM block 1, 0 to 1 per 9 s.
+- Code and literals outside IRAM are not affected: a loop copied to the `0x003F8000` bank
+  read 0 wrong values, and crashed only in the IRAM code it called between passes.
+- It takes both at once: instructions fetched from IRAM and data read from IRAM. A loop in the
+  `0x003F8000` bank with interrupts off read 48 KiB of IRAM 200 times under a `chip_id`
+  channel with 0 wrong values (3 runs), only 1.2 % slower than without the DMA. The same loop
+  reading 48 KiB of flash was clean too, and exactly as fast as without the DMA.
+- Code in the `0x003F8000` bank survives any load tried. With the CPU comparing flash or
+  sleeping in WFI there, and 1 to 6 channels reading IRAM or `chip_id` into IRAM, nothing went
+  wrong (19 runs), and every word the DMA wrote was correct. Flash reads kept the same speed
+  under every load.
 
-Ruled out.
+Does not help.
+
+- GDMA arbitration. Fixed priority does not stop the misreads, and priority 1 and 7 give
+  identical results. It makes the misreads repeat exactly from run to run, so whether a build
+  crashes depends on which load they hit: one build ran 9 s without a crash, the next build
+  of the same test crashed.
+- CPU clock: 26 MHz crashes the same way.
+- `sctrl` `ctrl.hclk_div2_en` (AHB clock at half the MCU clock). The vendor SDK sets it on
+  this chip whenever it sets up the PLL ("BK7221U ahb bus max rate is 90MHZ ... AHB bus is
+  very import to AUDIO and DMA"); this project never does, so the AHB runs at the full
+  ~120 MHz. With the bit set, one `chip_id` channel gave 0 misreads in 6 of 6 runs (5 million
+  without it), but JPEG into RAM block 1 still failed in 2 of 8 runs, about as often as without
+  it (6 of 29). Changing the bit from IRAM code crashed the chip in 5 of 7 runs; from the
+  `0x003F8000` bank with interrupts off it switched cleanly in 17 of 17.
+- Mode stacks are not the cause: high-water marks were SVC 816 of 1008 bytes, IRQ 196 of 4080.
+
+Ruled out earlier.
 
 - DMA overrunning a slot: a 64 KiB guard region after the buffers stayed intact.
 - Bit-rate control, WDT task stack size, FreeRTOS port context switch (it fails on bare metal
   too), a slot too small for the frame (this only produces `dropped`, never damage).
 - Interrupt storms: no abnormal counts in the interrupt controller raw status at sample times.
 
-Not tried or not possible.
+Open.
 
-- Memory does not survive a reset, so the state after a crash cannot be read back from the
-  bootloader (it fills free RAM with `0xAAAAAAAA`).
-- Working theory, never tested directly: instruction fetch from IRAM is unreliable while the
-  DMA saturates the bus. IRAM code also runs at about 57 % of the flashed speed, so timing
-  differs from the flashed build as well.
+- Whether instruction fetches from IRAM go wrong too. One trap points that way: under six
+  memory-to-memory channels the CPU stayed in Thumb state after a `bx pc` veneer and hit the
+  second half of the ARM instruction behind it, while the memory there was correct.
 
-Workaround: do not judge long DMA streaming from an IRAM run. Reproduce from a flashed build
-first. `capture_stream` from a flashed `freertos_shell` is a valid test.
+Workaround: do not judge a run that keeps a peripheral-sourced GDMA channel, or several
+channels, busy from an IRAM image. Test it from a flashed build. `capture_stream` from a flashed `freertos_shell` is a
+valid test. Code that must run from RAM during such a transfer goes to the `0x003F8000` bank,
+together with its literals.
 
-Fix: none known. Next step would be an UND/prefetch-abort handler that dumps the fault
-address and the words around it before the reset, to see whether the code in RAM is
-corrupted or the fetch returned garbage.
+Fix: none known on the silicon side. The AHB divider (`hclk_div2_en`) does not remove F12.
+Retested on 2026-11-11 from IRAM with the bit set, after the WiFi fix that makes the divider usable
+(the divider is now on at boot and `sctrl_set_cpu_freq_hz` sets it for clocks above 90 MHz):
+
+- Trigger: one GDMA channel reading `chip_id` into IRAM, interval 15, scan loop in IRAM (the
+  strongest trigger). The camera is not on the test board, so the JPEG stream was not tried.
+- With the divider: 160 MHz + divider 4 of 4 runs wrong, 180 MHz (DCO) + divider 2 of 2, 120 MHz +
+  divider 3 of 3 (fixed and round-robin priority). Misreads start within the first chunk and
+  corrupt the loop counter and timer base, so no run reached 300 s.
+- Without the divider (same build): 160 MHz and 120 MHz crashed (watchdog reset) in 3 of 3 runs.
+- So the divider turns a crash into misreads; it does not make the run clean. The older "6 of 6
+  clean" result with the bit set was not reproduced.
+- From IRAM no run survived long enough for 300 s.
+
+The same probe flashed to the app partition (code and literals in flash, DMA ring in IRAM, 310 s per
+run, 0 errors in all): `chip_id` trigger at 160 MHz + divider, 180 MHz + divider and 160 MHz without
+the divider; JPEG stream from the camera at 160 MHz + divider and 180 MHz + divider. So a flashed build
+is stable with or without the divider; the divider is not what protects it.
+
+The real application, `camera` (180 MHz + divider, camera stream over WiFi STA on the slow AHB):
+a 320 s MJPEG pull from a host gave 2528 frames, no crash, no reset (the board counted 101 dropped
+frames, and the client saw pauses of up to 4.4 s, probably WiFi or the host). Not compared with a
+run without the divider, because WiFi does not work without it.
+
+Keep the rule above: test peripheral-sourced DMA from a flashed build.
 
 ### F13. WiFi transmits on uncalibrated defaults
 

@@ -66,7 +66,10 @@ void rwxl_reset_patch(void) {
 
 uint32_t wifi_mac_resets(void) { return s_mac_resets; }
 
+// Undocumented MAC register; the vendor writes 0x08 here as its "bypass buf fix".
+#define MAC_BYPASS_BUF_FIX (*(volatile uint32_t *)0xC0000700)
+
 // imported: libip(hal_machw.o)
-// The vendor points the MAC's debug port mux at the PHY here. Left empty: it is
-// a diagnostics aid with no effect on operation.
-void hal_machw_init_diagnostic_ports(void) {}
+// Without the bypass write the MAC hangs before every retransmission when the AHB
+// clock is 90 MHz or lower. The vendor's debug port mux setup is left out.
+void hal_machw_init_diagnostic_ports(void) { MAC_BYPASS_BUF_FIX = 0x08; }
