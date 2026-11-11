@@ -2,6 +2,7 @@
     import {onMount} from "svelte";
 
     let version = null;
+    let board = null;
     let network = null;
     let rebootMessage = null;
     let resetMessage = null;
@@ -9,7 +10,7 @@
     onMount(async () => {
         try {
             const response = await fetch("/system.json");
-            ({version, network} = await response.json());
+            ({version, board, network} = await response.json());
         } catch (err) {
             console.error(err.message);
         }
@@ -63,6 +64,7 @@
 {#if version}
     <div class="group">
         <div>Version: {version}</div>
+        <div>Board: {board}</div>
     </div>
 {/if}
 

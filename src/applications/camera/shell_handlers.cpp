@@ -11,10 +11,16 @@
 #include "shell/Shell.h"
 #include "app/config.h"
 #include "app/main_task.h"
+#include "app/version.h"
 
 
 static int help(__unused int intc, __unused const char *argv[]) {
     print_command_help(shell_handlers);
+    return 0;
+}
+
+static int version(__unused int argc, __unused const char *argv[]) {
+    print_version();
     return 0;
 }
 
@@ -32,6 +38,7 @@ static int command_config_reset(__unused int argc, __unused const char *argv[]) 
 
 const Shell::Handler shell_handlers[] = {
     {"help", help, "list the commands"},
+    {"version", version, "print firmware version"},
     {"reboot", command_reboot, "perform reboot"},
     {"dump32", command_dump32, "32-bit word dump of memory: [addr]"},
     {"flash_dump", command_flash_dump, "hex dump flash: <addr> [size]"},
