@@ -96,7 +96,7 @@ int main() {
     platform_stdio_set_tx_buffer(&stdio_tx);
 
     sctrl_init();
-    sctrl_set_cpu_freq_hz(CPU_FREQ_160_MHZ); // required by wifi
+    sctrl_set_cpu_freq_hz(CPU_FREQ_160_MHZ); // required by Wi-Fi
 
     busy_wait_ms(10);
 

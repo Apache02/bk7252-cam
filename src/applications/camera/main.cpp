@@ -87,7 +87,8 @@ int main() {
     print_version();
 
     sctrl_init();
-    sctrl_set_cpu_freq_hz(CPU_FREQ_160_MHZ); // required by Wi-Fi
+    // The vendor's Wi-Fi clocking: DCO at 180 MHz, AHB at 90 MHz. Runs from flash, so the bus clock may change here.
+    sctrl_set_cpu_freq_hz(CPU_FREQ_180_MHZ);
 
     busy_wait_ms(10);
 

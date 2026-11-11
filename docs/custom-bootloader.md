@@ -24,8 +24,8 @@ The vendor bootloader cannot erase/write its own partition while executing from 
 The only installation path is via `bootloader_installer` — an IRAM app that runs
 entirely from RAM and writes the bootloader partition from there.
 
-From a release, the two images are `ram_loader-<version>-uart2_crc.bin` and
-`bootloader_installer-<version>-uart2_iram.bin`:
+From a release, the two images are `ram_loader-generic_UART2-<version>_crc.bin` and
+`bootloader_installer-generic_UART2-<version>_iram.bin`:
 
 ```sh
 # 0. Back up the app partition. Step 1 overwrites it, and this is the only copy of the vendor app.
@@ -34,14 +34,14 @@ tools/flasher/uartreader --segment app -o backups/app_original_crc.bin
 
 # 1. Flash ram_loader to the app partition (vendor bootloader protocol).
 #    It replaces the app for now: it is a shell with loadi / go / speed.
-tools/flasher/uartprogram --segment app ram_loader-<version>-uart2_crc.bin
+tools/flasher/uartprogram --segment app ram_loader-generic_UART2-<version>_crc.bin
 
 # 2. Back up the bootloader partition (the installer overwrites it). uartreader cannot read it, but
 #    ram_loader is running now and has flash_read.
 tools/bkloader backup --segment bootloader --output backups/bootloader_original_crc.bin
 
 # 3. Load and run bootloader_installer from RAM
-tools/bkloader iram bootloader_installer-<version>-uart2_iram.bin --capture 15
+tools/bkloader iram bootloader_installer-generic_UART2-<version>_iram.bin --capture 15
 ```
 
 `bootloader_installer` writes the embedded `bootloader_crc.bin` to the bootloader

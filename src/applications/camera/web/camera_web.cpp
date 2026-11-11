@@ -288,8 +288,9 @@ static void serve_system_info(__unused const http_request_t *request, http_respo
     char network[NETWORK_JSON_MAX];
     format_network(network, sizeof(network));
 
-    char buf[192];
-    snprintf(buf, sizeof(buf), "{\"version\": \"%s\", \"network\": %s}", get_version(), network);
+    char buf[200];
+    snprintf(buf, sizeof(buf), "{\"version\": \"%s\",\"board\": \"%s\",\"network\": %s}", get_version(),
+             get_board_name(), network);
 
     http_response_set_content_type(response, "application/json");
     http_respond_string(response, buf);
@@ -329,8 +330,8 @@ static void serve_setup(const http_request_t *request, http_response_t *response
     backup = g_config;
     taskEXIT_CRITICAL();
 
-    Config trial = backup;
-    const bool ok = http_request_read_body(request, buf, length) == static_cast<int>(length) &&
+    Config     trial = backup;
+    const bool ok    = http_request_read_body(request, buf, length) == static_cast<int>(length) &&
                     config_from_json(buf, length, trial) && trial.sta_ssid[0] != '\0';
     vPortFree(buf);
     if (!ok) {
@@ -341,7 +342,7 @@ static void serve_setup(const http_request_t *request, http_response_t *response
 
     if (backup.sta_enabled) {
         // A station that is already up on another network has to be taken down first.
-        Config off       = backup;
+        Config off      = backup;
         off.sta_enabled = false;
         set_config(off);
         main_task_config_changed();
@@ -425,7 +426,8 @@ static void serve_scan(__unused const http_request_t *request, http_response_t *
     vPortFree(buf);
 }
 
-static void serve_system_reboot(__unused const http_request_t *request, http_response_t *response, __unused void *user) {
+static void serve_system_reboot(__unused const http_request_t *request, http_response_t *response,
+                                __unused void *user) {
     http_response_set_status(response, 200);
     http_response_set_content_type(response, "application/json");
     http_respond_string(response, "{\"success\": true}");

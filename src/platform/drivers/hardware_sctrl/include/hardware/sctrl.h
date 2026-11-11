@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 
+#define CPU_FREQ_180_MHZ (180 * 1000 * 1000) // DCO, as the vendor firmware runs
 #define CPU_FREQ_160_MHZ (160 * 1000 * 1000)
 #define CPU_FREQ_120_MHZ (120 * 1000 * 1000)
 #define CPU_FREQ_96_MHZ  (96 * 1000 * 1000)
@@ -45,6 +46,8 @@ void sctrl_vddram_disable();
 // only — sctrl_init() deliberately leaves those blocks alone.
 void sctrl_rf_init();
 
+// The AHB clock is limited to 90 MHz, so this also sets the AHB divider: above 90 MHz the bus runs at
+// half the CPU clock.
 bool     sctrl_set_cpu_freq_hz(uint32_t freq);
 uint32_t sctrl_get_cpu_freq_hz();
 

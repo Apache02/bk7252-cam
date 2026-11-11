@@ -16,6 +16,7 @@ const response_settings = {
 
 const response_system = {
     version: 'v0.0.0-mock',
+    board: 'board-name',
     network: {
         ip: '127.0.0.1',
         mask: '255.255.255.0',
