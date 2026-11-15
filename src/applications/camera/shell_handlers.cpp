@@ -47,6 +47,8 @@ const Shell::Handler shell_handlers[] = {
     {"stack", command_stack, "mode stacks: address, size and usage"},
     {"tasks", command_tasks, "FreeRTOS tasks: state, stack and CPU use"},
     {"free", command_free, "heap statistics"},
+    {"uptime", command_uptime, "time since boot"},
+    {"date",command_date, "UTC date and time; -s to set"},
     {"go", command_jump, "jump to address: <addr|app|iram|bootloader>"},
     {"kv", command_flash_kv, "flash key-value store: <dump|erase>"},
     {"config_reset", command_config_reset, "reset the camera settings to defaults"},

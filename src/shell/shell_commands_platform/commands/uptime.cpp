@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "shell/commands_platform.h"
 #include "device/soft_rtc.h"
 
 int command_uptime(__unused int argc, __unused const char *argv[]) {

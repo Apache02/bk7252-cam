@@ -12,6 +12,7 @@
 #include "Service.h"
 #include "net.h"
 #include "app/telnet_console.h"
+#include "platform/sntp.h"
 #include "platform/telnet_server.h"
 #include "wifi/core.h"
 #include "wifi/net.h"
@@ -214,6 +215,7 @@ static __dead2 void main_task(__unused void *params) {
     s_ready = true;
 
     camera_web_start();
+    sntp_sync_start();
 
     Service ap     = {};
     Service sta    = {};

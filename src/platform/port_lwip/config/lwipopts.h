@@ -1,6 +1,8 @@
 #ifndef LWIPOPTS_H
 #define LWIPOPTS_H
 
+#include <stdint.h>
+
 /* ---- OS integration ---- */
 #define NO_SYS                  0
 #define LWIP_TCPIP_CORE_LOCKING 1
@@ -18,6 +20,9 @@
 /* ---- Buffers ---- */
 #define PBUF_POOL_SIZE    8
 #define PBUF_POOL_BUFSIZE 512
+
+/* The DHCP server, the DHCP client, DNS and SNTP each hold one. */
+#define MEMP_NUM_UDP_PCB 5
 
 /* ---- Protocols ---- */
 #define LWIP_ARP                  1
@@ -38,6 +43,16 @@
 /* No random source port: that one opens a UDP PCB per query, and there are only
    four of them. */
 #define LWIP_DNS_SECURE (LWIP_DNS_SECURE_RAND_XID | LWIP_DNS_SECURE_NO_MULTIPLE_OUTSTANDING)
+
+/* ---- SNTP ---- */
+/* Only an application that builds lwIP's sntp.c has to define sntp_set_system_time(). */
+#define SNTP_SERVER_DNS  1
+#define SNTP_MAX_SERVERS 1
+#define SNTP_SET_SYSTEM_TIME(sec) sntp_set_system_time(sec)
+#ifdef __cplusplus
+extern "C"
+#endif
+void sntp_set_system_time(uint32_t sec);
 
 /* ---- Loopback ---- */
 #define LWIP_HAVE_LOOPIF        1

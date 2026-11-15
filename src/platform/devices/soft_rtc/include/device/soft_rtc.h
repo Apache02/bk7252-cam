@@ -30,6 +30,9 @@ struct rtc_datetime {
 // Breaks down a unix epoch second (e.g. from rtc_get_time()) into UTC calendar fields.
 void rtc_time_to_datetime(uint32_t unix_time, struct rtc_datetime *out);
 
+// Inverse of rtc_time_to_datetime(). Fields are not range-checked beyond month 1-12.
+uint32_t rtc_datetime_to_time(const struct rtc_datetime *dt);
+
 // Breaks down rtc_get_time() into UTC calendar fields.
 void rtc_get_datetime(struct rtc_datetime *out);
 
