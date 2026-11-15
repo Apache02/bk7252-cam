@@ -392,6 +392,9 @@ static void stream_on_end_frame(void) {
         return;
     }
 
+    // The last words of the frame can still be in the FIFO when end_frame fires.
+    wait_dma_drained(g_dma_channel);
+
     const uint8_t *slot  = stream_slot_ptr(cur);
     const size_t   bytes = gdma_transferred(g_dma_channel);
     const size_t   size  = g_last_frame_size;

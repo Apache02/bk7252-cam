@@ -23,6 +23,8 @@
 #define HTTP_PORT    80
 #define HTTP_WORKERS 2
 #define POLL_MS      5
+// Without frames nothing is sent, so a closed connection would go unnoticed and hold the stream.
+#define FRAME_IDLE_MS 3000
 
 #define FRAME_MIN_BYTES (24 * 1024)
 #define FRAME_MAX_BYTES 47104
@@ -104,15 +106,21 @@ static bool take_latest(camera_frame_t *frame) {
 }
 
 static void stream_frames(http_response_t *response) {
-    uint32_t         sent    = 0;
-    const TickType_t started = xTaskGetTickCount();
+    uint32_t         sent       = 0;
+    const TickType_t started    = xTaskGetTickCount();
+    TickType_t       last_frame = started;
 
     for (;;) {
         camera_frame_t frame;
         if (!take_latest(&frame)) {
+            if (xTaskGetTickCount() - last_frame >= pdMS_TO_TICKS(FRAME_IDLE_MS)) {
+                printf("[http] no frames for %u ms\r\n", FRAME_IDLE_MS);
+                break;
+            }
             vTaskDelay(pdMS_TO_TICKS(POLL_MS));
             continue;
         }
+        last_frame = xTaskGetTickCount();
 
         char      part[96];
         const int len = snprintf(part, sizeof(part),
