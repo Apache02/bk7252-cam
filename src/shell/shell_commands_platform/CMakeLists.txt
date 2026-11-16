@@ -22,4 +22,5 @@ target_link_libraries(
         shell_main
         platform_freertos
         platform_port_newlib
+        device_soft_rtc
 )

@@ -5,6 +5,7 @@ target_sources(
         camera.c
         sensors.c
         sensors/gc0310.c
+        sensors/gc0311.c
         sensors/gc0312.c
         sensors/hi704.c
 )

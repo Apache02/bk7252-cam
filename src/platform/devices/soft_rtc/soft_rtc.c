@@ -58,4 +58,16 @@ void rtc_time_to_datetime(uint32_t unix_time, struct rtc_datetime *out) {
     out->day   = d;
 }
 
+// Hinnant's days_from_civil, same 32-bit unsigned form (years >= 1970).
+uint32_t rtc_datetime_to_time(const struct rtc_datetime *dt) {
+    uint32_t y   = dt->year - (dt->month <= 2);
+    uint32_t era = y / 400;
+    uint32_t yoe = y - era * 400;
+    uint32_t mp  = dt->month > 2 ? dt->month - 3 : dt->month + 9;
+    uint32_t doy = (153 * mp + 2) / 5 + dt->day - 1;
+    uint32_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    uint32_t days = era * 146097 + doe - 719468;
+    return days * 86400 + dt->hour * 3600 + dt->minute * 60 + dt->second;
+}
+
 void rtc_get_datetime(struct rtc_datetime *out) { rtc_time_to_datetime(rtc_get_time(), out); }

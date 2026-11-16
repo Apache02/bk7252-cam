@@ -1,12 +1,14 @@
 #include "device/camera_sensor.h"
 
-extern const camera_sensor_t camera_sensor_gc0312;
 extern const camera_sensor_t camera_sensor_gc0310;
+extern const camera_sensor_t camera_sensor_gc0311;
+extern const camera_sensor_t camera_sensor_gc0312;
 extern const camera_sensor_t camera_sensor_hi704;
 
 const camera_sensor_t *const camera_sensors[] = {
     &camera_sensor_gc0312,
     &camera_sensor_gc0310,
+    &camera_sensor_gc0311,
     &camera_sensor_hi704,
 };
 

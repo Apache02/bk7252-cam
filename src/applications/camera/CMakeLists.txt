@@ -74,6 +74,7 @@ target_link_libraries(
         hardware_random
         hardware_flash
         platform_flash_kv
+        platform_sntp
         device_camera
         port_wifi
         shell_commands_wifi
