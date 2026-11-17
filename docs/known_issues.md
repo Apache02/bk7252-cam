@@ -89,8 +89,9 @@ after `go`.
 
 ### F12. Sustained JPEG→RAM DMA crashes the firmware when it runs from IRAM
 
-Files: `src/platform/devices/camera/camera.c` (`camera_stream_*`), `src/linker/iram.lds`,
-`tools/bkloader` (`iram`).
+Files: `src/platform/devices/camera/camera.c`, `src/linker/iram.lds`, `tools/bkloader` (`iram`).
+The findings below were made with the earlier slot-queue stream (`camera_stream_start/get/release`), which no
+longer exists; the camera driver now captures into a fixed ring and `camera_stream_*` is a different API.
 
 Status: mechanism found (hardware), no fix; the AHB divider does not close it (see Fix). While the GDMA loads the shared bus, above all with
 reads of a peripheral register, a CPU data load from RAM block 2 (IRAM) can return the word the

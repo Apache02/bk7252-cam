@@ -8,7 +8,11 @@
 #include "hardware/gpio.h"
 #include "hardware/jpeg.h"
 #include "hardware/sctrl.h"
+#include "platform/cpu.h"
+#include "platform/sched.h"
+#include "platform/timeout.h"
 #include "platform/unistd.h"
+#include "ring.h"
 
 // A board without CAMERA_I2C has no camera: nothing is built, and the code that uses the camera is
 // left out of the applications.
@@ -49,39 +53,23 @@ extern sctrl_vddram_volt_t camera_power_no_volt(void)
 #define FRAME_WAIT_SPINS      (30000000u)
 #define DRAIN_STABLE_POLLS    (50)
 #define DRAIN_MAX_POLLS       (400000)
-#define END_MARKER_SCAN_LEN   (16)
 #define PREFERRED_DMA_CHANNEL (4)
-#define TRAILER_BYTES         (5) // 00 and the 32-bit frame size after FF D9
-#define MAX_DMA_BYTES         (65536)
 
-static int                    g_dma_channel = -1;
-static const camera_sensor_t *g_sensor;
-static camera_config_t        g_config;
-static volatile uint32_t      g_end_frame_count;
-static volatile uint32_t      g_last_frame_size;
+typedef enum {
+    STATE_STOPPED,
+    STATE_STARTING,
+    STATE_RUNNING,
+} camera_state_t;
 
-// The interrupt owns the slot states and the queue head; the caller owns the queue tail and
-// clears a slot's busy flag on release.
-static struct {
-    camera_stream_config_t config;
-    volatile bool          active;
-    bool                   armed;
-    unsigned               current;
-    volatile uint8_t       busy[CAMERA_STREAM_MAX_SLOTS];
-    volatile uint32_t      size[CAMERA_STREAM_MAX_SLOTS];
-    volatile uint8_t       queue[CAMERA_STREAM_MAX_SLOTS];
-    volatile unsigned      head;
-    volatile unsigned      tail;
-    volatile uint32_t      dropped;
-} g_stream;
-
-static void stream_on_end_frame(void);
-
-static void end_frame_handler(void) {
-    g_last_frame_size = (uint32_t)jpeg_get_last_frame_size();
-    g_end_frame_count = g_end_frame_count + 1;
-    if (g_stream.active) stream_on_end_frame();
-}
+static volatile camera_state_t g_state = STATE_STOPPED;
+static int                     g_dma_channel = -1;
+static const camera_sensor_t  *g_sensor;
+static camera_config_t         g_config;
+static ring_core_t             g_core;
+static bool                    g_core_ready;
+static volatile bool           g_capturing; // the interrupts may feed the ring core
+static volatile uint32_t       g_frames;
+static volatile uint32_t       g_last_frame_size;
 
 int camera_bus_read_reg(const uint8_t i2c_addr, const uint8_t reg, uint8_t *value) {
     const int rc = i2c_write(i2c_addr, &reg, 1);
@@ -93,6 +81,10 @@ int camera_bus_write_reg(const uint8_t i2c_addr, const uint8_t reg, const uint8_
     const uint8_t data[2] = {reg, value};
     return i2c_write(i2c_addr, data, 2);
 }
+
+// ---------------------------------------------------------------------------
+// Power, sensor detection
+// ---------------------------------------------------------------------------
 
 static void power_down(void) {
     i2c_deinit();
@@ -195,11 +187,113 @@ static int load_init_table(const camera_sensor_t *sensor) {
     return result;
 }
 
-int camera_start(const camera_config_t *config) {
-    if (config == NULL || config->frame_buf == NULL || config->frame_buf_size == 0 ||
-        ((uintptr_t)config->frame_buf & 3) != 0 || (config->frame_buf_size & 3) != 0) {
-        return -EINVAL;
+// ---------------------------------------------------------------------------
+// Capture: DMA into the ring, chunk interrupt (IRQ), end of frame (FIQ)
+// ---------------------------------------------------------------------------
+
+// Bytes the DMA has written beyond rb->in. Call with FIQ masked.
+static size_t dma_past_in(void) {
+    const struct ringbuf *rb = &camera_ring;
+    return (gdma_dst_write_addr(g_dma_channel) - (uint32_t)rb->data - (uint32_t)(rb->in & rb->mask)) & rb->mask;
+}
+
+// Waits until the FIFO is empty and the DMA write position stopped moving.
+static void wait_dma_drained(const int ch) {
+    uint32_t last   = gdma_dst_write_addr(ch);
+    uint32_t stable = 0;
+    for (uint32_t polls = 0; stable < DRAIN_STABLE_POLLS && polls < DRAIN_MAX_POLLS && gdma_busy(ch); polls++) {
+        const uint32_t pos = gdma_dst_write_addr(ch);
+        stable             = (jpeg_is_fifo_empty() && pos == last) ? stable + 1 : 0;
+        last               = pos;
     }
+}
+
+// One chunk was written. The end-of-frame FIQ changes the same fields, so it is masked for the body.
+static void chunk_handler(int ch) {
+    (void)ch;
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+    if (g_capturing) ring_core_on_chunk(&g_core, dma_past_in());
+    GLOBAL_INT_RESTORE();
+}
+
+static void end_frame_handler(void) {
+    const uint32_t size = (uint32_t)jpeg_get_last_frame_size();
+    g_last_frame_size   = size;
+    g_frames            = g_frames + 1;
+    if (!g_capturing) return;
+
+    const int ch = g_dma_channel;
+    wait_dma_drained(ch);
+    gdma_stop(ch);
+
+    const bool   unsynced = g_core.cur_id == 0;
+    const size_t next     = ring_core_on_frame_end(&g_core, dma_past_in(), size);
+
+    // The first re-arm happens mid-stream: drop what is left in the FIFO so the next frame starts clean.
+    if (unsynced) {
+        while (!jpeg_is_fifo_empty()) (void)hw_jpeg->rx_fifo_data;
+    }
+    gdma_restart(ch, (uint32_t)camera_ring.data + (uint32_t)(next & camera_ring.mask), CAMERA_CHUNK_BYTES);
+}
+
+static int capture_start(void) {
+    if (!g_core_ready) {
+        if (ring_core_init(&g_core, &camera_ring, CAMERA_CHUNK_BYTES) != 0) return -EINVAL;
+        g_core_ready = true;
+    }
+    ring_core_start(&g_core, 0);
+
+    const gdma_config_t dma_config = {
+        .src =
+            {
+                .mode = GDMA_MODE_JPEG,
+                .addr = (uint32_t)&hw_jpeg->rx_fifo_data,
+                .incr = false,
+                .dw   = GDMA_DATA_WIDTH_32,
+            },
+        .dst =
+            {
+                .mode          = GDMA_MODE_DTCM,
+                .addr          = (uint32_t)camera_ring.data,
+                .loop_addr     = (uint32_t)camera_ring.data,
+                .loop_end_addr = (uint32_t)camera_ring.data + (uint32_t)(camera_ring.mask + 1),
+                .incr          = true,
+                .dw            = GDMA_DATA_WIDTH_32,
+            },
+        .repeat = true,
+        .finish = chunk_handler,
+    };
+    int rc = gdma_configure(g_dma_channel, &dma_config);
+    if (rc != 0) return rc < 0 ? rc : -EIO;
+
+    rc = gdma_start(g_dma_channel, CAMERA_CHUNK_BYTES);
+    if (rc != 0) return rc < 0 ? rc : -EIO;
+
+    g_capturing = true;
+    return 0;
+}
+
+// Spins until the first end of frame has aligned the DMA to the ring. No sleeping: it must also work in an
+// image without a scheduler.
+static bool wait_synced(void) {
+    for (uint32_t spins = 0; spins < FRAME_WAIT_SPINS; spins++) {
+        if (*(volatile uint32_t *)&g_core.cur_id != 0) return true;
+    }
+    return false;
+}
+
+static void shutdown(void) {
+    g_capturing = false;
+    dma_release();
+    power_down();
+    camera_sensor_power_down();
+    g_sensor = NULL;
+}
+
+int camera_start(const camera_config_t *config) {
+    static const camera_config_t defaults = {0};
+    if (config == NULL) config = &defaults;
 
     bool name_known = config->sensor == NULL;
     for (size_t i = 0; i < camera_sensor_count && !name_known; i++) {
@@ -207,12 +301,25 @@ int camera_start(const camera_config_t *config) {
     }
     if (!name_known) return -EINVAL;
 
-    camera_stream_stop();
-    g_sensor = NULL;
-    g_config = *config;
+    GLOBAL_INT_DECLARATION();
+    GLOBAL_INT_DISABLE();
+    const camera_state_t seen = g_state;
+    if (seen == STATE_STOPPED) g_state = STATE_STARTING;
+    GLOBAL_INT_RESTORE();
 
-    const int dma_rc = dma_acquire();
-    if (dma_rc != 0) return dma_rc;
+    if (seen == STATE_RUNNING) return 0;
+    if (seen == STATE_STARTING) return -EBUSY;
+
+    g_sensor            = NULL;
+    g_config            = *config;
+    g_frames            = 0;
+    g_last_frame_size   = 0;
+
+    int rc = dma_acquire();
+    if (rc != 0) {
+        g_state = STATE_STOPPED;
+        return rc;
+    }
 
     power_down();
     pulse_reset_pin();
@@ -241,268 +348,200 @@ int camera_start(const camera_config_t *config) {
             jpeg_power_down();
         }
     }
+
+    rc = 0;
     if (found == NULL) {
-        camera_stop();
-        return -ENODEV;
+        rc = -ENODEV;
+    } else if (load_init_table(found) != 0) {
+        rc = -EIO;
+    }
+    if (rc == 0) {
+        usleep(SENSOR_SETTLE_US);
+        g_sensor = found;
+        rc       = capture_start();
+        if (rc == 0 && !wait_synced()) rc = -ETIMEDOUT;
     }
 
-    if (load_init_table(found) != 0) {
-        camera_stop();
-        return -EIO;
+    if (rc != 0) {
+        shutdown();
+        g_state = STATE_STOPPED;
+        return rc;
     }
 
-    usleep(SENSOR_SETTLE_US);
-    g_sensor = found;
+    g_state = STATE_RUNNING;
     return 0;
 }
 
 void camera_stop(void) {
-    camera_stream_stop();
-    dma_release();
-    power_down();
-    camera_sensor_power_down();
-    g_sensor = NULL;
+    g_state = STATE_STOPPED;
+    shutdown();
 }
 
-const char *camera_sensor_name(void) { return g_sensor ? g_sensor->name : NULL; }
+int camera_get_info(camera_info_t *info) {
+    const camera_sensor_t *sensor = g_sensor;
+    if (g_state != STATE_RUNNING || sensor == NULL) return -ENXIO;
 
-uint32_t camera_frames_seen(void) { return g_end_frame_count; }
-
-uint32_t camera_last_frame_size(void) { return g_last_frame_size; }
+    info->sensor = sensor->name;
+    info->width  = sensor->width;
+    info->height = sensor->height;
+    return 0;
+}
 
 int camera_sensor_read(const uint8_t reg, uint8_t *value) {
-    if (g_sensor == NULL) return -ENXIO;
-    return camera_bus_read_reg(g_sensor->i2c_addr, reg, value);
+    const camera_sensor_t *sensor = g_sensor;
+    if (g_state != STATE_RUNNING || sensor == NULL) return -ENXIO;
+    return camera_bus_read_reg(sensor->i2c_addr, reg, value);
 }
 
 int camera_sensor_write(const uint8_t reg, const uint8_t value) {
-    if (g_sensor == NULL) return -ENXIO;
-    return camera_bus_write_reg(g_sensor->i2c_addr, reg, value);
+    const camera_sensor_t *sensor = g_sensor;
+    if (g_state != STATE_RUNNING || sensor == NULL) return -ENXIO;
+    return camera_bus_write_reg(sensor->i2c_addr, reg, value);
 }
 
-// Spins until the frame counter moves; returns false on timeout. No sleeping: the DMA must be
-// armed within the short gap between two frames.
-static bool wait_next_end_frame(const uint32_t start_count) {
-    for (uint32_t spins = 0; spins < FRAME_WAIT_SPINS; spins++) {
-        if (g_end_frame_count != start_count) return true;
+void camera_get_stats(camera_stats_t *stats) {
+    memset(stats, 0, sizeof(*stats));
+    if (g_state != STATE_RUNNING) return;
+
+    stats->frames           = g_frames;
+    stats->frames_lost      = g_core.lost;
+    stats->last_frame_bytes = g_last_frame_size;
+}
+
+// ---------------------------------------------------------------------------
+// Reading
+// ---------------------------------------------------------------------------
+
+// CAMERA_WAIT_FOREVER never expires, 0 is already expired after the first attempt.
+typedef struct {
+    bool             forever;
+    bool             no_wait;
+    bool             armed;
+    struct timeout_t timer;
+} deadline_t;
+
+static int deadline_begin(deadline_t *d, const uint32_t timeout_ms) {
+    d->forever = timeout_ms == CAMERA_WAIT_FOREVER;
+    d->no_wait = timeout_ms == 0;
+    d->armed   = false;
+    if (d->forever || d->no_wait) return 0;
+
+    if (!create_timeout(&d->timer, timeout_ms)) return -ENOMEM;
+    d->armed = true;
+    return 0;
+}
+
+static bool deadline_expired(const deadline_t *d) {
+    if (d->forever) return false;
+    if (d->no_wait) return true;
+    return is_timeout_finished(&d->timer);
+}
+
+static void deadline_end(deadline_t *d) {
+    if (d->armed && !is_timeout_finished(&d->timer)) free_timeout(&d->timer);
+    d->armed = false;
+}
+
+static int open_until(camera_stream_t *stream, const deadline_t *d) {
+    for (;;) {
+        if (g_state != STATE_RUNNING) return -ENXIO;
+        if (ring_core_open(&g_core, stream) == 0) return 0;
+        if (deadline_expired(d)) return -ETIMEDOUT;
+        sched_yield();
     }
-    return false;
 }
 
-// Waits until the FIFO is empty and the DMA write position stopped moving.
-static void wait_dma_drained(const int ch) {
-    size_t   last_pos = gdma_transferred(ch);
-    uint32_t stable   = 0;
-    for (uint32_t polls = 0; stable < DRAIN_STABLE_POLLS && polls < DRAIN_MAX_POLLS && gdma_busy(ch); polls++) {
-        const size_t pos = gdma_transferred(ch);
-        stable           = (jpeg_is_fifo_empty() && pos == last_pos) ? stable + 1 : 0;
-        last_pos         = pos;
+static int read_until(camera_stream_t *stream, void *dst, const size_t max, const deadline_t *d) {
+    for (;;) {
+        if (g_state != STATE_RUNNING) return -ENXIO;
+        const int rc = ring_core_read(&g_core, stream, dst, max);
+        if (rc != 0) return rc;
+        if (deadline_expired(d)) return -ETIMEDOUT;
+        sched_yield();
     }
 }
 
-// The stream ends with FF D9, a zero byte and the 32-bit frame size. Returns the JPEG length, or 0.
-static size_t find_jpeg_end(const uint8_t *buf, const size_t bytes) {
-    size_t size = 0;
-    for (size_t i = bytes >= END_MARKER_SCAN_LEN ? bytes - END_MARKER_SCAN_LEN : 0; i + 1 < bytes; i++) {
-        if (buf[i] == 0xFF && buf[i + 1] == 0xD9) size = i + 2;
-    }
-    return size;
+int camera_stream_open(camera_stream_t *stream, const uint32_t timeout_ms) {
+    if (stream == NULL) return -EINVAL;
+
+    deadline_t d;
+    int        rc = deadline_begin(&d, timeout_ms);
+    if (rc != 0) return rc;
+
+    rc = open_until(stream, &d);
+    deadline_end(&d);
+    return rc;
 }
 
-// One DMA run covers exactly one frame: armed right after an end_frame, stopped after the next one.
-int camera_capture_frame(camera_frame_t *frame) {
-    if (g_sensor == NULL) return -ENXIO;
-    if (g_stream.active) return -EBUSY;
+int camera_stream_read(camera_stream_t *stream, void *dst, const size_t max, const uint32_t timeout_ms) {
+    if (stream == NULL || dst == NULL || max == 0) return -EINVAL;
 
-    const int ch = g_dma_channel;
+    deadline_t d;
+    int        rc = deadline_begin(&d, timeout_ms);
+    if (rc != 0) return rc;
 
-    const gdma_config_t dma_config = {
-        .src =
-            {
-                .mode = GDMA_MODE_JPEG,
-                .addr = (uint32_t)&hw_jpeg->rx_fifo_data,
-                .incr = false,
-                .dw   = GDMA_DATA_WIDTH_32,
-            },
-        .dst =
-            {
-                .mode          = GDMA_MODE_DTCM,
-                .addr          = (uint32_t)g_config.frame_buf,
-                .loop_addr     = (uint32_t)g_config.frame_buf,
-                .loop_end_addr = (uint32_t)g_config.frame_buf + g_config.frame_buf_size,
-                .incr          = true,
-                .dw            = GDMA_DATA_WIDTH_32,
-            },
-        .repeat = false,
-    };
-    const int rc = gdma_configure(ch, &dma_config);
-    if (rc != 0) return rc < 0 ? rc : -EIO;
+    rc = read_until(stream, dst, max, &d);
+    deadline_end(&d);
+    return rc;
+}
 
-    uint32_t count = g_end_frame_count;
-    if (!wait_next_end_frame(count)) return -ETIMEDOUT;
-    count = g_end_frame_count;
+bool camera_stream_at_end(const camera_stream_t *stream) { return stream->at_end; }
 
-    // arm in the gap after end_frame
-    while (!jpeg_is_fifo_empty()) (void)hw_jpeg->rx_fifo_data;
-    gdma_restart(ch, (uint32_t)g_config.frame_buf, g_config.frame_buf_size);
+int camera_read_frame(void *dst, const size_t dst_size, const uint32_t timeout_ms) {
+    if (dst == NULL || dst_size == 0) return -EINVAL;
 
-    int result = 0;
-    if (wait_next_end_frame(count)) {
-        wait_dma_drained(ch);
+    deadline_t d;
+    int        rc = deadline_begin(&d, timeout_ms);
+    if (rc != 0) return rc;
 
-        const bool buffer_full = !gdma_busy(ch);
-        gdma_stop(ch);
-        const size_t bytes = gdma_transferred(ch);
+    for (;;) {
+        camera_stream_t stream;
+        rc = open_until(&stream, &d);
+        if (rc != 0) break;
 
-        const size_t size      = bytes <= g_config.frame_buf_size ? find_jpeg_end(g_config.frame_buf, bytes) : 0;
-        const bool   header_ok = bytes >= 2 && g_config.frame_buf[0] == 0xFF && g_config.frame_buf[1] == 0xD8;
-
-        if (buffer_full) {
-            result = -EOVERFLOW;
-        } else if (!header_ok || size == 0) {
-            result = -EBADMSG;
-        } else {
-            frame->data = g_config.frame_buf;
-            frame->size = size;
+        size_t total = 0;
+        for (;;) {
+            if (total == dst_size) {
+                rc = -ENOSPC; // not at the end yet: read() would have said so
+                break;
+            }
+            rc = read_until(&stream, (uint8_t *)dst + total, dst_size - total, &d);
+            if (rc > 0) {
+                total += (size_t)rc;
+                if (stream.at_end) {
+                    rc = (int)total;
+                    break;
+                }
+                continue;
+            }
+            break;
         }
-    } else {
-        gdma_stop(ch);
-        result = -ETIMEDOUT;
+
+        if (rc == -ESTALE || rc == -EBADMSG) {
+            if (deadline_expired(&d)) rc = -ETIMEDOUT;
+            if (rc != -ETIMEDOUT) continue; // the frame is lost: try the next one
+        }
+        break;
     }
 
-    return result;
+    deadline_end(&d);
+    return rc;
 }
-
-static uint8_t *stream_slot_ptr(const unsigned slot) {
-    return g_stream.config.slots + (size_t)slot * g_stream.config.slot_size;
-}
-
-static void stream_arm(const unsigned slot) {
-    gdma_restart(g_dma_channel, (uint32_t)stream_slot_ptr(slot), g_stream.config.slot_size);
-}
-
-// Runs in the end_frame interrupt: close the finished slot and point the DMA at the next free one.
-static void stream_on_end_frame(void) {
-    const unsigned cur = g_stream.current;
-
-    if (!g_stream.armed) {
-        while (!jpeg_is_fifo_empty()) (void)hw_jpeg->rx_fifo_data;
-        stream_arm(cur);
-        g_stream.armed = true;
-        return;
-    }
-
-    // The last words of the frame can still be in the FIFO when end_frame fires.
-    wait_dma_drained(g_dma_channel);
-
-    const uint8_t *slot  = stream_slot_ptr(cur);
-    const size_t   bytes = gdma_transferred(g_dma_channel);
-    const size_t   size  = g_last_frame_size;
-    const bool     whole = size >= 4 && bytes == size + TRAILER_BYTES && bytes <= g_stream.config.slot_size &&
-                       slot[0] == 0xFF && slot[1] == 0xD8 && slot[size - 2] == 0xFF && slot[size - 1] == 0xD9;
-
-    int next = -1;
-    for (unsigned i = 1; i < g_stream.config.slot_count && next < 0; i++) {
-        const unsigned candidate = (cur + i) % g_stream.config.slot_count;
-        if (!g_stream.busy[candidate]) next = (int)candidate;
-    }
-
-    const bool queued = whole && next >= 0;
-    if (queued) {
-        g_stream.size[cur]                                         = (uint32_t)size;
-        g_stream.queue[g_stream.head % g_stream.config.slot_count] = (uint8_t)cur;
-        g_stream.head                                              = g_stream.head + 1;
-        g_stream.busy[next]                                        = 1;
-        g_stream.current                                           = (unsigned)next;
-    } else {
-        g_stream.dropped = g_stream.dropped + 1;
-    }
-
-    stream_arm(g_stream.current);
-    if (queued && g_stream.config.on_frame != NULL) g_stream.config.on_frame();
-}
-
-int camera_stream_start(const camera_stream_config_t *config) {
-    if (g_sensor == NULL) return -ENXIO;
-    if (g_stream.active) return -EBUSY;
-    if (config == NULL || config->slots == NULL || ((uintptr_t)config->slots & 3) != 0 || config->slot_size == 0 ||
-        (config->slot_size & 3) != 0 || config->slot_size > MAX_DMA_BYTES || config->slot_count < 2 ||
-        config->slot_count > CAMERA_STREAM_MAX_SLOTS) {
-        return -EINVAL;
-    }
-    if (g_config.frame_max_bytes != 0 && config->slot_size < g_config.frame_max_bytes + TRAILER_BYTES) {
-        return -EINVAL;
-    }
-
-    const gdma_config_t dma_config = {
-        .src =
-            {
-                .mode = GDMA_MODE_JPEG,
-                .addr = (uint32_t)&hw_jpeg->rx_fifo_data,
-                .incr = false,
-                .dw   = GDMA_DATA_WIDTH_32,
-            },
-        .dst =
-            {
-                .mode          = GDMA_MODE_DTCM,
-                .addr          = (uint32_t)config->slots,
-                .loop_addr     = (uint32_t)config->slots,
-                .loop_end_addr = (uint32_t)config->slots + (config->slot_size * config->slot_count),
-                .incr          = true,
-                .dw            = GDMA_DATA_WIDTH_32,
-            },
-        .repeat = false,
-    };
-    const int rc = gdma_configure(g_dma_channel, &dma_config);
-    if (rc != 0) return rc < 0 ? rc : -EIO;
-
-    memset((void *)&g_stream, 0, sizeof(g_stream));
-    g_stream.config  = *config;
-    g_stream.busy[0] = 1;
-    g_stream.active  = true;
-    return 0;
-}
-
-void camera_stream_stop(void) {
-    if (!g_stream.active) return;
-
-    g_stream.active = false;
-    gdma_stop(g_dma_channel);
-}
-
-int camera_stream_get(camera_frame_t *frame) {
-    if (!g_stream.active) return -ENXIO;
-    if (g_stream.tail == g_stream.head) return -EAGAIN;
-
-    const unsigned slot = g_stream.queue[g_stream.tail % g_stream.config.slot_count];
-    frame->data         = stream_slot_ptr(slot);
-    frame->size         = g_stream.size[slot];
-    g_stream.tail       = g_stream.tail + 1;
-    return 0;
-}
-
-void camera_stream_release(const camera_frame_t *frame) {
-    if (!g_stream.active || frame == NULL || frame->data < g_stream.config.slots) return;
-
-    const size_t slot = (size_t)(frame->data - g_stream.config.slots) / g_stream.config.slot_size;
-    if (slot < g_stream.config.slot_count) g_stream.busy[slot] = 0;
-}
-
-uint32_t camera_stream_dropped(void) { return g_stream.dropped; }
 
 // clang-format off
 const char *camera_strerror(const int rc) {
     switch (rc) {
         case 0:             return "ok";
-        case -EAGAIN:       return "no frame is ready";
-        case -EINVAL:       return "bad configuration or unknown sensor";
+        case -EINVAL:       return "bad argument or unknown sensor";
         case -ENXIO:        return "camera is not started";
         case -ENODEV:       return "no sensor answered";
         case -EIO:          return "sensor register write failed";
-        case -EBUSY:        return "DMA channel is not available, or a stream is running";
-        case -ETIMEDOUT:    return "no frames arrived";
-        case -EOVERFLOW:    return "frame does not fit in the buffer";
-        case -EBADMSG:      return "received data is not a complete JPEG";
+        case -EBUSY:        return "DMA channel is not available, or the camera is being started";
+        case -ETIMEDOUT:    return "timed out";
+        case -ESTALE:       return "data was overwritten before it was read";
+        case -EBADMSG:      return "the frame is damaged";
+        case -ENOSPC:       return "buffer is too small for the frame";
+        case -ENOMEM:       return "no timer for the timeout";
         default:            return "unknown error";
     }
 }

@@ -132,6 +132,11 @@ int gdma_restart(int ch, uint32_t dst_addr, size_t size);
 // tell how much a stopped peripheral-paced transfer received. Returns 0 on an invalid channel.
 size_t gdma_transferred(int ch);
 
+// Address of the next destination write, as the hardware reports it. Unlike gdma_transferred() it is not
+// relative to the start address, so it stays usable inside a destination loop window. Returns 0 on an invalid
+// channel.
+uint32_t gdma_dst_write_addr(int ch);
+
 // Block until the channel finishes or timeout_ms elapses. Returns 0 on finish
 // (immediately if idle), -ETIMEDOUT if the channel was still busy at the deadline
 // (it is then stopped), -ENODEV on an invalid channel, -ENOMEM if no timeout could
