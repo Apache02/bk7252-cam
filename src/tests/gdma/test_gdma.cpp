@@ -521,6 +521,27 @@ static void test_dst_loop_wraps() {
     report("dst loop: 64 words through a 16-word window", ok);
 }
 
+static void test_dst_write_addr() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    const bool ok   = ch.id >= 0 && run_to_end(ch.id, c, 64) &&
+                    gdma_dst_write_addr(ch.id) == (uint32_t)(w_dst + 16);
+    report("dst write address: start + bytes written", ok);
+}
+
+// Prints the value instead of asserting it: where the address sits after a wrap is not established yet.
+static void probe_dst_write_addr_in_loop() {
+    Channel ch;
+    load_words();
+    gdma_config_t c = word_copy();
+    dst_window(c, 16);
+    if (ch.id >= 0 && run_to_end(ch.id, c, 24 * 4)) {
+        printf("       info: 24 words through a 16-word window, write address = window start + %u bytes\r\n",
+               (unsigned)(gdma_dst_write_addr(ch.id) - (uint32_t)w_dst));
+    }
+}
+
 static void test_src_loop_repeats_pattern() {
     Channel ch;
     load_words();
@@ -1019,6 +1040,8 @@ extern "C" void test_gdma() {
 
     printf("\r\n-- address loop --\r\n");
     test_dst_loop_wraps();
+    test_dst_write_addr();
+    probe_dst_write_addr_in_loop();
     test_src_loop_repeats_pattern();
     test_both_loops();
     test_loop_start_inside_window();
