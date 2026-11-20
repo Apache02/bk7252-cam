@@ -74,6 +74,10 @@ polls it every 100 ms.
   one extra pair `11`=`90` after the first `03`=`00`. The project's
   `src/platform/devices/camera/sensors/hi704_init_table.h` differs from both in about 30
   registers.
+- GC0329: the vendor image for the A9 board 20211124 (`BK7252_A9_Camera_20211124_SDK_3.0.33`,
+  app CPU address `0xD57A9`) has a different GC0329 table of 263 pairs: it starts `FE80 FE80
+  FC16 FC16 FC16 FC16 FE00 7048` and ends `4F01 44A2 F007 F101`. On that board the sensor is on
+  I2C2 and reads `C0` from register `00` after `FC`=`16`, `FE`=`00`.
 - Not verified: the V1.9 camera path was not run end to end, so the delays between detection,
   init and `mode(0)` are not measured.
 

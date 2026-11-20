@@ -8,6 +8,7 @@ target_sources(
         sensors.c
         sensors/gc0310.c
         sensors/gc0311.c
+        sensors/gc0329.c
         sensors/hi704.c
 )
 

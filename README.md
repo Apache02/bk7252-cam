@@ -16,9 +16,10 @@ Connect to it and open <http://192.168.4.1/> in a browser. The page has three ta
 
 ## What you need
 
-- An A9 camera board, version `A9_B_V1_3`. Other boards are not supported.
+- An A9 camera board, version `A9_B_V1_3` or `A9_20211124` (GC0329 sensor). Other boards are
+  not supported.
 - A 3.3 V USB–UART adapter connected to the console UART of the board (TX, RX, GND), UART2 on
-  `A9_B_V1_3`.
+  `A9_B_V1_3`, UART1 on `A9_20211124`.
 - A Linux shell with Python 3 (on Windows: WSL2). The Python packages are listed in
   `tools/flasher/requirements.txt`.
 - The flashing tools from this repository:
