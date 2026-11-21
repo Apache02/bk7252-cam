@@ -209,6 +209,13 @@ size_t gdma_transferred(const int ch) {
     return hw_gdma->dst_wr_addr[ch] - hw_gdma->channels[ch].dst_start_addr;
 }
 
+uint32_t gdma_dst_write_addr(const int ch) {
+    if (!IS_CHANNEL_VALID(ch)) {
+        return 0;
+    }
+    return hw_gdma->dst_wr_addr[ch];
+}
+
 void gdma_stop(const int ch) {
     if (!IS_CHANNEL_VALID(ch)) {
         return;

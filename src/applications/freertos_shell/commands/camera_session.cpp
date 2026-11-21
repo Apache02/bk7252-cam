@@ -18,9 +18,8 @@
 #define START_ATTEMPTS 2
 
 // Frames are 12-27 KB depending on the scene.
-#define FRAME_BUF_BYTES (48 * 1024)
-
-static uint8_t g_frame_buf[FRAME_BUF_BYTES] __attribute__((aligned(4)));
+#define FRAME_MIN_BYTES (24 * 1024)
+#define FRAME_MAX_BYTES (47 * 1024)
 
 static SemaphoreHandle_t g_lock;
 static StaticSemaphore_t g_lock_storage;
@@ -63,10 +62,8 @@ int CameraSession::ensure_started() {
 
     const camera_config_t config = {
         .sensor          = nullptr,
-        .frame_buf       = g_frame_buf,
-        .frame_buf_size  = sizeof(g_frame_buf),
-        .frame_min_bytes = sizeof(g_frame_buf) / 2,
-        .frame_max_bytes = sizeof(g_frame_buf) - 1024,
+        .frame_min_bytes = FRAME_MIN_BYTES,
+        .frame_max_bytes = FRAME_MAX_BYTES,
     };
 
     // The first start after a reset often fails with -EIO and the next one works; the cause is not found.
@@ -77,7 +74,8 @@ int CameraSession::ensure_started() {
     }
 
     g_started = rc == 0;
-    if (g_started) printf("sensor: %s\r\n", camera_sensor_name());
+    camera_info_t info;
+    if (g_started && camera_get_info(&info) == 0) printf("sensor: %s\r\n", info.sensor);
     return rc;
 }
 

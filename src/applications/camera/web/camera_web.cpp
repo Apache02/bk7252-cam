@@ -1,5 +1,6 @@
 #include "app/camera_web.h"
 
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -22,14 +23,12 @@
 
 #define HTTP_PORT    80
 #define HTTP_WORKERS 2
-#define POLL_MS      5
 // Without frames nothing is sent, so a closed connection would go unnoticed and hold the stream.
 #define FRAME_IDLE_MS 3000
 
 #define FRAME_MIN_BYTES (24 * 1024)
 #define FRAME_MAX_BYTES 47104
-#define SLOT_BYTES      (48 * 1024)
-#define SLOT_COUNT      2
+#define FRAME_BUF_BYTES (48 * 1024)
 
 #define BOUNDARY "frame"
 
@@ -45,25 +44,18 @@ static void serve_app(__unused const http_request_t *request, http_response_t *r
 
 #ifdef CAMERA_I2C
 struct Camera {
-    // The encoder only needs this while a frame is being built; the stream uses slots instead.
-    alignas(4) uint8_t frame_buf[64];
+    // The frame being sent. Only the one request that holds `streaming` uses it.
+    alignas(4) uint8_t frame[FRAME_BUF_BYTES];
 
-    // The frames of a stream. Only the one request that holds `streaming` uses them.
-    alignas(8) uint8_t slots[SLOT_BYTES * SLOT_COUNT];
-
-    bool started;
     bool streaming;
 };
 
 static Camera g_camera;
 
-static bool ensure_camera(Camera *camera) {
-    if (camera->started) return true;
-
+// Starting a running camera is a no-op, so every stream can just ask for it.
+static bool ensure_camera() {
     const camera_config_t config = {
         .sensor          = nullptr,
-        .frame_buf       = camera->frame_buf,
-        .frame_buf_size  = sizeof(camera->frame_buf),
         .frame_min_bytes = FRAME_MIN_BYTES,
         .frame_max_bytes = FRAME_MAX_BYTES,
     };
@@ -72,8 +64,9 @@ static bool ensure_camera(Camera *camera) {
         printf("[http] camera start failed: %s\r\n", camera_strerror(rc));
         return false;
     }
-    printf("[http] camera started, sensor: %s\r\n", camera_sensor_name());
-    camera->started = true;
+
+    camera_info_t info;
+    if (camera_get_info(&info) == 0) printf("[http] camera ready, sensor: %s\r\n", info.sensor);
     return true;
 }
 
@@ -92,35 +85,19 @@ static void release_stream(Camera *camera) {
     taskEXIT_CRITICAL();
 }
 
-// Takes the newest finished frame and gives back any older ones, so a slow client sees
-// the present instead of a growing delay.
-static bool take_latest(camera_frame_t *frame) {
-    if (camera_stream_get(frame) != 0) return false;
-
-    camera_frame_t newer;
-    while (camera_stream_get(&newer) == 0) {
-        camera_stream_release(frame);
-        *frame = newer;
-    }
-    return true;
-}
-
-static void stream_frames(http_response_t *response) {
-    uint32_t         sent       = 0;
-    const TickType_t started    = xTaskGetTickCount();
-    TickType_t       last_frame = started;
+// Each part needs its length up front, so a whole frame is copied out of the ring first. The next frame is
+// always a fresh one, so a slow client sees the present instead of a growing delay.
+static void stream_frames(Camera *camera, http_response_t *response) {
+    uint32_t         sent    = 0;
+    const TickType_t started = xTaskGetTickCount();
 
     for (;;) {
-        camera_frame_t frame;
-        if (!take_latest(&frame)) {
-            if (xTaskGetTickCount() - last_frame >= pdMS_TO_TICKS(FRAME_IDLE_MS)) {
-                printf("[http] no frames for %u ms\r\n", FRAME_IDLE_MS);
-                break;
-            }
-            vTaskDelay(pdMS_TO_TICKS(POLL_MS));
-            continue;
+        const int size = camera_read_frame(camera->frame, sizeof(camera->frame), FRAME_IDLE_MS);
+        if (size == -ENOSPC) continue; // too big for the buffer: wait for the next one
+        if (size < 0) {
+            printf("[http] no frame: %s\r\n", camera_strerror(size));
+            break;
         }
-        last_frame = xTaskGetTickCount();
 
         char      part[96];
         const int len = snprintf(part, sizeof(part),
@@ -128,21 +105,24 @@ static void stream_frames(http_response_t *response) {
                                  "Content-Type: image/jpeg\r\n"
                                  "Content-Length: %u\r\n"
                                  "\r\n",
-                                 static_cast<unsigned>(frame.size));
+                                 static_cast<unsigned>(size));
 
         http_response_set_more(response, true);
-        bool ok = http_respond_binary(response, part, len) && http_respond_binary(response, frame.data, frame.size);
+        bool ok = http_respond_binary(response, part, len) && http_respond_binary(response, camera->frame, size);
         http_response_set_more(response, false);
         ok = ok && http_respond_string(response, "\r\n");
 
-        camera_stream_release(&frame);
         if (!ok) break;
         sent++;
     }
 
+    camera_stats_t stats;
+    camera_get_stats(&stats);
+
     const uint32_t elapsed_ms = pdTICKS_TO_MS(static_cast<uint32_t>(xTaskGetTickCount() - started));
-    printf("[http] stream closed after %lu.%03lu s, %lu frames sent, %lu dropped\r\n", elapsed_ms / 1000,
-           elapsed_ms % 1000, sent, camera_stream_dropped());
+    printf("[http] stream closed after %lu.%03lu s, %lu frames sent, %lu of %lu camera frames lost\r\n",
+           elapsed_ms / 1000, elapsed_ms % 1000, sent, static_cast<unsigned long>(stats.frames_lost),
+           static_cast<unsigned long>(stats.frames));
 }
 
 static void serve_stream(__unused const http_request_t *request, http_response_t *response, void *user) {
@@ -154,22 +134,11 @@ static void serve_stream(__unused const http_request_t *request, http_response_t
         return;
     }
 
-    if (ensure_camera(camera)) {
-        const camera_stream_config_t config = {
-            .slots      = camera->slots,
-            .slot_size  = SLOT_BYTES,
-            .slot_count = SLOT_COUNT,
-            .on_frame   = nullptr,
-        };
-        const int rc = camera_stream_start(&config);
-        if (rc == 0) {
-            http_response_set_content_type(response, "multipart/x-mixed-replace; boundary=" BOUNDARY);
-            http_response_omit_content_length(response);
-            stream_frames(response);
-            camera_stream_stop();
-        } else {
-            printf("[http] stream start failed: %s\r\n", camera_strerror(rc));
-        }
+    if (ensure_camera()) {
+        http_response_set_content_type(response, "multipart/x-mixed-replace; boundary=" BOUNDARY);
+        http_response_omit_content_length(response);
+        stream_frames(camera, response);
+        camera_stop();
     }
 
     release_stream(camera);

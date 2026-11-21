@@ -89,8 +89,9 @@ after `go`.
 
 ### F12. Sustained JPEG→RAM DMA crashes the firmware when it runs from IRAM
 
-Files: `src/platform/devices/camera/camera.c` (`camera_stream_*`), `src/linker/iram.lds`,
-`tools/bkloader` (`iram`).
+Files: `src/platform/devices/camera/camera.c`, `src/linker/iram.lds`, `tools/bkloader` (`iram`).
+The findings below were made with the earlier slot-queue stream (`camera_stream_start/get/release`), which no
+longer exists; the camera driver now captures into a fixed ring and `camera_stream_*` is a different API.
 
 Status: mechanism found (hardware), no fix; the AHB divider does not close it (see Fix). While the GDMA loads the shared bus, above all with
 reads of a peripheral register, a CPU data load from RAM block 2 (IRAM) can return the word the
@@ -387,6 +388,27 @@ roughly 1.8 KB of `hardware_flash`, 1.8 KB of `drv_model.c`'s `ddev_*` layer and
 of the rest of `flash_adapter.c`. Parsing the tag directly against `flash_read()` skips
 the `ddev_*` layer entirely — around 2 KB instead of 4.1 KB. That is the shape to come
 back with, in the application rather than in the port.
+
+---
+
+### F17. The access point drops the stream after a few minutes and the chip runs hot
+
+Files: `src/platform/port_wifi/radio/bk7221u_cal.c` (transmit gain), the AP path.
+
+Reported on issue #5 (board `A9_20211124`, not reproduced here). In AP mode the video
+stream stops or the client loses the network after a few minutes, and the chip gets
+hot. With the AP off and the board joined to a home router as a station, the stream
+runs for many minutes.
+
+The AP is needed for the first setup, so it has to stay usable.
+
+Unchecked guesses:
+- The transmit gain is the vendor's compiled-in maximum row (see F13), and the AP
+  sends beacons all the time on top of the stream.
+- The AP has no power save, so the radio never rests.
+
+First step: reproduce on an `A9_B_V1_3` board, note the time to the drop and how hot
+the chip gets, then try a lower transmit gain row.
 
 ---
 

@@ -1,6 +1,7 @@
 #ifndef _DEVICE_CAMERA_H
 #define _DEVICE_CAMERA_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -8,57 +9,85 @@
 extern "C" {
 #endif
 
+// The camera runs one capture path: the JPEG encoder feeds a ring of fixed-size chunks that is smaller than a
+// frame. Nothing is kept per frame. A frame is read while it is being written: a reader finds the start of a
+// frame in the ring, copies the chunks that are ready, and gets an error if the encoder overwrote them first.
+//
+// All functions return 0 or a negative errno unless stated otherwise; camera_strerror() turns it into text.
+// Reading functions can run in any number of tasks at once. camera_start() and camera_stop() must not.
+// Needs CPU IRQ and FIQ enabled: the end of a frame arrives as a FIQ.
+
+#define CAMERA_WAIT_FOREVER (UINT32_MAX)
+
+// The ring is fixed and lives inside the driver: 8 chunks of 2048 bytes, 16 KiB. A frame is bigger than that.
+// A reader may be at most CAMERA_READER_LAG bytes behind the encoder (the ring minus two free chunks) before
+// the data it wants is overwritten.
+#define CAMERA_CHUNK_BYTES (2048)
+#define CAMERA_CHUNK_COUNT (8)
+#define CAMERA_READER_LAG  ((CAMERA_CHUNK_COUNT - 2) * CAMERA_CHUNK_BYTES)
+
 typedef struct {
-    const char *sensor;          // NULL tries every known sensor
-    uint8_t    *frame_buf;       // 4-byte aligned, owned by the caller
-    size_t      frame_buf_size;  // multiple of 4
-    uint32_t    frame_min_bytes; // frame size bounds for the encoder's bit-rate control;
-    uint32_t    frame_max_bytes; // 0 turns it off
+    const char *sensor; // NULL tries every known sensor
+
+    // Bounds for the encoder's bit-rate control, in bytes per frame. 0 turns it off.
+    uint32_t frame_min_bytes;
+    uint32_t frame_max_bytes;
 } camera_config_t;
 
 typedef struct {
-    const uint8_t *data; // a whole JPEG, from FF D8 to FF D9
-    size_t         size;
-} camera_frame_t;
+    const char *sensor; // name of the sensor that answered
+    uint16_t    width;
+    uint16_t    height;
+} camera_info_t;
 
-// All functions return 0 or a negative errno; camera_strerror() turns it into text.
-
-// Powers the encoder and the sensor, finds the sensor, loads its init table and waits
-// for it to settle. Needs CPU interrupts enabled.
+// Powers the encoder and the sensor, finds the sensor, loads its init table, waits for it to settle and starts
+// the capture. After it returns 0 frames are being written into the ring.
+// Calling it on a running camera returns 0 and ignores `config`; it returns -EBUSY while another task is still
+// starting it. -ENODEV: no sensor answered. -EIO: a sensor register write failed. -ETIMEDOUT: no frames arrived.
 int  camera_start(const camera_config_t *config);
-void camera_stop(void);
+void camera_stop(void); // invalidates every open stream
 
-// Waits for the next frame boundary, then returns the frame that follows. The data stays in
-// frame_buf until the next call.
-int camera_capture_frame(camera_frame_t *frame);
+// Returns -ENXIO when the camera is not started.
+int camera_get_info(camera_info_t *info);
 
-// Continuous capture: every frame lands in its own slot. The encoder interrupt re-arms the DMA
-// on the next free slot, so no frame is lost while the caller is busy (for example sending the
-// previous one over Wi-Fi). A frame is dropped only when no slot is free or it arrived damaged.
-#define CAMERA_STREAM_MAX_SLOTS (8)
+// One whole frame (FF D8 ... FF D9) into the caller's buffer: camera_stream_open() plus camera_stream_read()
+// until the frame ends. Returns the frame size (> 0). A frame that was damaged or overwritten before it was
+// copied is skipped and the next one is tried until the timeout. -ETIMEDOUT: no good frame in time (0 = do not wait).
+// -ENOSPC: the frame is larger than dst_size. -ENXIO: not started.
+int camera_read_frame(void *dst, size_t dst_size, uint32_t timeout_ms);
+
+// Streaming: follow one frame while it is written and send its chunks as they get ready. A stream is a small
+// cursor owned by the caller; streams do not affect each other or the encoder.
+typedef struct {
+    uint32_t frame_id; // frame being followed; frame_id + 1 is the next one
+    size_t   position; // private
+    bool     at_end;   // private, see camera_stream_at_end()
+} camera_stream_t;
+
+// Waits until the start of a frame is in the ring and attaches to the newest such frame. A frame whose start
+// the encoder has already overwritten is not offered.
+// -ETIMEDOUT: no frame start in time (0 = do not wait). -ENXIO: not started.
+int camera_stream_open(camera_stream_t *stream, uint32_t timeout_ms);
+
+// Copies the next bytes of the frame into dst, at most `max`, whatever is ready now; waits for at least one
+// byte. Returns the number of bytes copied (> 0), the trailer after FF D9 is never included.
+// -ETIMEDOUT: nothing new in time (0 = do not wait); the stream stays open.
+// -ESTALE: the encoder overwrote the data before it was copied: this frame is lost.
+// -EBADMSG: the frame ended damaged: it is lost. After -ESTALE or -EBADMSG open a new stream; bytes of the
+// lost frame that were already sent are a broken frame for the receiver.
+// -ENXIO: not started or stopped meanwhile.
+int  camera_stream_read(camera_stream_t *stream, void *dst, size_t max, uint32_t timeout_ms);
+bool camera_stream_at_end(const camera_stream_t *stream); // true once the last bytes of the frame were returned
 
 typedef struct {
-    uint8_t *slots;      // slot_count * slot_size bytes, 4-byte aligned, owned by the caller
-    size_t   slot_size;  // multiple of 4, at most 65536; frame_max_bytes + 5 or more when that is set
-    unsigned slot_count; // 2 to CAMERA_STREAM_MAX_SLOTS
-    void   (*on_frame)(void); // optional; runs in the interrupt after a frame is queued
-} camera_stream_config_t;
+    uint32_t frames;           // frames the encoder finished since camera_start()
+    uint32_t frames_lost;      // of those, frames that were damaged or arrived unsynced and cannot be read
+    uint32_t last_frame_bytes; // size of the last finished frame as counted by the encoder; 0 before the first
+} camera_stats_t;
 
-// Needs a started camera. Cannot be combined with camera_capture_frame().
-int  camera_stream_start(const camera_stream_config_t *config);
-void camera_stream_stop(void); // slots handed out earlier become invalid
+void camera_get_stats(camera_stats_t *stats); // zeros when not started
 
-// Takes the oldest finished frame. Returns -EAGAIN when there is none. The slot stays
-// the caller's until camera_stream_release().
-int  camera_stream_get(camera_frame_t *frame);
-void camera_stream_release(const camera_frame_t *frame);
-
-uint32_t camera_stream_dropped(void); // frames lost since camera_stream_start()
-
-const char *camera_sensor_name(void); // NULL when not started
-uint32_t    camera_frames_seen(void);
-uint32_t    camera_last_frame_size(void); // as counted by the encoder
-
+// Raw access to the sensor's 8-bit registers, for debugging.
 int camera_sensor_read(uint8_t reg, uint8_t *value);
 int camera_sensor_write(uint8_t reg, uint8_t value);
 
