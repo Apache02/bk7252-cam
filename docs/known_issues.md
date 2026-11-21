@@ -391,6 +391,27 @@ back with, in the application rather than in the port.
 
 ---
 
+### F17. The access point drops the stream after a few minutes and the chip runs hot
+
+Files: `src/platform/port_wifi/radio/bk7221u_cal.c` (transmit gain), the AP path.
+
+Reported on issue #5 (board `A9_20211124`, not reproduced here). In AP mode the video
+stream stops or the client loses the network after a few minutes, and the chip gets
+hot. With the AP off and the board joined to a home router as a station, the stream
+runs for many minutes.
+
+The AP is needed for the first setup, so it has to stay usable.
+
+Unchecked guesses:
+- The transmit gain is the vendor's compiled-in maximum row (see F13), and the AP
+  sends beacons all the time on top of the stream.
+- The AP has no power save, so the radio never rests.
+
+First step: reproduce on an `A9_B_V1_3` board, note the time to the drop and how hot
+the chip gets, then try a lower transmit gain row.
+
+---
+
 ## API / contract
 
 ### A4. `flash_read` has no error reporting
